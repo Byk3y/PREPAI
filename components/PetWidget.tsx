@@ -6,7 +6,7 @@
 
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { MotiView } from 'moti';
+import { MotiViewCompat as MotiView } from '@/components/MotiViewCompat';
 import { useStore } from '@/lib/store';
 
 interface PetWidgetProps {

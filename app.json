@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Prep AI",
+    "name": "PrepAI",
     "slug": "prep-ai",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,14 +16,21 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.prepai.app"
+      "bundleIdentifier": "com.prepai.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "This app needs access to your camera to take photos of study materials."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFCB3C"
       },
-      "package": "com.prepai.app"
+      "package": "com.prepai.app",
+      "permissions": [
+        "CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,7 +38,14 @@
     "plugins": [
       "expo-router"
     ],
-    "scheme": "prepai"
+    "scheme": "prepai",
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "59e26f4b-55a6-42f6-8f2c-7eab5e67fe7d"
+      }
+    }
   }
 }
-

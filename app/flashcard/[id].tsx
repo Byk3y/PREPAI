@@ -13,7 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { MotiView } from 'moti';
+import { MotiViewCompat as MotiView } from '@/components/MotiViewCompat';
 import { useStore } from '@/lib/store';
 import { PetWidget } from '@/components/PetWidget';
 

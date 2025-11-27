@@ -56,33 +56,64 @@ export interface ExamPlan {
   progress: number; // percentage
 }
 
+export interface Material {
+  id: string;
+  type: 'pdf' | 'audio' | 'image' | 'website' | 'youtube' | 'copied-text' | 'photo' | 'text' | 'note'; // Keep old types for backward compatibility
+  uri?: string; // For PDF/photo/image/audio files or website/youtube URLs
+  content?: string; // For text/note/copied-text content
+  title: string;
+  createdAt: string;
+  thumbnail?: string; // Optional preview image
+}
+
+export interface Notebook {
+  id: string;
+  title: string;
+  emoji?: string;
+  flashcardCount: number;
+  lastStudied?: string; // ISO date string
+  progress: number; // 0-100 percentage
+  createdAt: string;
+  color?: 'blue' | 'green' | 'orange' | 'purple' | 'pink';
+  materials: Material[]; // Track source materials
+}
+
 interface AppState {
   // User state
   user: User;
   setUser: (user: Partial<User>) => void;
-  
+
   // Pet state
   petState: PetState;
   setPetState: (petState: Partial<PetState>) => void;
   addPetXP: (amount: number) => void;
-  
+
   // Flashcards
   flashcards: Flashcard[];
   setFlashcards: (flashcards: Flashcard[]) => void;
-  
+
   // Exams
   exams: Exam[];
   setExams: (exams: Exam[]) => void;
   startExamPlan: (examId: string) => ExamPlan;
-  
+
   // Lessons
   lessons: Lesson[];
   setLessons: (lessons: Lesson[]) => void;
   completeLesson: (lessonId: string) => void;
-  
+
   // Continue studying (recent items)
   recentItems: Array<{ type: 'lesson' | 'exam'; id: string; title: string; progress: number }>;
   addRecentItem: (item: { type: 'lesson' | 'exam'; id: string; title: string; progress: number }) => void;
+
+  // Notebooks
+  notebooks: Notebook[];
+  setNotebooks: (notebooks: Notebook[]) => void;
+  addNotebook: (notebook: Omit<Notebook, 'id' | 'createdAt'>) => void;
+  deleteNotebook: (id: string) => void;
+  updateNotebook: (id: string, updates: Partial<Notebook>) => void;
+  addMaterial: (notebookId: string, material: Omit<Material, 'id' | 'createdAt'>) => void;
+  deleteMaterial: (notebookId: string, materialId: string) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -93,11 +124,11 @@ export const useStore = create<AppState>((set, get) => ({
     streak: 7,
     coins: 250,
   },
-  
+
   setUser: (updates) => set((state) => ({
     user: { ...state.user, ...updates },
   })),
-  
+
   // Initial pet state
   petState: {
     level: 1,
@@ -106,15 +137,15 @@ export const useStore = create<AppState>((set, get) => ({
     name: 'Sparky',
     mood: 'happy',
   },
-  
+
   setPetState: (updates) => set((state) => ({
     petState: { ...state.petState, ...updates },
   })),
-  
+
   addPetXP: (amount) => set((state) => {
     const newXP = state.petState.xp + amount;
     const xpToNext = state.petState.xpToNext;
-    
+
     if (newXP >= xpToNext) {
       // Level up!
       return {
@@ -127,7 +158,7 @@ export const useStore = create<AppState>((set, get) => ({
         },
       };
     }
-    
+
     return {
       petState: {
         ...state.petState,
@@ -135,7 +166,7 @@ export const useStore = create<AppState>((set, get) => ({
       },
     };
   }),
-  
+
   // Mock flashcards
   flashcards: [
     {
@@ -160,9 +191,9 @@ export const useStore = create<AppState>((set, get) => ({
       explanation: 'Mercury is the closest planet to the Sun.',
     },
   ],
-  
+
   setFlashcards: (flashcards) => set({ flashcards }),
-  
+
   // Mock exams
   exams: [
     {
@@ -190,9 +221,9 @@ export const useStore = create<AppState>((set, get) => ({
       completedQuestions: 8,
     },
   ],
-  
+
   setExams: (exams) => set({ exams }),
-  
+
   startExamPlan: (examId) => {
     const plan: ExamPlan = {
       id: `plan-${Date.now()}`,
@@ -202,11 +233,11 @@ export const useStore = create<AppState>((set, get) => ({
       dailyGoal: 10,
       progress: 0,
     };
-    
+
     // TODO: Save to Supabase
     return plan;
   },
-  
+
   // Mock lessons
   lessons: [
     {
@@ -234,26 +265,82 @@ export const useStore = create<AppState>((set, get) => ({
       completed: false,
     },
   ],
-  
+
   setLessons: (lessons) => set({ lessons }),
-  
+
   completeLesson: (lessonId) => set((state) => ({
     lessons: state.lessons.map((lesson) =>
       lesson.id === lessonId ? { ...lesson, completed: true } : lesson
     ),
   })),
-  
+
   // Recent items for "Continue Studying"
   recentItems: [
     { type: 'lesson', id: 'lesson-1', title: 'Introduction to Algebra', progress: 60 },
     { type: 'exam', id: 'exam-1', title: 'SAT Math Practice', progress: 24 },
     { type: 'lesson', id: 'lesson-3', title: 'World War II Overview', progress: 30 },
   ],
-  
+
   addRecentItem: (item) => set((state) => {
     // Remove if already exists and add to front
     const filtered = state.recentItems.filter((i) => !(i.type === item.type && i.id === item.id));
     return { recentItems: [item, ...filtered].slice(0, 5) }; // Keep last 5
   }),
+
+  // Notebooks - start with empty array
+  notebooks: [],
+
+  setNotebooks: (notebooks) => set({ notebooks }),
+
+  addNotebook: (notebook) => set((state) => ({
+    notebooks: [
+      {
+        ...notebook,
+        id: `notebook-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        materials: notebook.materials || [],
+      },
+      ...state.notebooks,
+    ],
+  })),
+
+  deleteNotebook: (id) => set((state) => ({
+    notebooks: state.notebooks.filter((n) => n.id !== id),
+  })),
+
+  updateNotebook: (id, updates) => set((state) => ({
+    notebooks: state.notebooks.map((n) =>
+      n.id === id ? { ...n, ...updates } : n
+    ),
+  })),
+
+  addMaterial: (notebookId, material) => set((state) => ({
+    notebooks: state.notebooks.map((n) =>
+      n.id === notebookId
+        ? {
+            ...n,
+            materials: [
+              ...n.materials,
+              {
+                ...material,
+                id: `material-${Date.now()}`,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          }
+        : n
+    ),
+  })),
+
+  deleteMaterial: (notebookId, materialId) => set((state) => ({
+    notebooks: state.notebooks.map((n) =>
+      n.id === notebookId
+        ? {
+            ...n,
+            materials: n.materials.filter((m) => m.id !== materialId),
+          }
+        : n
+    ),
+  })),
 }));
 

@@ -1,5 +1,5 @@
 /**
- * Theme tokens for Prep AI
+ * Theme tokens for PrepAI
  * Centralized design system colors, spacing, and typography
  */
 

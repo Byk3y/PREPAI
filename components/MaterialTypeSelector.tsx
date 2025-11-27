@@ -17,6 +17,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -174,12 +175,12 @@ export default function MaterialTypeSelector({
   };
 
   const materialOptions = [
-    { type: 'pdf' as MaterialType, icon: '📄', label: 'PDF' },
-    { type: 'audio' as MaterialType, icon: '🎵', label: 'Audio' },
-    { type: 'image' as MaterialType, icon: '🖼️', label: 'Image' },
-    { type: 'website' as MaterialType, icon: '🌐', label: 'Website' },
-    { type: 'youtube' as MaterialType, icon: '▶️', label: 'YouTube' },
-    { type: 'copied-text' as MaterialType, icon: '📋', label: 'Copied text' },
+    { type: 'pdf' as MaterialType, iconName: 'description' as const, iconSet: 'MaterialIcons' as const, label: 'PDF' },
+    { type: 'audio' as MaterialType, iconName: 'equalizer' as const, iconSet: 'MaterialIcons' as const, label: 'Audio' },
+    { type: 'image' as MaterialType, iconName: 'image' as const, iconSet: 'MaterialIcons' as const, label: 'Image' },
+    { type: 'website' as MaterialType, iconName: 'globe' as const, iconSet: 'Ionicons' as const, label: 'Website' },
+    { type: 'youtube' as MaterialType, iconName: 'logo-youtube' as const, iconSet: 'Ionicons' as const, label: 'YouTube' },
+    { type: 'copied-text' as MaterialType, iconName: 'assignment' as const, iconSet: 'MaterialIcons' as const, label: 'Copied text' },
   ];
 
   return (
@@ -214,7 +215,7 @@ export default function MaterialTypeSelector({
             {/* Close Button */}
             <View style={styles.closeButtonContainer}>
               <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>✕</Text>
+                <MaterialIcons name="close" size={24} color="#171717" />
               </TouchableOpacity>
             </View>
 
@@ -246,7 +247,7 @@ export default function MaterialTypeSelector({
                 ]}
                 disabled={!searchQuery.trim()}
               >
-                <Text style={styles.sendButtonIcon}>→</Text>
+                <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
 
@@ -266,7 +267,21 @@ export default function MaterialTypeSelector({
                   onPress={() => handleSelectType(option.type)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.buttonIcon}>{option.icon}</Text>
+                  {option.iconSet === 'Ionicons' ? (
+                    <Ionicons 
+                      name={option.iconName as any} 
+                      size={20} 
+                      color="#171717" 
+                      style={styles.buttonIcon}
+                    />
+                  ) : (
+                    <MaterialIcons 
+                      name={option.iconName as any} 
+                      size={20} 
+                      color="#171717" 
+                      style={styles.buttonIcon}
+                    />
+                  )}
                   <Text style={styles.buttonLabel}>{option.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -334,11 +349,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeButtonText: {
-    fontSize: 24,
-    color: '#171717',
-    fontWeight: '300',
-  },
   header: {
     paddingHorizontal: 24,
     paddingTop: 20,
@@ -393,10 +403,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendButtonIcon: {
-    fontSize: 18,
-    color: '#FFFFFF',
-  },
   sendButtonDisabled: {
     opacity: 0.5,
   },
@@ -433,7 +439,6 @@ const styles = StyleSheet.create({
     borderColor: '#E5E5E5',
   },
   buttonIcon: {
-    fontSize: 20,
     marginRight: 12,
   },
   buttonLabel: {

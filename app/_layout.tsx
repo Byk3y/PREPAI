@@ -4,9 +4,22 @@
 
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import '../global.css';
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    'SpaceGrotesk-Regular': SpaceGrotesk_400Regular,
+    'SpaceGrotesk-Medium': SpaceGrotesk_500Medium,
+    'SpaceGrotesk-SemiBold': SpaceGrotesk_600SemiBold,
+    'SpaceGrotesk-Bold': SpaceGrotesk_700Bold,
+  });
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <>
       <StatusBar style="dark" />
@@ -23,8 +36,9 @@ export default function RootLayout() {
         <Stack.Screen 
           name="pet-sheet" 
           options={{
-            presentation: 'modal',
-            animation: 'slide_from_bottom',
+            presentation: 'transparentModal',
+            animation: 'none',
+            contentStyle: { backgroundColor: 'transparent' },
           }}
         />
       </Stack>

@@ -1,4 +1,4 @@
-# Prep AI — Expo UI Starter
+# PrepAI — Expo UI Starter
 
 A UI-first Expo + TypeScript starter for a gamified study app. This scaffold includes mock data and is ready for quick prototyping and demos.
 
@@ -76,8 +76,9 @@ A UI-first Expo + TypeScript starter for a gamified study app. This scaffold inc
 ├── components/            # Reusable components
 │   ├── PetBubble.tsx      # Small pet bubble for Home
 │   ├── PetWidget.tsx      # Full pet widget with animations
-│   ├── HomeCard.tsx       # Large CTA cards
-│   └── ContinueCard.tsx   # Resume card component
+│   ├── EmptyState.tsx     # Empty state component
+│   ├── NotebookCard.tsx   # Notebook card component
+│   └── MaterialTypeSelector.tsx # Material type selector modal
 ├── lib/
 │   ├── theme.ts           # Design tokens (colors, spacing)
 │   └── store.ts           # Zustand store with mock data
