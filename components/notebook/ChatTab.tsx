@@ -3,7 +3,7 @@
  * MVP: Uses suggested chat pills instead of full chat
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,13 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Notebook } from '@/lib/store';
+import { MarkdownText } from '@/components/MarkdownText';
+import { PreviewSkeleton } from './PreviewSkeleton';
+import { getTopicEmoji } from '@/lib/emoji-matcher';
 
 interface ChatTabProps {
   notebook: Notebook;
@@ -23,6 +27,27 @@ interface ChatTabProps {
 export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
   const [showStudyPlan, setShowStudyPlan] = useState(false);
   const materialCount = notebook.materials?.length || 0;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Gentle pulse animation for emoji (breathing effect)
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [pulseAnim]);
 
   const handleGetStudyPlan = () => {
     setShowStudyPlan(true);
@@ -60,6 +85,40 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
 Remember to take breaks and space out your study sessions for better retention!`;
   };
 
+  // Render loading state with skeleton
+  if (notebook.status === 'extracting') {
+    return (
+      <ScrollView className="flex-1 bg-white">
+        <View className="px-6 py-6">
+          {/* Material Icon & Title */}
+          <View className="flex-row items-start mb-6">
+            <Animated.View
+              style={{
+                transform: [{ scale: pulseAnim }],
+              }}
+            >
+              <Text className="text-5xl mr-3">{getTopicEmoji(notebook.title)}</Text>
+            </Animated.View>
+            <View className="flex-1">
+              <Text
+                className="text-2xl text-neutral-900 mb-1"
+                style={{ fontFamily: 'SpaceGrotesk-Bold' }}
+              >
+                {notebook.title}
+              </Text>
+              <Text className="text-sm text-neutral-500">
+                {materialCount} source{materialCount !== 1 ? 's' : ''}
+              </Text>
+            </View>
+          </View>
+
+          {/* Skeleton Preview Content */}
+          <PreviewSkeleton lines={6} />
+        </View>
+      </ScrollView>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-white"
@@ -67,21 +126,55 @@ Remember to take breaks and space out your study sessions for better retention!`
       keyboardVerticalOffset={100}
     >
       <ScrollView className="flex-1 px-6 py-6" contentContainerStyle={{ flexGrow: 1 }}>
-        {/* Chat Messages Area */}
-        {!showStudyPlan ? (
-          // Empty state with icon
-          <View className="flex-1 items-center justify-center">
-            <View className="w-20 h-20 bg-neutral-100 rounded-full items-center justify-center mb-4">
-              <Ionicons name="chatbubble-outline" size={32} color="#6366f1" />
-            </View>
-            <Text className="text-lg font-semibold text-neutral-900 mb-2">
-              Ask questions about your material
+        {/* Material Icon & Title */}
+        <View className="flex-row items-start mb-6">
+          <Animated.View
+            style={{
+              transform: [{ scale: pulseAnim }],
+            }}
+          >
+            <Text className="text-5xl mr-3">{getTopicEmoji(notebook.title)}</Text>
+          </Animated.View>
+          <View className="flex-1">
+            <Text
+              className="text-2xl text-neutral-900 mb-1"
+              style={{ fontFamily: 'SpaceGrotesk-Bold' }}
+            >
+              {notebook.title}
             </Text>
-            <Text className="text-sm text-neutral-600 text-center max-w-xs">
-              Chat with your {materialCount} source{materialCount !== 1 ? 's' : ''} to get
-              answers and insights.
+            <Text className="text-sm text-neutral-500">
+              {materialCount} source{materialCount !== 1 ? 's' : ''}
             </Text>
           </View>
+        </View>
+
+        {/* Overview Content (if available) - NotebookLM style narrative */}
+        {(notebook.meta?.preview?.overview || notebook.meta?.preview?.tl_dr) && (
+          <View className="mb-6">
+            <Text className="text-lg font-semibold text-neutral-900 mb-3">Overview</Text>
+            <MarkdownText className="text-base text-neutral-700 leading-6">
+              {notebook.meta.preview.overview || notebook.meta.preview.tl_dr || ''}
+            </MarkdownText>
+          </View>
+        )}
+
+        {/* Chat Messages Area */}
+        {!showStudyPlan ? (
+          // Empty state with icon (only show if no overview)
+          !(notebook.meta?.preview?.overview || notebook.meta?.preview?.tl_dr) && (
+            <View className="flex-1 items-center justify-center">
+              <View className="w-20 h-20 bg-neutral-100 rounded-full items-center justify-center mb-4">
+                <Ionicons name="chatbubble-outline" size={32} color="#6366f1" />
+              </View>
+              <Text className="text-lg font-semibold text-neutral-900 mb-2">
+                Ask questions about your material
+              </Text>
+              <Text className="text-sm text-neutral-600 text-center max-w-xs">
+                Chat with your {materialCount} source{materialCount !== 1 ? 's' : ''} to get
+                answers and insights.
+              </Text>
+            </View>
+          )
         ) : (
           // Study plan conversation
           <View className="flex-1">

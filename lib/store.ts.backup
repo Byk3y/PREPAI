@@ -1,0 +1,755 @@
+/**
+ * Zustand store with Supabase integration
+ * Hybrid approach: Zustand for UI state, Supabase for persistence
+ */
+
+import { create } from 'zustand';
+import { supabase } from './supabase';
+import { uploadMaterialFile } from './upload';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+
+export interface User {
+  id: string;
+  name: string;
+  streak: number;
+  coins: number;
+  avatar?: string;
+}
+
+export interface PetState {
+  level: number;
+  xp: number;
+  xpToNext: number;
+  name: string;
+  mood: 'happy' | 'neutral' | 'sad';
+}
+
+export interface Flashcard {
+  id: string;
+  question: string;
+  answers: string[];
+  correctAnswer: number;
+  explanation?: string;
+}
+
+export interface Exam {
+  id: string;
+  title: string;
+  subject: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  totalQuestions: number;
+  completedQuestions: number;
+}
+
+export interface Lesson {
+  id: string;
+  title: string;
+  content: string;
+  subject: string;
+  duration: number; // minutes
+  completed: boolean;
+}
+
+export interface ExamPlan {
+  id: string;
+  examId: string;
+  startDate: string;
+  endDate: string;
+  dailyGoal: number; // flashcards per day
+  progress: number; // percentage
+}
+
+export interface Material {
+  id: string;
+  type: 'pdf' | 'audio' | 'image' | 'website' | 'youtube' | 'copied-text' | 'photo' | 'text' | 'note'; // Keep old types for backward compatibility
+  uri?: string; // For PDF/photo/image/audio files or website/youtube URLs
+  content?: string; // Extracted text only (PDF→text, audio→transcript, image→OCR, NOT summary)
+  preview_text?: string; // Short TL;DR preview string
+  title?: string; // Optional: For backward compatibility, but notebooks.title is the source of truth
+  createdAt: string;
+  thumbnail?: string; // Optional preview image
+  meta?: {
+    ocr_quality?: {
+      confidence: number; // 0-100
+      lowQuality: boolean; // true if confidence < 70% or very short text
+      engine: 'tesseract' | 'google-vision';
+      processingTime: number; // ms
+      warning?: string; // Optional warning message
+    };
+    [key: string]: any; // Allow other metadata
+  };
+}
+
+export interface Notebook {
+  id: string;
+  title: string;
+  emoji?: string; // DEPRECATED: Not used - emojis computed dynamically via getTopicEmoji()
+  flashcardCount: number;
+  lastStudied?: string; // ISO date string
+  progress: number; // 0-100 percentage
+  createdAt: string;
+  color?: 'blue' | 'green' | 'orange' | 'purple' | 'pink';
+  status?: 'extracting' | 'preview_ready' | 'ready_for_studio'; // Processing status
+  materials: Material[]; // Track source materials (for backward compatibility, but MVP is 1:1)
+  meta?: {
+    preview?: {
+      tl_dr: string;
+      bullets: string[];
+      who_for: string;
+      next_step: string;
+    };
+    summary?: string | null; // Only set in Studio tab, null during upload
+  };
+}
+
+interface AppState {
+  // Auth state
+  authUser: SupabaseUser | null;
+  setAuthUser: (user: SupabaseUser | null) => void;
+  isLoadingAuth: boolean;
+
+  // User state
+  user: User;
+  setUser: (user: Partial<User>) => void;
+
+  // Pet state
+  petState: PetState;
+  setPetState: (petState: Partial<PetState>) => void;
+  addPetXP: (amount: number) => void;
+  loadPetState: () => Promise<void>;
+
+  // Flashcards
+  flashcards: Flashcard[];
+  setFlashcards: (flashcards: Flashcard[]) => void;
+
+  // Exams
+  exams: Exam[];
+  setExams: (exams: Exam[]) => void;
+  startExamPlan: (examId: string) => ExamPlan;
+
+  // Lessons
+  lessons: Lesson[];
+  setLessons: (lessons: Lesson[]) => void;
+  completeLesson: (lessonId: string) => void;
+
+  // Continue studying (recent items)
+  recentItems: Array<{ type: 'lesson' | 'exam'; id: string; title: string; progress: number }>;
+  addRecentItem: (item: { type: 'lesson' | 'exam'; id: string; title: string; progress: number }) => void;
+
+  // Notebooks
+  notebooks: Notebook[];
+  setNotebooks: (notebooks: Notebook[]) => void;
+  loadNotebooks: () => Promise<void>;
+  addNotebook: (notebook: Omit<Notebook, 'id' | 'createdAt'> & { material?: Omit<Material, 'id' | 'createdAt'> & { fileUri?: string; filename?: string } }) => Promise<string>;
+  deleteNotebook: (id: string) => Promise<void>;
+  updateNotebook: (id: string, updates: Partial<Notebook>) => Promise<void>;
+  addMaterial: (notebookId: string, material: Omit<Material, 'id' | 'createdAt'>) => void;
+  deleteMaterial: (notebookId: string, materialId: string) => void;
+}
+
+export const useStore = create<AppState>((set, get) => ({
+  // Auth state
+  authUser: null,
+  setAuthUser: (user) => set({ authUser: user }),
+  isLoadingAuth: false,
+
+  // Initial user state
+  user: {
+    id: 'user-1',
+    name: 'Alex',
+    streak: 7,
+    coins: 250,
+  },
+
+  setUser: (updates) => set((state) => ({
+    user: { ...state.user, ...updates },
+  })),
+
+  // Initial pet state
+  petState: {
+    level: 1,
+    xp: 23,
+    xpToNext: 100,
+    name: 'Sparky',
+    mood: 'happy',
+  },
+
+  setPetState: async (updates) => {
+    const { authUser } = get();
+
+    // Update local state
+    set((state) => ({
+      petState: { ...state.petState, ...updates },
+    }));
+
+    // Persist to database
+    if (authUser) {
+      try {
+        const { error } = await supabase
+          .from('pet_states')
+          .upsert({
+            user_id: authUser.id,
+            ...updates,
+          });
+
+        if (error) {
+          console.error('Error saving pet state:', error);
+        }
+      } catch (error) {
+        console.error('Error persisting pet state:', error);
+      }
+    }
+  },
+
+  addPetXP: async (amount) => {
+    const { authUser } = get();
+    const state = get();
+    const newXP = state.petState.xp + amount;
+    const xpToNext = state.petState.xpToNext;
+
+    let newPetState: PetState;
+
+    if (newXP >= xpToNext) {
+      // Level up!
+      newPetState = {
+        ...state.petState,
+        level: state.petState.level + 1,
+        xp: newXP - xpToNext,
+        xpToNext: Math.floor(xpToNext * 1.5), // Increase XP needed for next level
+        mood: 'happy',
+      };
+    } else {
+      newPetState = {
+        ...state.petState,
+        xp: newXP,
+      };
+    }
+
+    // Update local state
+    set({ petState: newPetState });
+
+    // Persist to database
+    if (authUser) {
+      try {
+        const { error } = await supabase
+          .from('pet_states')
+          .upsert({
+            user_id: authUser.id,
+            level: newPetState.level,
+            xp: newPetState.xp,
+            xp_to_next: newPetState.xpToNext,
+            mood: newPetState.mood,
+          });
+
+        if (error) {
+          console.error('Error saving pet XP:', error);
+        }
+      } catch (error) {
+        console.error('Error persisting pet XP:', error);
+      }
+    }
+  },
+
+  loadPetState: async () => {
+    const { authUser } = get();
+    if (!authUser) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('pet_states')
+        .select('*')
+        .eq('user_id', authUser.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        // PGRST116 = no rows returned
+        console.error('Error loading pet state:', error);
+        return;
+      }
+
+      if (data) {
+        set({
+          petState: {
+            level: data.level || 1,
+            xp: data.xp || 0,
+            xpToNext: data.xp_to_next || 100,
+            name: data.name || 'Sparky',
+            mood: data.mood || 'happy',
+          },
+        });
+      } else {
+        // No pet state exists, create default one
+        const defaultPetState = get().petState;
+        const { error: insertError } = await supabase
+          .from('pet_states')
+          .insert({
+            user_id: authUser.id,
+            level: defaultPetState.level,
+            xp: defaultPetState.xp,
+            xp_to_next: defaultPetState.xpToNext,
+            name: defaultPetState.name,
+            mood: defaultPetState.mood,
+          });
+
+        if (insertError) {
+          console.error('Error creating initial pet state:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading pet state:', error);
+    }
+  },
+
+  // Mock flashcards
+  flashcards: [
+    {
+      id: 'fc-1',
+      question: 'What is the capital of France?',
+      answers: ['London', 'Berlin', 'Paris', 'Madrid'],
+      correctAnswer: 2,
+      explanation: 'Paris is the capital and largest city of France.',
+    },
+    {
+      id: 'fc-2',
+      question: 'What is 2 + 2?',
+      answers: ['3', '4', '5', '6'],
+      correctAnswer: 1,
+      explanation: 'Basic arithmetic: 2 + 2 = 4',
+    },
+    {
+      id: 'fc-3',
+      question: 'Which planet is closest to the Sun?',
+      answers: ['Venus', 'Earth', 'Mercury', 'Mars'],
+      correctAnswer: 2,
+      explanation: 'Mercury is the closest planet to the Sun.',
+    },
+  ],
+
+  setFlashcards: (flashcards) => set({ flashcards }),
+
+  // Mock exams
+  exams: [
+    {
+      id: 'exam-1',
+      title: 'SAT Math Practice',
+      subject: 'Mathematics',
+      difficulty: 'medium',
+      totalQuestions: 50,
+      completedQuestions: 12,
+    },
+    {
+      id: 'exam-2',
+      title: 'AP Biology Review',
+      subject: 'Biology',
+      difficulty: 'hard',
+      totalQuestions: 60,
+      completedQuestions: 0,
+    },
+    {
+      id: 'exam-3',
+      title: 'History Final Prep',
+      subject: 'History',
+      difficulty: 'easy',
+      totalQuestions: 40,
+      completedQuestions: 8,
+    },
+  ],
+
+  setExams: (exams) => set({ exams }),
+
+  startExamPlan: (examId) => {
+    const plan: ExamPlan = {
+      id: `plan-${Date.now()}`,
+      examId,
+      startDate: new Date().toISOString(),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+      dailyGoal: 10,
+      progress: 0,
+    };
+
+    // TODO: Save exam plan to Supabase (when exam_plans table is implemented)
+    return plan;
+  },
+
+  // Mock lessons
+  lessons: [
+    {
+      id: 'lesson-1',
+      title: 'Introduction to Algebra',
+      content: 'Algebra is a branch of mathematics that uses symbols and letters to represent numbers and quantities in formulas and equations...',
+      subject: 'Mathematics',
+      duration: 15,
+      completed: false,
+    },
+    {
+      id: 'lesson-2',
+      title: 'Photosynthesis Basics',
+      content: 'Photosynthesis is the process by which plants convert light energy into chemical energy...',
+      subject: 'Biology',
+      duration: 20,
+      completed: true,
+    },
+    {
+      id: 'lesson-3',
+      title: 'World War II Overview',
+      content: 'World War II was a global war that lasted from 1939 to 1945...',
+      subject: 'History',
+      duration: 25,
+      completed: false,
+    },
+  ],
+
+  setLessons: (lessons) => set({ lessons }),
+
+  completeLesson: (lessonId) => set((state) => ({
+    lessons: state.lessons.map((lesson) =>
+      lesson.id === lessonId ? { ...lesson, completed: true } : lesson
+    ),
+  })),
+
+  // Recent items for "Continue Studying"
+  recentItems: [
+    { type: 'lesson', id: 'lesson-1', title: 'Introduction to Algebra', progress: 60 },
+    { type: 'exam', id: 'exam-1', title: 'SAT Math Practice', progress: 24 },
+    { type: 'lesson', id: 'lesson-3', title: 'World War II Overview', progress: 30 },
+  ],
+
+  addRecentItem: (item) => set((state) => {
+    // Remove if already exists and add to front
+    const filtered = state.recentItems.filter((i) => !(i.type === item.type && i.id === item.id));
+    return { recentItems: [item, ...filtered].slice(0, 5) }; // Keep last 5
+  }),
+
+  // Notebooks - start with empty array
+  notebooks: [],
+
+  setNotebooks: (notebooks) => set({ notebooks }),
+
+  loadNotebooks: async () => {
+    const { authUser } = get();
+    if (!authUser) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('notebooks')
+        .select(`
+          *,
+          materials (*)
+        `)
+        .eq('user_id', authUser.id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading notebooks:', error);
+        return;
+      }
+
+      // Transform Supabase data to Notebook format
+      const notebooks: Notebook[] = (data || []).map((nb: any) => ({
+        id: nb.id,
+        title: nb.title,
+        flashcardCount: nb.flashcard_count || 0,
+        lastStudied: nb.last_studied,
+        progress: nb.progress || 0,
+        createdAt: nb.created_at,
+        color: nb.color,
+        status: nb.status as Notebook['status'],
+        meta: nb.meta || {},
+        materials: nb.materials ? [{
+          id: nb.materials.id,
+          type: nb.materials.kind as Material['type'],
+          uri: nb.materials.storage_path || nb.materials.external_url,
+          content: nb.materials.content,
+          preview_text: nb.materials.preview_text,
+          title: nb.title, // Use notebook title as fallback for Material interface compatibility
+          createdAt: nb.materials.created_at,
+          thumbnail: nb.materials.thumbnail,
+        }] : [],
+      }));
+
+      set({ notebooks });
+    } catch (error) {
+      console.error('Error loading notebooks:', error);
+    }
+  },
+
+  addNotebook: async (notebook) => {
+    const { authUser } = get();
+    if (!authUser) {
+      console.error('No authenticated user');
+      throw new Error('No authenticated user');
+    }
+
+    try {
+      // Step 1: Upload file if provided
+      let storagePath: string | undefined;
+      if (notebook.material?.fileUri && notebook.material?.filename) {
+        const materialId = `temp-${Date.now()}`;
+        const uploadResult = await uploadMaterialFile(
+          authUser.id,
+          materialId,
+          notebook.material.fileUri,
+          notebook.material.filename
+        );
+        if (uploadResult.error) {
+          console.error('Upload error:', uploadResult.error);
+          // Continue with local URI in dev mode
+          storagePath = notebook.material.fileUri;
+        } else {
+          storagePath = uploadResult.storagePath;
+        }
+      }
+
+      // Step 2: Determine upload type
+      const isFileUpload = !!storagePath || (notebook.material?.type && ['pdf', 'audio', 'image', 'photo'].includes(notebook.material.type));
+      const isTextUpload = notebook.material?.type === 'text' || notebook.material?.type === 'note' || notebook.material?.type === 'copied-text';
+      
+      // Step 3: Create material record
+      // Note: Title is stored in notebooks table, not materials table
+      // Edge Function will generate AI title and update notebooks.title
+      const materialData: any = {
+        user_id: authUser.id,
+        kind: notebook.material?.type || 'text',
+        storage_path: storagePath,
+        external_url: notebook.material?.uri?.startsWith('http') ? notebook.material.uri : null,
+        content: isFileUpload ? null : notebook.material?.content, // Files: null (will be extracted), Text: content
+        preview_text: null, // Will be set by Edge Function for all types
+        processed: false, // All materials go through Edge Function now
+        processed_at: null,
+      };
+
+      const { data: material, error: materialError } = await supabase
+        .from('materials')
+        .insert(materialData)
+        .select()
+        .single();
+
+      if (materialError) {
+        console.error('Error creating material:', materialError);
+        throw materialError;
+      }
+
+      // Step 4: Create notebook record
+      const notebookData: any = {
+        user_id: authUser.id,
+        material_id: material.id,
+        title: notebook.title,
+        color: notebook.color,
+        status: 'extracting', // All materials start as extracting, Edge Function will set to preview_ready
+        meta: {}, // Preview will be generated by Edge Function
+        flashcard_count: notebook.flashcardCount || 0,
+        progress: notebook.progress || 0,
+      };
+
+      const { data: newNotebook, error: notebookError } = await supabase
+        .from('notebooks')
+        .insert(notebookData)
+        .select(`
+          *,
+          materials (*)
+        `)
+        .single();
+
+      if (notebookError) {
+        console.error('Error creating notebook:', notebookError);
+        throw notebookError;
+      }
+
+      // Step 5: Update Zustand store (optimistic update)
+      const transformedNotebook: Notebook = {
+        id: newNotebook.id,
+        title: newNotebook.title,
+        flashcardCount: newNotebook.flashcard_count || 0,
+        lastStudied: newNotebook.last_studied,
+        progress: newNotebook.progress || 0,
+        createdAt: newNotebook.created_at,
+        color: newNotebook.color,
+        status: newNotebook.status as Notebook['status'],
+        meta: newNotebook.meta || {},
+        materials: newNotebook.materials ? [{
+          id: newNotebook.materials.id,
+          type: newNotebook.materials.kind as Material['type'],
+          uri: newNotebook.materials.storage_path || newNotebook.materials.external_url,
+          content: newNotebook.materials.content,
+          preview_text: newNotebook.materials.preview_text,
+          title: newNotebook.title, // Use notebook title as fallback for Material interface compatibility
+          createdAt: newNotebook.materials.created_at,
+          thumbnail: newNotebook.materials.thumbnail,
+        }] : [],
+      };
+
+      set((state) => ({
+        notebooks: [transformedNotebook, ...state.notebooks],
+      }));
+
+      // Step 6: Trigger Edge Function for ALL uploads (files AND text)
+      // Edge Function will generate AI title and preview for all materials
+      
+      // Check if file upload failed and fell back to local URI
+      // Edge Function cannot process local file URIs, so mark as failed immediately
+      if (isFileUpload && storagePath && storagePath.startsWith('file://')) {
+        console.warn('File upload failed, using local URI. Edge Function cannot process local files. Marking as failed.');
+        // Update notebook status to 'failed' since Edge Function cannot process local URIs
+        supabase
+          .from('notebooks')
+          .update({ status: 'failed' })
+          .eq('id', newNotebook.id)
+          .then(() => {
+            // Update local state
+            set((state) => ({
+              notebooks: state.notebooks.map((n) =>
+                n.id === newNotebook.id ? { ...n, status: 'failed' as const } : n
+              ),
+            }));
+          })
+          .catch((updateError) => {
+            console.error('Failed to update notebook status to failed:', updateError);
+            // Still update local state even if database update fails
+            set((state) => ({
+              notebooks: state.notebooks.map((n) =>
+                n.id === newNotebook.id ? { ...n, status: 'failed' as const } : n
+              ),
+            }));
+          });
+      } else if (material.id) {
+        // Trigger Edge Function asynchronously (don't await - let it process in background)
+        // Only trigger if we have a valid storage path (not local URI) or it's a text upload
+        supabase.functions
+          .invoke('process-material', {
+            body: { material_id: material.id },
+          })
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Failed to trigger Edge Function:', error);
+              // Update notebook status to 'failed' if Edge Function fails to start
+              supabase
+                .from('notebooks')
+                .update({ status: 'failed' })
+                .eq('id', newNotebook.id)
+                .then(() => {
+                  // Update local state
+                  set((state) => ({
+                    notebooks: state.notebooks.map((n) =>
+                      n.id === newNotebook.id ? { ...n, status: 'failed' as const } : n
+                    ),
+                  }));
+                })
+                .catch((updateError) => {
+                  console.error('Failed to update notebook status to failed:', updateError);
+                  // Still update local state even if database update fails
+                  set((state) => ({
+                    notebooks: state.notebooks.map((n) =>
+                      n.id === newNotebook.id ? { ...n, status: 'failed' as const } : n
+                    ),
+                  }));
+                });
+            } else {
+              console.log('Edge Function triggered successfully:', data);
+            }
+          })
+          .catch((err) => {
+            console.error('Error invoking Edge Function:', err);
+          });
+      }
+
+      // Return the notebook ID for navigation
+      return newNotebook.id;
+    } catch (error) {
+      console.error('Error adding notebook:', error);
+      throw error;
+    }
+  },
+
+  deleteNotebook: async (id) => {
+    const { authUser } = get();
+    if (!authUser) return;
+
+    try {
+      // Soft delete: set deleted_at
+      const { error } = await supabase
+        .from('notebooks')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', authUser.id);
+
+      if (error) {
+        console.error('Error deleting notebook:', error);
+        return;
+      }
+
+      // Update local state
+      set((state) => ({
+        notebooks: state.notebooks.filter((n) => n.id !== id),
+      }));
+    } catch (error) {
+      console.error('Error deleting notebook:', error);
+    }
+  },
+
+  updateNotebook: async (id, updates) => {
+    const { authUser } = get();
+    if (!authUser) return;
+
+    try {
+      const updateData: any = {};
+      if (updates.title !== undefined) updateData.title = updates.title;
+      if (updates.color !== undefined) updateData.color = updates.color;
+      if (updates.status !== undefined) updateData.status = updates.status;
+      if (updates.flashcardCount !== undefined) updateData.flashcard_count = updates.flashcardCount;
+      if (updates.progress !== undefined) updateData.progress = updates.progress;
+      if (updates.lastStudied !== undefined) updateData.last_studied = updates.lastStudied;
+      if (updates.meta !== undefined) updateData.meta = updates.meta;
+
+      const { error } = await supabase
+        .from('notebooks')
+        .update(updateData)
+        .eq('id', id)
+        .eq('user_id', authUser.id);
+
+      if (error) {
+        console.error('Error updating notebook:', error);
+        return;
+      }
+
+      // Update local state
+      set((state) => ({
+        notebooks: state.notebooks.map((n) =>
+          n.id === id ? { ...n, ...updates } : n
+        ),
+      }));
+    } catch (error) {
+      console.error('Error updating notebook:', error);
+    }
+  },
+
+  addMaterial: (notebookId, material) => set((state) => ({
+    notebooks: state.notebooks.map((n) =>
+      n.id === notebookId
+        ? {
+            ...n,
+            materials: [
+              ...n.materials,
+              {
+                ...material,
+                id: `material-${Date.now()}`,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          }
+        : n
+    ),
+  })),
+
+  deleteMaterial: (notebookId, materialId) => set((state) => ({
+    notebooks: state.notebooks.map((n) =>
+      n.id === notebookId
+        ? {
+            ...n,
+            materials: n.materials.filter((m) => m.id !== materialId),
+          }
+        : n
+    ),
+  })),
+}));
+

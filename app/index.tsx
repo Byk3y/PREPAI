@@ -18,7 +18,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useStore, Material, Notebook } from '@/lib/store';
 import { useCamera } from '@/lib/hooks/useCamera';
 import { useDocumentPicker } from '@/lib/hooks/useDocumentPicker';
-import { EmptyState } from '@/components/EmptyState';
 import { NotebookCard } from '@/components/NotebookCard';
 import { PetBubble } from '@/components/PetBubble';
 import MaterialTypeSelector from '@/components/MaterialTypeSelector';
@@ -27,36 +26,25 @@ import { supabase } from '@/lib/supabase';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { notebooks, addNotebook, loadNotebooks, authUser } = useStore();
+  const { notebooks, addNotebook, loadNotebooks, authUser, hasCreatedNotebook, isInitialized } = useStore();
   const { takePhoto, isLoading: cameraLoading } = useCamera();
   const { pickDocument, loading: documentLoading } = useDocumentPicker();
-  const [isLoadingNotebooks, setIsLoadingNotebooks] = useState(true);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load notebooks on mount
+  // Load notebooks once after initialization completes
   useEffect(() => {
-    const loadInitialNotebooks = async () => {
-      if (authUser) {
-        setIsLoadingNotebooks(true);
-        await loadNotebooks();
-        setHasLoadedOnce(true);
-        setIsLoadingNotebooks(false);
-      } else {
-        setIsLoadingNotebooks(false);
-        setHasLoadedOnce(true);
-      }
-    };
-
-    loadInitialNotebooks();
-  }, [authUser]);
+    if (isInitialized && authUser && !hasLoadedOnce) {
+      loadNotebooks().finally(() => setHasLoadedOnce(true));
+    } else if (isInitialized && !authUser) {
+      setHasLoadedOnce(true);
+    }
+  }, [isInitialized, authUser]);
 
   // Real-time subscription for notebooks (INSERT and UPDATE)
   useEffect(() => {
     if (!authUser) return;
-
-    console.log('Setting up real-time subscription for notebooks');
 
     const channel = supabase
       .channel('notebooks-list')
@@ -68,8 +56,7 @@ export default function HomeScreen() {
           table: 'notebooks',
           filter: `user_id=eq.${authUser.id}`,
         },
-        async (payload) => {
-          console.log('New notebook inserted:', payload);
+        async () => {
           // Skip reload if user is navigating to notebook detail (prevents flash)
           if (!isNavigating) {
             await loadNotebooks();
@@ -84,17 +71,14 @@ export default function HomeScreen() {
           table: 'notebooks',
           filter: `user_id=eq.${authUser.id}`,
         },
-        async (payload) => {
-          console.log('Notebook updated:', payload);
+        async () => {
           // Reload notebooks to ensure we have latest data including materials
-          // This is simpler and ensures consistency
           await loadNotebooks();
         }
       )
       .subscribe();
 
     return () => {
-      console.log('Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
   }, [authUser, loadNotebooks, isNavigating]);
@@ -341,38 +325,63 @@ export default function HomeScreen() {
     >
       {/* Header - Always visible */}
       <View className="flex-row items-center justify-between px-6 py-4 bg-white">
-        <Text 
+        <Text
           style={{ fontFamily: 'SpaceGrotesk-Bold' }}
           className="text-2xl text-neutral-900"
         >
           PrepAI
         </Text>
-        <TouchableOpacity className="w-10 h-10 rounded-full bg-primary-500 items-center justify-center">
+        <TouchableOpacity
+          className="w-10 h-10 rounded-full bg-primary-500 items-center justify-center"
+          onPress={async () => {
+            Alert.alert(
+              'Account',
+              authUser ? `Signed in as ${authUser.email}` : 'Not signed in',
+              [
+                {
+                  text: 'Cancel',
+                  style: 'cancel'
+                },
+                ...(authUser ? [{
+                  text: 'Sign Out',
+                  style: 'destructive',
+                  onPress: async () => {
+                    await supabase.auth.signOut();
+                    router.replace('/auth');
+                  }
+                }] : [])
+              ]
+            );
+          }}
+        >
           <Text className="text-xl">👤</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Content */}
-      {isLoadingNotebooks || !hasLoadedOnce ? (
-        // Loading state - show nothing or minimal loading indicator
-        <View className="flex-1 bg-white items-center justify-center">
-          <Text className="text-neutral-500">Loading notebooks...</Text>
+      {/* Content - Only render after initial load to prevent flashes */}
+      {!hasLoadedOnce ? (
+        // Initial load - show blank white space (very brief)
+        <View className="flex-1 bg-white" />
+      ) : !authUser ? (
+        // Not authenticated - show sign in prompt
+        <View className="flex-1 bg-white items-center justify-center px-6">
+          <Text className="text-2xl font-bold text-neutral-900 mb-4">
+            Not Signed In
+          </Text>
+          <Text className="text-neutral-600 mb-8 text-center">
+            Please sign in to access your study materials
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push('/auth')}
+            className="bg-primary-500 px-8 py-4 rounded-full"
+          >
+            <Text className="text-white font-semibold text-lg">
+              Sign In
+            </Text>
+          </TouchableOpacity>
         </View>
-      ) : notebooks.length === 0 ? (
-        // Empty State with full screen gradient (floating bubbles and animated text)
-        <EmptyState
-          icon="📚"
-          title={{
-            base: "A New Way of {word}",
-            words: ["Studying", "Learning", "Mastery", "Success"]
-          }}
-          description={{
-            base: "Transform any material into {word} study sessions",
-            words: ["interactive", "engaging", "personalized", "intelligent"]
-          }}
-        />
       ) : (
-        // Notebook List - Same page, no floating items or animated text
+        // Notebook List - Show all notebooks
         <ScrollView
           className="flex-1 bg-white"
           showsVerticalScrollIndicator={false}
@@ -410,57 +419,55 @@ export default function HomeScreen() {
       <PetBubble />
 
       {/* Bottom Action Buttons - Always visible */}
-      {!isLoadingNotebooks && (
-        <View
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 40,
+          left: 24,
+          right: 24,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 16,
+          zIndex: 10,
+        }}
+      >
+        {/* Camera Button */}
+        <TouchableOpacity
+          onPress={handleScanNotes}
+          className="w-14 h-14 rounded-full bg-white items-center justify-center shadow-sm border border-neutral-200"
           style={{
-            position: 'absolute',
-            bottom: 40,
-            left: 24,
-            right: 24,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 16,
-            zIndex: 10,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
           }}
         >
-          {/* Camera Button */}
-          <TouchableOpacity
-            onPress={handleScanNotes}
-            className="w-14 h-14 rounded-full bg-white items-center justify-center shadow-sm border border-neutral-200"
-            style={{
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-          >
-            <MaterialIcons name="camera-alt" size={24} color="#4B5563" />
-          </TouchableOpacity>
+          <MaterialIcons name="camera-alt" size={24} color="#4B5563" />
+        </TouchableOpacity>
 
-          {/* Add Materials Button */}
-          <TouchableOpacity
-            onPress={handleCreateNotebook}
-            className="bg-neutral-900 px-8 py-4 rounded-full shadow-lg flex-row items-center gap-2"
-            style={{
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 8,
-            }}
+        {/* Add Materials Button */}
+        <TouchableOpacity
+          onPress={handleCreateNotebook}
+          className="bg-neutral-900 px-8 py-4 rounded-full shadow-lg flex-row items-center gap-2"
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
+          }}
+        >
+          <MaterialIcons name="add" size={20} color="#FFFFFF" />
+          <Text
+            style={{ fontFamily: 'SpaceGrotesk-SemiBold' }}
+            className="text-white text-base"
           >
-            <MaterialIcons name="add" size={20} color="#FFFFFF" />
-            <Text
-              style={{ fontFamily: 'SpaceGrotesk-SemiBold' }}
-              className="text-white text-base"
-            >
-              Add Materials
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+            Add Materials
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Material Type Selector Modal */}
       <MaterialTypeSelector

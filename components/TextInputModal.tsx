@@ -1,5 +1,5 @@
 /**
- * Text Input Modal - Full screen modal for entering text/notes
+ * Text Input Modal - NotebookLM style for pasting copied text
  */
 
 import React, { useState } from 'react';
@@ -10,11 +10,13 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
-  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 interface TextInputModalProps {
   visible: boolean;
@@ -29,25 +31,43 @@ export default function TextInputModal({
   onClose,
   onSave,
 }: TextInputModalProps) {
-  const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [inputHeight, setInputHeight] = useState(80);
 
   const handleSave = () => {
-    if (!title.trim() || !content.trim()) {
+    if (!content.trim()) {
       return;
     }
 
-    onSave(title.trim(), content.trim());
+    // Generate title from first line or first 50 characters
+    const firstLine = content.trim().split('\n')[0];
+    const title = firstLine.length > 50 
+      ? firstLine.substring(0, 50).trim() + '...'
+      : firstLine.trim() || 'Untitled';
 
-    // Reset fields
-    setTitle('');
+    onSave(title, content.trim());
+
+    // Reset field
     setContent('');
+    setInputHeight(80);
   };
 
   const handleCancel = () => {
-    setTitle('');
     setContent('');
+    setInputHeight(80);
     onClose();
+  };
+
+  const handleContentChange = (text: string) => {
+    setContent(text);
+    // Expand input as content grows
+    if (text.trim()) {
+      const lines = text.split('\n').length;
+      const newHeight = Math.min(Math.max(80, lines * 24 + 32), 450);
+      setInputHeight(newHeight);
+    } else {
+      setInputHeight(80);
+    }
   };
 
   return (
@@ -66,75 +86,73 @@ export default function TextInputModal({
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={handleCancel} style={styles.headerButton}>
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Ionicons name="arrow-back" size={24} color="#171717" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>
-              {type === 'note' ? 'Add Note' : 'Add Text'}
-            </Text>
-            <TouchableOpacity
-              onPress={handleSave}
-              style={[
-                styles.headerButton,
-                (!title.trim() || !content.trim()) && styles.headerButtonDisabled,
-              ]}
-              disabled={!title.trim() || !content.trim()}
-            >
-              <Text
-                style={[
-                  styles.saveText,
-                  (!title.trim() || !content.trim()) && styles.saveTextDisabled,
-                ]}
-              >
-                Save
-              </Text>
+            <View style={styles.headerSpacer} />
+            <TouchableOpacity onPress={handleCancel} style={styles.headerButton}>
+              <Ionicons name="close" size={24} color="#171717" />
             </TouchableOpacity>
           </View>
 
-          {/* Content */}
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Title Input */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Title</Text>
-              <TextInput
-                style={styles.titleInput}
-                placeholder="Enter a title..."
-                placeholderTextColor="#A3A3A3"
-                value={title}
-                onChangeText={setTitle}
-                maxLength={100}
-                autoFocus={true}
-              />
+          {/* Main Content - Dismiss keyboard on tap outside */}
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.content}>
+            {/* Central Icon */}
+            <View style={styles.iconContainer}>
+              <View style={styles.iconBackground}>
+                <Ionicons name="document-text" size={32} color="#3B82F6" />
+              </View>
             </View>
 
-            {/* Content Input */}
-            <View style={[styles.inputContainer, styles.contentInputContainer]}>
-              <Text style={styles.label}>
-                {type === 'note' ? 'Note Content' : 'Text Content'}
-              </Text>
-              <TextInput
-                style={styles.contentInput}
-                placeholder={
-                  type === 'note'
-                    ? 'Write your notes here...'
-                    : 'Enter your text here...'
-                }
-                placeholderTextColor="#A3A3A3"
-                value={content}
-                onChangeText={setContent}
-                multiline={true}
-                textAlignVertical="top"
-              />
-            </View>
+            {/* Title */}
+            <Text style={styles.title}>Paste Copied Text</Text>
 
-            {/* Character count */}
-            <Text style={styles.charCount}>
-              {content.length} character{content.length !== 1 ? 's' : ''}
+            {/* Description */}
+            <Text style={styles.description}>
+              Paste your copied text below to upload as a source in PrepAI.
             </Text>
-          </ScrollView>
+
+            {/* Text Input - Starts small, expands with content */}
+            <TextInput
+              style={[
+                styles.textInput,
+                { height: inputHeight },
+              ]}
+              placeholder="Paste text here"
+              placeholderTextColor="#A3A3A3"
+              value={content}
+              onChangeText={handleContentChange}
+              multiline={true}
+              textAlignVertical="top"
+              autoFocus={true}
+              onContentSizeChange={(event) => {
+                const { height } = event.nativeEvent.contentSize;
+                // Slightly increased max height for better text preview
+                const newHeight = Math.min(Math.max(80, height + 16), 450);
+                setInputHeight(newHeight);
+              }}
+            />
+
+            {/* Add Button */}
+            <TouchableOpacity
+              onPress={handleSave}
+              style={[
+                styles.addButton,
+                !content.trim() && styles.addButtonDisabled,
+              ]}
+              disabled={!content.trim()}
+            >
+              <Text
+                style={[
+                  styles.addButtonText,
+                  !content.trim() && styles.addButtonTextDisabled,
+                ]}
+              >
+                Add
+              </Text>
+            </TouchableOpacity>
+            </View>
+          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
@@ -155,54 +173,51 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
   },
   headerButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    minWidth: 70,
+    padding: 8,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerButtonDisabled: {
-    opacity: 0.5,
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#171717',
-  },
-  cancelText: {
-    fontSize: 16,
-    color: '#737373',
-  },
-  saveText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#F97316',
-    textAlign: 'right',
-  },
-  saveTextDisabled: {
-    color: '#A3A3A3',
-  },
-  scrollView: {
+  headerSpacer: {
     flex: 1,
   },
-  scrollContent: {
-    padding: 20,
-  },
-  inputContainer: {
-    marginBottom: 24,
-  },
-  contentInputContainer: {
+  content: {
     flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 20,
   },
-  label: {
-    fontSize: 15,
-    fontWeight: '600',
+  iconContainer: {
+    marginBottom: 20,
+  },
+  iconBackground: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
     color: '#171717',
     marginBottom: 8,
+    textAlign: 'center',
   },
-  titleInput: {
+  description: {
+    fontSize: 15,
+    color: '#737373',
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 16,
+    lineHeight: 20,
+  },
+  textInput: {
+    width: '100%',
     fontSize: 16,
     color: '#171717',
     backgroundColor: '#F9FAFB',
@@ -210,21 +225,28 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#E5E5E5',
+    marginBottom: 24,
+    textAlignVertical: 'top',
   },
-  contentInput: {
-    fontSize: 16,
-    color: '#171717',
-    backgroundColor: '#F9FAFB',
+  addButton: {
+    width: '100%',
+    backgroundColor: '#171717',
     borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    minHeight: 300,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 'auto',
+    marginBottom: 32,
   },
-  charCount: {
-    fontSize: 13,
+  addButtonDisabled: {
+    backgroundColor: '#E5E5E5',
+  },
+  addButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  addButtonTextDisabled: {
     color: '#A3A3A3',
-    textAlign: 'right',
-    marginTop: 8,
   },
 });

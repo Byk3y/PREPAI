@@ -114,19 +114,23 @@ All data is stored in `lib/store.ts` using Zustand:
 - Flashcards, exams, lessons
 - Recent items for "Continue Studying"
 
-## 🔄 Next Steps (Integration Points)
+## 🔄 Current Status
 
-The codebase includes `TODO` comments marking where to integrate:
+### ✅ Completed
+- **Supabase Integration:** Database schema, RLS policies, authentication, file uploads
+- **Authentication:** Magic link + social logins (Google, Apple)
+- **Notebooks & Materials:** Full CRUD with Supabase persistence
+- **File Uploads:** PDF, image, audio uploads to Supabase Storage
+- **Zero-Friction UX:** Auto-create notebooks on upload/paste
 
-1. **Supabase:**
-   - Replace mock store with real-time subscriptions
-   - Add authentication
-   - Connect flashcards, exams, lessons to database
-
-2. **OpenAI/Gemini:**
-   - Generate flashcards dynamically
-   - Create lesson content
-   - Quiz generation
+### 🚧 In Progress / TODO
+- **Storage Setup:** Create `uploads` bucket and set RLS policies (see `docs/SUPABASE_SETUP.md`)
+- **Edge Functions:** Deploy processing function for material extraction
+- **Flashcards/Lessons:** Connect to Supabase (currently using mock data)
+- **OpenAI/Gemini Integration:**
+  - Generate flashcards dynamically
+  - Create lesson content
+  - Quiz generation
 
 3. **Superwall:**
    - Add paywall logic

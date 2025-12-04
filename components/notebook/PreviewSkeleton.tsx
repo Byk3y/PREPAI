@@ -11,19 +11,19 @@ interface PreviewSkeletonProps {
 }
 
 export const PreviewSkeleton: React.FC<PreviewSkeletonProps> = ({ lines = 6 }) => {
-  const opacity = React.useRef(new Animated.Value(0.4)).current;
+  const opacity = React.useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
-          toValue: 0.6,
-          duration: 1500,
+          toValue: 0.8,
+          duration: 1000,
           useNativeDriver: true,
         }),
         Animated.timing(opacity, {
-          toValue: 0.4,
-          duration: 1500,
+          toValue: 0.3,
+          duration: 1000,
           useNativeDriver: true,
         }),
       ])
@@ -40,8 +40,8 @@ export const PreviewSkeleton: React.FC<PreviewSkeletonProps> = ({ lines = 6 }) =
           style={{
             opacity,
             height: 20,
-            backgroundColor: '#E5E5E5',
-            borderRadius: 2,
+            backgroundColor: '#D1D5DB',
+            borderRadius: 4,
             marginBottom: index === lines - 1 ? 0 : 16,
             width: index === 0 ? '100%' : index === lines - 1 ? '65%' : '95%',
           }}

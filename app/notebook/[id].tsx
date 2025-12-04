@@ -10,6 +10,11 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
+  Alert,
+  Platform,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,11 +30,13 @@ type TabType = 'sources' | 'chat' | 'studio';
 export default function NotebookDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { notebooks, loadNotebooks, setNotebooks } = useStore();
-  const [activeTab, setActiveTab] = useState<TabType>('sources');
+  const { notebooks, loadNotebooks, setNotebooks, deleteNotebook, updateNotebook } = useStore();
+  const [activeTab, setActiveTab] = useState<TabType>('chat');
   const [notebook, setNotebook] = useState<Notebook | null>(null);
   const [loading, setLoading] = useState(true);
   const [triggerQuizGeneration, setTriggerQuizGeneration] = useState(false);
+  const [renameModalVisible, setRenameModalVisible] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
 
   // Helper function to transform Supabase notebook data to Notebook format
   const transformNotebook = (nb: any, existingMaterials?: Material[]): Notebook => ({
@@ -64,8 +71,9 @@ export default function NotebookDetailScreen() {
         await loadNotebooks();
       }
 
-      // Find the notebook
-      const found = notebooks.find((n) => n.id === id);
+      // Get fresh notebooks from store after loading (avoid stale closure)
+      const currentNotebooks = useStore.getState().notebooks;
+      const found = currentNotebooks.find((n) => n.id === id);
       setNotebook(found || null);
       setLoading(false);
     };
@@ -254,6 +262,83 @@ export default function NotebookDetailScreen() {
     setTimeout(() => setTriggerQuizGeneration(false), 100);
   };
 
+  // Handle menu button press
+  const handleMenuPress = () => {
+    Alert.alert(
+      notebook?.title || 'Notebook Options',
+      undefined,
+      [
+        {
+          text: 'Rename notebook',
+          onPress: handleRenameNotebook,
+        },
+        {
+          text: 'Delete notebook',
+          style: 'destructive',
+          onPress: handleDeleteNotebook,
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  // Handle notebook rename
+  const handleRenameNotebook = () => {
+    if (!notebook) return;
+
+    setRenameValue(notebook.title);
+    setRenameModalVisible(true);
+  };
+
+  // Save renamed notebook
+  const handleSaveRename = async () => {
+    if (!notebook || !id || !renameValue.trim()) return;
+
+    try {
+      await updateNotebook(id, { title: renameValue.trim() });
+      setNotebook({ ...notebook, title: renameValue.trim() });
+      setRenameModalVisible(false);
+    } catch (error) {
+      console.error('Error renaming notebook:', error);
+      Alert.alert('Error', 'Failed to rename notebook. Please try again.');
+    }
+  };
+
+  // Handle notebook deletion
+  const handleDeleteNotebook = () => {
+    if (!notebook || !id) return;
+
+    Alert.alert(
+      'Delete Notebook',
+      `Are you sure you want to delete "${notebook.title}"? This action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteNotebook(id);
+              // Navigate back after successful deletion
+              router.back();
+            } catch (error) {
+              console.error('Error deleting notebook:', error);
+              Alert.alert('Error', 'Failed to delete notebook. Please try again.');
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       {/* Header */}
@@ -271,7 +356,10 @@ export default function NotebookDetailScreen() {
           </Text>
         </View>
 
-        <TouchableOpacity className="w-10 h-10 items-center justify-center">
+        <TouchableOpacity 
+          onPress={handleMenuPress}
+          className="w-10 h-10 items-center justify-center"
+        >
           <Ionicons name="ellipsis-vertical" size={24} color="#171717" />
         </TouchableOpacity>
       </View>
@@ -294,20 +382,14 @@ export default function NotebookDetailScreen() {
           {/* Sources Tab */}
           <TouchableOpacity
             onPress={() => setActiveTab('sources')}
-            className={`flex-1 items-center py-3 ${
-              activeTab === 'sources' ? 'border-t-2 border-primary-500' : ''
-            }`}
+            className="flex-1 items-center py-2.5"
           >
             <Ionicons
-              name="document-text-outline"
-              size={24}
-              color={activeTab === 'sources' ? '#6366f1' : '#737373'}
+              name={activeTab === 'sources' ? 'library' : 'library-outline'}
+              size={22}
+              color="#171717"
             />
-            <Text
-              className={`text-xs mt-1 ${
-                activeTab === 'sources' ? 'text-primary-500 font-medium' : 'text-neutral-500'
-              }`}
-            >
+            <Text className="text-sm mt-1 text-neutral-600">
               Sources
             </Text>
           </TouchableOpacity>
@@ -315,20 +397,14 @@ export default function NotebookDetailScreen() {
           {/* Chat Tab */}
           <TouchableOpacity
             onPress={() => setActiveTab('chat')}
-            className={`flex-1 items-center py-3 ${
-              activeTab === 'chat' ? 'border-t-2 border-primary-500' : ''
-            }`}
+            className="flex-1 items-center py-2.5"
           >
             <Ionicons
-              name="chatbubble-outline"
-              size={24}
-              color={activeTab === 'chat' ? '#6366f1' : '#737373'}
+              name={activeTab === 'chat' ? 'chatbubbles' : 'chatbubbles-outline'}
+              size={22}
+              color="#171717"
             />
-            <Text
-              className={`text-xs mt-1 ${
-                activeTab === 'chat' ? 'text-primary-500 font-medium' : 'text-neutral-500'
-              }`}
-            >
+            <Text className="text-sm mt-1 text-neutral-600">
               Chat
             </Text>
           </TouchableOpacity>
@@ -336,25 +412,73 @@ export default function NotebookDetailScreen() {
           {/* Studio Tab */}
           <TouchableOpacity
             onPress={() => setActiveTab('studio')}
-            className={`flex-1 items-center py-3 ${
-              activeTab === 'studio' ? 'border-t-2 border-primary-500' : ''
-            }`}
+            className="flex-1 items-center py-2.5"
           >
             <Ionicons
-              name="sparkles-outline"
-              size={24}
-              color={activeTab === 'studio' ? '#6366f1' : '#737373'}
+              name={activeTab === 'studio' ? 'color-palette' : 'color-palette-outline'}
+              size={22}
+              color="#171717"
             />
-            <Text
-              className={`text-xs mt-1 ${
-                activeTab === 'studio' ? 'text-primary-500 font-medium' : 'text-neutral-500'
-              }`}
-            >
+            <Text className="text-sm mt-1 text-neutral-600">
               Studio
             </Text>
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Rename Modal */}
+      <Modal
+        visible={renameModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRenameModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => setRenameModalVisible(false)}
+            className="flex-1 bg-black/50 justify-center items-center px-6"
+          >
+            <TouchableOpacity activeOpacity={1} className="w-full max-w-md">
+              <View className="bg-white rounded-2xl p-6">
+                <Text className="text-xl font-bold text-neutral-900 mb-4">
+                  Rename Notebook
+                </Text>
+                <TextInput
+                  value={renameValue}
+                  onChangeText={setRenameValue}
+                  placeholder="Enter notebook name"
+                  className="bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 text-base text-neutral-900 mb-4"
+                  autoFocus
+                  maxLength={100}
+                />
+                <View className="flex-row gap-3">
+                  <TouchableOpacity
+                    onPress={() => setRenameModalVisible(false)}
+                    className="flex-1 bg-neutral-100 rounded-xl py-3 items-center"
+                  >
+                    <Text className="text-base font-semibold text-neutral-700">
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleSaveRename}
+                    className="flex-1 bg-neutral-900 rounded-xl py-3 items-center"
+                    disabled={!renameValue.trim()}
+                  >
+                    <Text className="text-base font-semibold text-white">
+                      Save
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }

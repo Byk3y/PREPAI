@@ -61,5 +61,8 @@ yarn-error.*
 .env*.local
 .env
 
+# Documentation (keep in repo but organized)
+# docs/ folder is tracked
+
 # Typescript
 *.tsbuildinfo

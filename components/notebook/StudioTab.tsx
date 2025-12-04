@@ -82,11 +82,11 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
       {/* Audio Overview Card */}
       <TouchableOpacity
         onPress={handleGenerateAudioOverview}
-        className="bg-blue-50 rounded-2xl p-5 mb-3 flex-row items-center"
+        className="bg-blue-50 rounded-xl py-3.5 px-4 mb-3 flex-row items-center"
         activeOpacity={0.7}
       >
-        <View className="w-12 h-12 bg-blue-100 rounded-xl items-center justify-center mr-4">
-          <Ionicons name="volume-high" size={24} color="#3b82f6" />
+        <View className="w-10 h-10 bg-blue-100 rounded-lg items-center justify-center mr-3">
+          <Ionicons name="volume-high" size={20} color="#3b82f6" />
         </View>
         <View className="flex-1">
           <Text className="text-base font-semibold text-neutral-900">
@@ -96,19 +96,19 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
             Listen to a summary of your material
           </Text>
         </View>
-        <TouchableOpacity className="w-9 h-9 items-center justify-center">
-          <Ionicons name="create-outline" size={20} color="#737373" />
+        <TouchableOpacity className="w-8 h-8 items-center justify-center">
+          <Ionicons name="arrow-forward-outline" size={18} color="#737373" />
         </TouchableOpacity>
       </TouchableOpacity>
 
       {/* Flashcards Card */}
       <TouchableOpacity
         onPress={handleGenerateFlashcards}
-        className="bg-amber-50 rounded-2xl p-5 mb-3 flex-row items-center"
+        className="bg-amber-50 rounded-xl py-3.5 px-4 mb-3 flex-row items-center"
         activeOpacity={0.7}
       >
-        <View className="w-12 h-12 bg-amber-100 rounded-xl items-center justify-center mr-4">
-          <Ionicons name="layers-outline" size={24} color="#f59e0b" />
+        <View className="w-10 h-10 bg-amber-100 rounded-lg items-center justify-center mr-3">
+          <Ionicons name="layers-outline" size={20} color="#f59e0b" />
         </View>
         <View className="flex-1">
           <Text className="text-base font-semibold text-neutral-900">
@@ -118,19 +118,19 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
             Study with AI-generated flashcards
           </Text>
         </View>
-        <TouchableOpacity className="w-9 h-9 items-center justify-center">
-          <Ionicons name="create-outline" size={20} color="#737373" />
+        <TouchableOpacity className="w-8 h-8 items-center justify-center">
+          <Ionicons name="arrow-forward-outline" size={18} color="#737373" />
         </TouchableOpacity>
       </TouchableOpacity>
 
       {/* Quiz Card */}
       <TouchableOpacity
         onPress={handleGenerateQuiz}
-        className="bg-cyan-50 rounded-2xl p-5 mb-6 flex-row items-center"
+        className="bg-cyan-50 rounded-xl py-3.5 px-4 mb-3 flex-row items-center"
         activeOpacity={0.7}
       >
-        <View className="w-12 h-12 bg-cyan-100 rounded-xl items-center justify-center mr-4">
-          <Ionicons name="help-circle-outline" size={24} color="#06b6d4" />
+        <View className="w-10 h-10 bg-cyan-100 rounded-lg items-center justify-center mr-3">
+          <Ionicons name="help-circle-outline" size={20} color="#06b6d4" />
         </View>
         <View className="flex-1">
           <Text className="text-base font-semibold text-neutral-900">
@@ -140,13 +140,13 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
             Test your understanding
           </Text>
         </View>
-        <TouchableOpacity className="w-9 h-9 items-center justify-center">
-          <Ionicons name="create-outline" size={20} color="#737373" />
+        <TouchableOpacity className="w-8 h-8 items-center justify-center">
+          <Ionicons name="arrow-forward-outline" size={18} color="#737373" />
         </TouchableOpacity>
       </TouchableOpacity>
 
       {/* Generated Media Section */}
-      <Text className="text-base font-semibold text-neutral-900 mb-4 mt-2">
+      <Text className="text-base font-semibold text-neutral-900 mb-4">
         Generated media
       </Text>
 
@@ -183,14 +183,14 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
       )}
 
       {/* Info Card */}
-      <View className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 mt-4">
+      <View className="bg-neutral-50 border border-neutral-200 rounded-xl py-3 px-4 mt-40 mb-6">
         <View className="flex-row items-start">
-          <Ionicons name="information-circle-outline" size={20} color="#6366f1" className="mr-2" />
+          <Ionicons name="information-circle-outline" size={18} color="#6366f1" className="mr-2" />
           <View className="flex-1 ml-2">
-            <Text className="text-xs font-semibold text-neutral-900 mb-1">
+            <Text className="text-xs font-semibold text-neutral-900 mb-0.5">
               How it works
             </Text>
-            <Text className="text-xs text-neutral-600 leading-5">
+            <Text className="text-xs text-neutral-600 leading-4">
               Studio uses advanced AI to analyze your material and generate personalized study
               content. Choose what you want to create above.
             </Text>

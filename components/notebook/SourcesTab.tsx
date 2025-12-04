@@ -8,7 +8,6 @@ import { View, Text, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Notebook } from '@/lib/store';
 import { PreviewSkeleton } from './PreviewSkeleton';
-import { getTopicEmoji } from '@/lib/emoji-matcher';
 
 interface SourcesTabProps {
   notebook: Notebook;
@@ -16,38 +15,14 @@ interface SourcesTabProps {
 
 export const SourcesTab: React.FC<SourcesTabProps> = ({ notebook }) => {
   const material = notebook.materials?.[0];
-  const materialCount = notebook.materials?.length || 0;
 
   // Render loading state with skeleton
   if (notebook.status === 'extracting') {
     return (
       <ScrollView className="flex-1 bg-white">
         <View className="px-6 py-6">
-        {/* Material Icon & Title */}
-        <View className="flex-row items-start mb-6">
-          <Text className="text-5xl mr-3">{getTopicEmoji(notebook.title)}</Text>
-          <View className="flex-1">
-            <Text
-              className="text-2xl text-neutral-900 mb-1"
-              style={{ fontFamily: 'SpaceGrotesk-Bold' }}
-            >
-              {notebook.title}
-            </Text>
-            <Text className="text-sm text-neutral-500">
-              {materialCount} source{materialCount !== 1 ? 's' : ''}
-            </Text>
-          </View>
-        </View>
-
           {/* Skeleton Preview Content */}
           <PreviewSkeleton lines={6} />
-
-          {/* Disclaimer */}
-          <View className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 mt-4">
-            <Text className="text-xs text-neutral-600 text-center">
-              PrepAI can be inaccurate, so double-check.
-            </Text>
-          </View>
         </View>
       </ScrollView>
     );
@@ -56,23 +31,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({ notebook }) => {
   // Render preview content
   return (
     <ScrollView className="flex-1 bg-white">
-      <View className="px-6 py-6">
-        {/* Material Icon & Title */}
-        <View className="flex-row items-start mb-6">
-          <Text className="text-5xl mr-3">{getTopicEmoji(notebook.title)}</Text>
-          <View className="flex-1">
-            <Text
-              className="text-2xl text-neutral-900 mb-1"
-              style={{ fontFamily: 'SpaceGrotesk-Bold' }}
-            >
-              {notebook.title}
-            </Text>
-            <Text className="text-sm text-neutral-500">
-              {materialCount} source{materialCount !== 1 ? 's' : ''}
-            </Text>
-          </View>
-        </View>
-
+      <View className="px-6 pt-3 pb-6">
         {/* OCR Quality Warning Banner (for camera photos) */}
         {material?.meta?.ocr_quality?.lowQuality &&
          (material.type === 'photo' || material.type === 'image') && (
@@ -91,55 +50,55 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({ notebook }) => {
           </View>
         )}
 
-        {/* Preview Content (if available) */}
-        {notebook.meta?.preview?.tl_dr && (
-          <View className="mb-4">
-            <Text className="text-base text-neutral-700 leading-6">
-              {notebook.meta.preview.tl_dr}
-            </Text>
-          </View>
-        )}
+        {/* Sources List */}
+        <View className="mb-4">
+          <Text className="text-lg font-semibold text-neutral-900 mb-3">Sources</Text>
+          {notebook.materials && notebook.materials.length > 0 ? (
+            <View>
+              {notebook.materials.map((mat, index) => {
+                const getMaterialIcon = () => {
+                  switch (mat.type) {
+                    case 'pdf':
+                      return 'document-text';
+                    case 'audio':
+                      return 'musical-notes';
+                    case 'image':
+                    case 'photo':
+                      return 'image';
+                    case 'website':
+                      return 'globe';
+                    case 'youtube':
+                      return 'logo-youtube';
+                    case 'copied-text':
+                      return 'document';
+                    default:
+                      return 'document';
+                  }
+                };
 
-        {/* Key Points (if available) */}
-        {notebook.meta?.preview?.bullets && notebook.meta.preview.bullets.length > 0 && (
-          <View className="mb-4">
-            <Text className="text-sm font-semibold text-neutral-900 mb-2">
-              Key Points
-            </Text>
-            {notebook.meta.preview.bullets.map((bullet, index) => (
-              <View key={index} className="flex-row mb-2">
-                <Text className="text-neutral-400 mr-2">•</Text>
-                <Text className="flex-1 text-neutral-700">{bullet}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Who is this for */}
-        {notebook.meta?.preview?.who_for && (
-          <View className="mb-4">
-            <Text className="text-sm font-semibold text-neutral-900 mb-2">
-              Who is this for?
-            </Text>
-            <Text className="text-neutral-700">{notebook.meta.preview.who_for}</Text>
-          </View>
-        )}
-
-        {/* Next Step */}
-        {notebook.meta?.preview?.next_step && (
-          <View className="mb-4">
-            <Text className="text-sm font-semibold text-neutral-900 mb-2">
-              Next step
-            </Text>
-            <Text className="text-neutral-700">{notebook.meta.preview.next_step}</Text>
-          </View>
-        )}
-
-        {/* Disclaimer */}
-        <View className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 mt-4">
-          <Text className="text-xs text-neutral-600 text-center">
-            PrepAI can be inaccurate, so double-check.
-          </Text>
+                return (
+                  <View
+                    key={mat.id || index}
+                    className={`bg-neutral-50 border border-neutral-200 rounded-xl py-3 px-4 flex-row items-center ${index < notebook.materials.length - 1 ? 'mb-3' : ''}`}
+                  >
+                    <View className="w-10 h-10 bg-neutral-200 rounded-lg items-center justify-center mr-3">
+                      <Ionicons name={getMaterialIcon()} size={20} color="#525252" />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-base font-medium text-neutral-900" numberOfLines={1}>
+                        {mat.title || `Source ${index + 1}`}
+                      </Text>
+                      <Text className="text-sm text-neutral-500 mt-0.5">
+                        {mat.type.charAt(0).toUpperCase() + mat.type.slice(1)}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <Text className="text-neutral-500">No sources available</Text>
+          )}
         </View>
       </View>
     </ScrollView>

@@ -7,11 +7,11 @@
  *    EXPO_PUBLIC_SUPABASE_URL=your-project-url
  *    EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
  * 3. Get these values from: https://app.supabase.com/project/_/settings/api
+ * 4. Restart your Expo dev server after creating/updating .env
  */
 
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
-import Constants from 'expo-constants';
 
 // Custom storage adapter for Expo SecureStore
 const ExpoSecureStoreAdapter = {
@@ -27,14 +27,13 @@ const ExpoSecureStoreAdapter = {
 };
 
 // Get environment variables
-const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || 
-  process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey || 
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
+// Validate environment variables
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
-    'Missing Supabase environment variables. Please set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env file or app.json extra config.'
+    'Missing Supabase environment variables. Please set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your .env file. See lib/supabase.ts for setup instructions.'
   );
 }
 
@@ -57,5 +56,6 @@ export type Database = {
     };
   };
 };
+
 
 

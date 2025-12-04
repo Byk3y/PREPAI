@@ -14,7 +14,9 @@ import {
   StyleSheet,
   Dimensions,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   TextInput,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -219,73 +221,78 @@ export default function MaterialTypeSelector({
               </TouchableOpacity>
             </View>
 
-            {/* Title */}
-            <View style={styles.header}>
-              <Text style={styles.title}>Create study notebooks</Text>
-              <Text style={styles.titleSubtext}>
-                <Text style={styles.titleHighlight}>from</Text>{' '}
-                <Text style={styles.titleHighlight2}>your materials</Text>
-              </Text>
-            </View>
+            {/* Content - Dismiss keyboard on tap outside */}
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.contentWrapper}>
+                {/* Title */}
+                <View style={styles.header}>
+                  <Text style={styles.title}>Create study notebooks</Text>
+                  <Text style={styles.titleSubtext}>
+                    <Text style={styles.titleHighlight}>from</Text>{' '}
+                    <Text style={styles.titleHighlight2}>your materials</Text>
+                  </Text>
+                </View>
 
-            {/* Search Input */}
-            <View style={styles.searchContainer}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Find sources from the web"
-                placeholderTextColor="#A3A3A3"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                onSubmitEditing={handleSearch}
-                returnKeyType="send"
-              />
-              <TouchableOpacity
-                onPress={handleSearch}
-                style={[
-                  styles.sendButton,
-                  !searchQuery.trim() && styles.sendButtonDisabled,
-                ]}
-                disabled={!searchQuery.trim()}
-              >
-                <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
+                {/* Search Input */}
+                <View style={styles.searchContainer}>
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Find sources from the web"
+                    placeholderTextColor="#A3A3A3"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    onSubmitEditing={handleSearch}
+                    returnKeyType="send"
+                  />
+                  <TouchableOpacity
+                    onPress={handleSearch}
+                    style={[
+                      styles.sendButton,
+                      !searchQuery.trim() && styles.sendButtonDisabled,
+                    ]}
+                    disabled={!searchQuery.trim()}
+                  >
+                    <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
 
-            {/* Separator */}
-            <View style={styles.separatorContainer}>
-              <View style={styles.separatorLine} />
-              <Text style={styles.separatorText}>Or upload your files</Text>
-              <View style={styles.separatorLine} />
-            </View>
+                {/* Separator */}
+                <View style={styles.separatorContainer}>
+                  <View style={styles.separatorLine} />
+                  <Text style={styles.separatorText}>Or upload your files</Text>
+                  <View style={styles.separatorLine} />
+                </View>
 
-            {/* Material Type Options */}
-            <View style={styles.optionsContainer}>
-              {materialOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.type}
-                  style={styles.optionButton}
-                  onPress={() => handleSelectType(option.type)}
-                  activeOpacity={0.7}
-                >
-                  {option.iconSet === 'Ionicons' ? (
-                    <Ionicons 
-                      name={option.iconName as any} 
-                      size={20} 
-                      color="#171717" 
-                      style={styles.buttonIcon}
-                    />
-                  ) : (
-                    <MaterialIcons 
-                      name={option.iconName as any} 
-                      size={20} 
-                      color="#171717" 
-                      style={styles.buttonIcon}
-                    />
-                  )}
-                  <Text style={styles.buttonLabel}>{option.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                {/* Material Type Options */}
+                <View style={styles.optionsContainer}>
+                  {materialOptions.map((option) => (
+                    <TouchableOpacity
+                      key={option.type}
+                      style={styles.optionButton}
+                      onPress={() => handleSelectType(option.type)}
+                      activeOpacity={0.7}
+                    >
+                      {option.iconSet === 'Ionicons' ? (
+                        <Ionicons 
+                          name={option.iconName as any} 
+                          size={20} 
+                          color="#171717" 
+                          style={styles.buttonIcon}
+                        />
+                      ) : (
+                        <MaterialIcons 
+                          name={option.iconName as any} 
+                          size={20} 
+                          color="#171717" 
+                          style={styles.buttonIcon}
+                        />
+                      )}
+                      <Text style={styles.buttonLabel}>{option.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
           </SafeAreaView>
         </Animated.View>
       </View>
@@ -324,6 +331,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
     minHeight: SCREEN_HEIGHT * 0.85,
+  },
+  contentWrapper: {
+    flex: 1,
   },
   handleContainer: {
     alignItems: 'center',
