@@ -1,0 +1,273 @@
+/**
+ * FlashcardViewer - Modern minimalist flashcard viewer
+ * Features: tap to flip, swipe navigation, dark card design
+ */
+
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Dimensions, StyleSheet, SafeAreaView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  interpolate,
+  runOnJS,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import type { StudioFlashcard } from '@/lib/store/types';
+
+interface FlashcardViewerProps {
+  flashcards: StudioFlashcard[];
+  initialIndex?: number;
+  onClose: () => void;
+  title?: string;
+}
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const CARD_WIDTH = SCREEN_WIDTH - 80;
+const CARD_HEIGHT = SCREEN_HEIGHT * 0.58;
+
+export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
+  flashcards,
+  initialIndex = 0,
+  onClose,
+  title = 'Flashcards',
+}) => {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [isFlipped, setIsFlipped] = useState(false);
+
+  // Animation values
+  const flipRotation = useSharedValue(0);
+
+  // Flip animation
+  const flipCard = () => {
+    flipRotation.value = withTiming(isFlipped ? 0 : 180, { duration: 400 });
+    setIsFlipped(!isFlipped);
+  };
+
+  // Navigation
+  const goToNext = () => {
+    if (currentIndex < flashcards.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setIsFlipped(false);
+      flipRotation.value = 0;
+    }
+  };
+
+  const goToPrevious = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+      setIsFlipped(false);
+      flipRotation.value = 0;
+    }
+  };
+
+  // Tap gesture - for flipping the card
+  const tapGesture = Gesture.Tap()
+    .onEnd(() => {
+      runOnJS(flipCard)();
+    });
+
+  // Swipe gesture - detects swipe for navigation
+  const panGesture = Gesture.Pan()
+    .onEnd((event) => {
+      const isSwipe = Math.abs(event.translationX) > 50; // Swipe detection threshold
+
+      if (isSwipe) {
+        // Swipe detected - navigate
+        if (event.translationX > 0 && currentIndex > 0) {
+          runOnJS(goToPrevious)();
+        } else if (event.translationX < 0 && currentIndex < flashcards.length - 1) {
+          runOnJS(goToNext)();
+        }
+      }
+    });
+
+  // Combine gestures - tap has priority
+  const combinedGesture = Gesture.Race(tapGesture, panGesture);
+
+  // Card animation styles
+  const frontAnimatedStyle = useAnimatedStyle(() => {
+    const rotateY = interpolate(flipRotation.value, [0, 180], [0, 180]);
+    const opacity = interpolate(flipRotation.value, [0, 90, 180], [1, 0, 0]);
+
+    return {
+      transform: [
+        { rotateY: `${rotateY}deg` },
+      ],
+      opacity,
+    };
+  });
+
+  const backAnimatedStyle = useAnimatedStyle(() => {
+    const rotateY = interpolate(flipRotation.value, [0, 180], [180, 360]);
+    const opacity = interpolate(flipRotation.value, [0, 90, 180], [0, 0, 1]);
+
+    return {
+      transform: [
+        { rotateY: `${rotateY}deg` },
+      ],
+      opacity,
+    };
+  });
+
+  const currentCard = flashcards[currentIndex];
+
+  return (
+    <SafeAreaView className="flex-1 bg-neutral-50">
+      {/* Header */}
+      <View className="flex-row items-center justify-center px-6 py-4 relative">
+        <TouchableOpacity
+          onPress={onClose}
+          className="absolute left-6"
+        >
+          <Ionicons name="arrow-back" size={24} color="#171717" />
+        </TouchableOpacity>
+        <Text className="text-lg font-medium text-neutral-900" numberOfLines={1}>
+          {title} Flashcards
+        </Text>
+      </View>
+
+      {/* Card Container */}
+      <View className="flex-1 items-center justify-center px-6">
+        {/* Stacked cards effect - background cards */}
+        <View style={[styles.card, styles.stackedCard3]} />
+        <View style={[styles.card, styles.stackedCard2]} />
+
+        <GestureDetector gesture={combinedGesture}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
+          >
+            {/* Front of card (Question) */}
+            <Animated.View
+              style={[
+                styles.card,
+                frontAnimatedStyle,
+              ]}
+            >
+              <View className="flex-1 items-center justify-center px-10 py-16">
+                <Text style={styles.questionText}>
+                  {currentCard.question}
+                </Text>
+              </View>
+              <View className="pb-8 items-center">
+                <Text className="text-sm text-neutral-400">
+                  See answer
+                </Text>
+              </View>
+            </Animated.View>
+
+            {/* Back of card (Answer) */}
+            <Animated.View
+              style={[
+                styles.card,
+                backAnimatedStyle,
+              ]}
+            >
+              <View className="flex-1 px-10 py-16">
+                <Text style={styles.answerText}>
+                  {currentCard.answer}
+                </Text>
+
+                {currentCard.explanation && (
+                  <View className="mt-6 pt-6 border-t border-neutral-600">
+                    <Text className="text-base text-neutral-300 leading-relaxed">
+                      {currentCard.explanation}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <View className="pb-8 items-center">
+                <Text className="text-sm text-neutral-400">
+                  Swipe to navigate
+                </Text>
+              </View>
+            </Animated.View>
+          </TouchableOpacity>
+        </GestureDetector>
+      </View>
+
+      {/* Navigation */}
+      <View className="flex-row items-center justify-center gap-12 pb-12">
+        <TouchableOpacity
+          onPress={goToPrevious}
+          disabled={currentIndex === 0}
+          className={`w-14 h-14 rounded-full items-center justify-center border ${currentIndex === 0
+              ? 'border-neutral-200 bg-neutral-50'
+              : 'border-blue-500 bg-white'
+            }`}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={24}
+            color={currentIndex === 0 ? '#d4d4d4' : '#3b82f6'}
+          />
+        </TouchableOpacity>
+
+        <Text className="text-lg text-neutral-900 font-medium min-w-[80px] text-center">
+          {currentIndex + 1} / {flashcards.length}
+        </Text>
+
+        <TouchableOpacity
+          onPress={goToNext}
+          disabled={currentIndex === flashcards.length - 1}
+          className={`w-14 h-14 rounded-full items-center justify-center border ${currentIndex === flashcards.length - 1
+              ? 'border-neutral-200 bg-neutral-50'
+              : 'border-blue-500 bg-white'
+            }`}
+        >
+          <Ionicons
+            name="arrow-forward"
+            size={24}
+            color={currentIndex === flashcards.length - 1 ? '#d4d4d4' : '#3b82f6'}
+          />
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    position: 'absolute',
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    backgroundColor: '#3f3f46', // Dark gray/zinc-700
+    borderRadius: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+    zIndex: 100,
+    backfaceVisibility: 'hidden',
+  },
+  stackedCard2: {
+    transform: [{ scale: 0.95 }, { translateY: 24 }],
+    opacity: 0.7,
+    elevation: 2,
+    zIndex: -1,
+  },
+  stackedCard3: {
+    transform: [{ scale: 0.90 }, { translateY: 48 }],
+    opacity: 0.5,
+    elevation: 1,
+    zIndex: -2,
+  },
+  questionText: {
+    fontSize: 28,
+    lineHeight: 40,
+    color: '#ffffff',
+    textAlign: 'center',
+    fontWeight: '400',
+    letterSpacing: 0.2,
+  },
+  answerText: {
+    fontSize: 24,
+    lineHeight: 36,
+    color: '#ffffff',
+    fontWeight: '500',
+    letterSpacing: 0.2,
+  },
+});

@@ -9,6 +9,7 @@ export interface QuotaCheck {
   allowed: boolean;
   reason?: string;
   remaining?: number;
+  limit?: number;
   tier?: 'trial' | 'premium';
 }
 
@@ -67,12 +68,14 @@ export async function checkQuota(
             allowed: false,
             reason: 'Trial limit reached (5 Studio jobs). Upgrade to create unlimited flashcards and quizzes!',
             remaining: 0,
+            limit: 5,
             tier: 'trial',
           };
         }
         return {
           allowed: true,
           remaining: 5 - used,
+          limit: 5,
           tier: 'trial',
         };
       }
@@ -85,12 +88,14 @@ export async function checkQuota(
             allowed: false,
             reason: 'Trial limit reached (3 audio overviews). Upgrade to create unlimited audio summaries!',
             remaining: 0,
+            limit: 3,
             tier: 'trial',
           };
         }
         return {
           allowed: true,
           remaining: 3 - used,
+          limit: 3,
           tier: 'trial',
         };
       }

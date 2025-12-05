@@ -10,37 +10,33 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useStore, Material, Notebook } from '@/lib/store';
+import { useStore } from '@/lib/store';
 import { useCamera } from '@/lib/hooks/useCamera';
 import { useDocumentPicker } from '@/lib/hooks/useDocumentPicker';
 import { NotebookCard } from '@/components/NotebookCard';
 import { PetBubble } from '@/components/PetBubble';
 import MaterialTypeSelector from '@/components/MaterialTypeSelector';
 import TextInputModal from '@/components/TextInputModal';
+import { TikTokLoader } from '@/components/TikTokLoader';
 import { supabase } from '@/lib/supabase';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { notebooks, addNotebook, loadNotebooks, authUser, hasCreatedNotebook, isInitialized } = useStore();
-  const { takePhoto, isLoading: cameraLoading } = useCamera();
-  const { pickDocument, loading: documentLoading } = useDocumentPicker();
+  const { takePhoto } = useCamera();
+  const { pickDocument } = useDocumentPicker();
   const [isNavigating, setIsNavigating] = useState(false);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [isAddingNotebook, setIsAddingNotebook] = useState(false);
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isNavigatingRef = useRef(false);
 
-  // Load notebooks once after initialization completes
-  useEffect(() => {
-    if (isInitialized && authUser && !hasLoadedOnce) {
-      loadNotebooks().finally(() => setHasLoadedOnce(true));
-    } else if (isInitialized && !authUser) {
-      setHasLoadedOnce(true);
-    }
-  }, [isInitialized, authUser]);
+  // Notebooks are already loaded by _layout.tsx during initialization
+  // We only need real-time subscription for live updates (INSERT/UPDATE)
 
   // Real-time subscription for notebooks (INSERT and UPDATE)
   useEffect(() => {
@@ -58,7 +54,7 @@ export default function HomeScreen() {
         },
         async () => {
           // Skip reload if user is navigating to notebook detail (prevents flash)
-          if (!isNavigating) {
+          if (!isNavigatingRef.current) {
             await loadNotebooks();
           }
         }
@@ -81,7 +77,7 @@ export default function HomeScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [authUser, loadNotebooks, isNavigating]);
+  }, [authUser, loadNotebooks]);
 
   // Cleanup navigation timeout on unmount
   useEffect(() => {
@@ -100,6 +96,7 @@ export default function HomeScreen() {
   // Helper to navigate without homepage flash
   const navigateToNotebook = (notebookId: string) => {
     setIsNavigating(true);
+    isNavigatingRef.current = true;
     router.push(`/notebook/${notebookId}`);
 
     // Reset flag after navigation completes
@@ -108,6 +105,7 @@ export default function HomeScreen() {
     }
     navigationTimeoutRef.current = setTimeout(() => {
       setIsNavigating(false);
+      isNavigatingRef.current = false;
     }, 1000);
   };
 
@@ -147,6 +145,7 @@ export default function HomeScreen() {
       if (!result || result.cancelled) {
         return;
       }
+      setIsAddingNotebook(true);
       // Zero-friction: auto-create notebook with audio material
       const notebookId = await addNotebook({
         title: result.name.replace(/\.(mp3|wav|m4a|aac)$/i, ''),
@@ -161,9 +160,13 @@ export default function HomeScreen() {
           filename: result.name,
         },
       });
-      // Navigate to notebook detail page
+      // Reload notebooks to show the new one immediately
+      await loadNotebooks();
+      setIsAddingNotebook(false);
+      // Navigate to notebook detail page immediately
       navigateToNotebook(notebookId);
     } catch (error) {
+      setIsAddingNotebook(false);
       console.error('Error uploading audio:', error);
       Alert.alert('Error', 'Failed to upload audio. Please try again.');
     }
@@ -177,6 +180,7 @@ export default function HomeScreen() {
         return;
       }
 
+      setIsAddingNotebook(true);
       // Zero-friction: auto-create notebook with PDF material
       const notebookId = await addNotebook({
         title: result.name.replace('.pdf', ''),
@@ -191,9 +195,13 @@ export default function HomeScreen() {
           filename: result.name,
         },
       });
-      // Navigate to notebook detail page
+      // Reload notebooks to show the new one immediately
+      await loadNotebooks();
+      setIsAddingNotebook(false);
+      // Navigate to notebook detail page immediately
       navigateToNotebook(notebookId);
     } catch (error) {
+      setIsAddingNotebook(false);
       console.error('Error uploading PDF:', error);
       Alert.alert('Error', 'Failed to upload PDF. Please try again.');
     }
@@ -229,6 +237,7 @@ export default function HomeScreen() {
         return;
       }
 
+      setIsAddingNotebook(true);
       // Zero-friction: auto-create notebook with image material
       const notebookId = await addNotebook({
         title: image.fileName?.replace(/\.[^/.]+$/, '') || 'Image Notes',
@@ -244,9 +253,13 @@ export default function HomeScreen() {
           filename: image.fileName || 'image.jpg',
         },
       });
-      // Navigate to notebook detail page
+      // Reload notebooks to show the new one immediately
+      await loadNotebooks();
+      setIsAddingNotebook(false);
+      // Navigate to notebook detail page immediately
       navigateToNotebook(notebookId);
     } catch (error) {
+      setIsAddingNotebook(false);
       console.error('Error uploading image:', error);
       Alert.alert('Error', 'Failed to select image. Please try again.');
     }
@@ -261,6 +274,7 @@ export default function HomeScreen() {
         return;
       }
 
+      setIsAddingNotebook(true);
       // Zero-friction: auto-create notebook with camera photo
       const notebookId = await addNotebook({
         title: 'Camera Photo',
@@ -276,9 +290,13 @@ export default function HomeScreen() {
           filename: `photo-${Date.now()}.jpg`,
         },
       });
-      // Navigate to notebook detail page
+      // Reload notebooks to show the new one immediately
+      await loadNotebooks();
+      setIsAddingNotebook(false);
+      // Navigate to notebook detail page immediately
       navigateToNotebook(notebookId);
     } catch (error) {
+      setIsAddingNotebook(false);
       console.error('Error taking photo:', error);
       Alert.alert('Error', 'Failed to take photo. Please try again.');
     }
@@ -319,8 +337,8 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView 
-      className="flex-1 bg-white" 
+    <SafeAreaView
+      className="flex-1 bg-white"
       edges={['top', 'bottom']}
     >
       {/* Header - Always visible */}
@@ -358,8 +376,8 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Content - Only render after initial load to prevent flashes */}
-      {!hasLoadedOnce ? (
+      {/* Content - Render immediately from store */}
+      {!isInitialized ? (
         // Initial load - show blank white space (very brief)
         <View className="flex-1 bg-white" />
       ) : !authUser ? (
@@ -413,6 +431,37 @@ export default function HomeScreen() {
             </Text>
           </TouchableOpacity>
         </ScrollView>
+      )}
+
+      {/* TikTok Loader Overlay - Shows when adding notebook */}
+      {isAddingNotebook && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000,
+            pointerEvents: 'none',
+          }}
+        >
+          {/* Very subtle backdrop overlay */}
+          <View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(255, 255, 255, 0.6)',
+            }}
+          />
+          {/* Just the loader, no card */}
+          <TikTokLoader size={16} color="#6366f1" containerWidth={80} />
+        </View>
       )}
 
       {/* Floating Pet - Always visible */}

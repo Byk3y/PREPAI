@@ -65,25 +65,24 @@ export async function extractPDF(fileBuffer: Uint8Array): Promise<string> {
 
 /**
  * Extract text from image using OCR
- * MVP: Tesseract.js only
- * Supports Google Vision fallback (disabled for MVP)
+ * Primary: Gemini 2.0 Flash (multimodal AI, same as PDF extraction)
+ * Fallback: Google Vision API (if explicitly requested)
  */
 export async function extractImageText(
   fileBuffer: Uint8Array,
   options: {
-    useGoogleVision?: boolean; // default: false
+    useGoogleVision?: boolean; // default: false (use Gemini)
     confidenceThreshold?: number; // default: 70
   } = {}
 ): Promise<OCRResult> {
-  const useGoogleVision =
-    options.useGoogleVision ?? Deno.env.get('ENABLE_GOOGLE_VISION_OCR') === 'true';
+  const confidenceThreshold = options.confidenceThreshold ?? 70;
 
-  if (useGoogleVision) {
-    // Google Vision OCR (hook for future)
-    return await googleVisionOCR(fileBuffer, options.confidenceThreshold ?? 70);
+  if (options.useGoogleVision) {
+    // Google Vision OCR (fallback option)
+    return await googleVisionOCR(fileBuffer, confidenceThreshold);
   } else {
-    // Tesseract OCR (MVP)
-    return await tesseractOCR(fileBuffer, options.confidenceThreshold ?? 70);
+    // Gemini OCR (primary - multimodal AI)
+    return await geminiOCR(fileBuffer, confidenceThreshold);
   }
 }
 
@@ -116,7 +115,114 @@ async function tesseractOCR(
 }
 
 /**
- * Google Vision OCR (hook for future - not implemented in MVP)
+ * Gemini OCR - Multimodal AI text extraction
+ * Uses Gemini 2.0 Flash for high-quality text extraction from images
+ * Same API as PDF extraction - handles handwriting, watermarks, complex layouts
+ */
+async function geminiOCR(
+  fileBuffer: Uint8Array,
+  confidenceThreshold: number
+): Promise<OCRResult> {
+  const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
+
+  if (!apiKey) {
+    throw new Error('GOOGLE_AI_API_KEY not configured');
+  }
+
+  const startTime = Date.now();
+
+  try {
+    // Convert buffer to base64 using chunked conversion to avoid stack overflow
+    const CHUNK_SIZE = 8192; // Process 8KB chunks
+    let binaryString = '';
+
+    for (let i = 0; i < fileBuffer.length; i += CHUNK_SIZE) {
+      const chunk = fileBuffer.slice(i, i + CHUNK_SIZE);
+      binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+
+    const base64Image = btoa(binaryString);
+
+    // Detect MIME type from buffer (simple check)
+    let mimeType = 'image/jpeg';
+    if (fileBuffer[0] === 0x89 && fileBuffer[1] === 0x50) {
+      mimeType = 'image/png';
+    } else if (fileBuffer[0] === 0xFF && fileBuffer[1] === 0xD8) {
+      mimeType = 'image/jpeg';
+    }
+
+    // Call Gemini 2.0 Flash API
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  inline_data: {
+                    mime_type: mimeType,
+                    data: base64Image,
+                  },
+                },
+                {
+                  text: 'Extract all text from this image. Return only the extracted text without any commentary or explanation. If there is no text, respond with "No text detected".',
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            topP: 1,
+            topK: 32,
+            maxOutputTokens: 4096,
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    if (!text || text.trim() === '' || text.includes('No text detected')) {
+      throw new Error('No text detected in image');
+    }
+
+    const processingTime = Date.now() - startTime;
+
+    // Estimate confidence based on text length and processing success
+    // Longer text = higher confidence in extraction quality
+    let confidence = 90; // Base confidence for Gemini
+    if (text.length < 50) {
+      confidence = 75; // Lower confidence for very short text
+    } else if (text.length < 100) {
+      confidence = 85;
+    }
+
+    return {
+      text: text.trim(),
+      confidence,
+      metadata: {
+        engine: 'google-vision', // Keep same engine type for compatibility
+        lowQuality: confidence < confidenceThreshold,
+        language: 'eng',
+        processingTime,
+      },
+    };
+  } catch (error) {
+    throw new Error(`Gemini OCR error: ${error.message}`);
+  }
+}
+
+/**
+ * Google Vision OCR (fallback option)
  * Premium OCR for handwritten notes and low-quality photos
  */
 async function googleVisionOCR(
@@ -132,8 +238,16 @@ async function googleVisionOCR(
   const startTime = Date.now();
 
   try {
-    // Convert buffer to base64
-    const base64Image = btoa(String.fromCharCode(...fileBuffer));
+    // Convert buffer to base64 using chunked conversion to avoid stack overflow
+    const CHUNK_SIZE = 8192; // Process 8KB chunks
+    let binaryString = '';
+
+    for (let i = 0; i < fileBuffer.length; i += CHUNK_SIZE) {
+      const chunk = fileBuffer.slice(i, i + CHUNK_SIZE);
+      binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+
+    const base64Image = btoa(binaryString);
 
     // Call Google Vision API
     const response = await fetch(

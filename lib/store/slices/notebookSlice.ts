@@ -5,6 +5,7 @@
 import type { StateCreator } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { uploadMaterialFile } from '@/lib/upload';
+import { getFilenameFromPath } from '@/lib/utils';
 import type { Notebook, Material, SupabaseUser } from '../types';
 
 export interface NotebookSlice {
@@ -41,40 +42,48 @@ export const createNotebookSlice: StateCreator<
 
   loadNotebooks: async () => {
     const { authUser } = get();
-    if (!authUser) return;
+    if (!authUser) {
+      // No user, clear notebooks and return
+      set({ notebooks: [] });
+      return;
+    }
 
-    try {
-      const { data, error } = await supabase
-        .from('notebooks')
-        .select(`
-          *,
-          materials (*)
-        `)
-        .eq('user_id', authUser.id)
-        .order('created_at', { ascending: false });
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-      if (error) {
-        console.error('Error loading notebooks:', error);
-        return;
-      }
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const { data, error } = await supabase
+          .from('notebooks')
+          .select(`
+            *,
+            materials (*)
+          `)
+          .eq('user_id', authUser.id)
+          .order('created_at', { ascending: false });
 
-      // Transform Supabase data to Notebook format
-      const notebooks: Notebook[] = (data || []).map((nb: any) => ({
-        id: nb.id,
-        title: nb.title,
-        flashcardCount: nb.flashcard_count || 0,
-        lastStudied: nb.last_studied,
-        progress: nb.progress || 0,
-        createdAt: nb.created_at,
-        color: nb.color,
-        status: nb.status as Notebook['status'],
-        meta: nb.meta || {},
-        materials: nb.materials
-          ? [
+        if (error) {
+          throw new Error(`Supabase error: ${error.message}`);
+        }
+
+        // Transform Supabase data to Notebook format
+        const notebooks: Notebook[] = (data || []).map((nb: any) => ({
+          id: nb.id,
+          title: nb.title,
+          flashcardCount: nb.flashcard_count || 0,
+          lastStudied: nb.last_studied,
+          progress: nb.progress || 0,
+          createdAt: nb.created_at,
+          color: nb.color,
+          status: nb.status as Notebook['status'],
+          meta: nb.meta || {},
+          materials: nb.materials
+            ? [
               {
                 id: nb.materials.id,
                 type: nb.materials.kind as Material['type'],
                 uri: nb.materials.storage_path || nb.materials.external_url,
+                filename: getFilenameFromPath(nb.materials.storage_path),
                 content: nb.materials.content,
                 preview_text: nb.materials.preview_text,
                 title: nb.title, // Use notebook title as fallback for Material interface compatibility
@@ -82,24 +91,42 @@ export const createNotebookSlice: StateCreator<
                 thumbnail: nb.materials.thumbnail,
               },
             ]
-          : [],
-      }));
+            : [],
+        }));
 
-      set({ notebooks });
+        set({ notebooks });
 
-      // If user has notebooks, automatically set hasCreatedNotebook flag
-      if (notebooks.length > 0 && get().setHasCreatedNotebook) {
-        get().setHasCreatedNotebook!(true);
+        // If user has notebooks, automatically set hasCreatedNotebook flag
+        if (notebooks.length > 0 && get().setHasCreatedNotebook) {
+          get().setHasCreatedNotebook!(true);
+        }
+
+        // Success - return early
+        return;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.error(`Error loading notebooks (attempt ${attempt}/${maxRetries}):`, lastError);
+
+        // If this is the last attempt, throw the error
+        if (attempt === maxRetries) {
+          // On final failure, still set empty array to prevent stale data
+          set({ notebooks: [] });
+          throw lastError;
+        }
+
+        // Wait before retrying (exponential backoff)
+        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
       }
-    } catch (error) {
-      console.error('Error loading notebooks:', error);
     }
+
+    // This should never be reached, but TypeScript needs it
+    throw lastError || new Error('Failed to load notebooks after retries');
   },
 
   addNotebook: async (notebook) => {
     // Get user from store first, but fallback to Supabase if store is stale
     let authUser = get().authUser;
-    
+
     // If no user in store, check Supabase directly (handles race conditions)
     if (!authUser) {
       const { data: { user }, error } = await supabase.auth.getUser();
@@ -196,12 +223,24 @@ export const createNotebookSlice: StateCreator<
       }
 
       // Update user profile - set has_created_notebook flag (non-blocking)
+      // Fetch-then-merge pattern to preserve existing meta data
       supabase
         .from('profiles')
-        .update({
-          meta: { has_created_notebook: true }
-        })
+        .select('meta')
         .eq('id', authUser.id)
+        .single()
+        .then(({ data: profile }) => {
+          // Merge with existing meta to preserve other fields
+          const updatedMeta = {
+            ...(profile?.meta || {}),
+            has_created_notebook: true
+          };
+
+          return supabase
+            .from('profiles')
+            .update({ meta: updatedMeta })
+            .eq('id', authUser.id);
+        })
         .then(() => {
           // Update local state
           get().setHasCreatedNotebook?.(true);
@@ -223,19 +262,20 @@ export const createNotebookSlice: StateCreator<
         meta: newNotebook.meta || {},
         materials: newNotebook.materials
           ? [
-              {
-                id: newNotebook.materials.id,
-                type: newNotebook.materials.kind as Material['type'],
-                uri:
-                  newNotebook.materials.storage_path ||
-                  newNotebook.materials.external_url,
-                content: newNotebook.materials.content,
-                preview_text: newNotebook.materials.preview_text,
-                title: newNotebook.title, // Use notebook title as fallback for Material interface compatibility
-                createdAt: newNotebook.materials.created_at,
-                thumbnail: newNotebook.materials.thumbnail,
-              },
-            ]
+            {
+              id: newNotebook.materials.id,
+              type: newNotebook.materials.kind as Material['type'],
+              uri:
+                newNotebook.materials.storage_path ||
+                newNotebook.materials.external_url,
+              filename: getFilenameFromPath(newNotebook.materials.storage_path),
+              content: newNotebook.materials.content,
+              preview_text: newNotebook.materials.preview_text,
+              title: newNotebook.title, // Use notebook title as fallback for Material interface compatibility
+              createdAt: newNotebook.materials.created_at,
+              thumbnail: newNotebook.materials.thumbnail,
+            },
+          ]
           : [],
       };
 
@@ -468,16 +508,16 @@ export const createNotebookSlice: StateCreator<
       notebooks: state.notebooks.map((n) =>
         n.id === notebookId
           ? {
-              ...n,
-              materials: [
-                ...n.materials,
-                {
-                  ...material,
-                  id: `material-${Date.now()}`,
-                  createdAt: new Date().toISOString(),
-                },
-              ],
-            }
+            ...n,
+            materials: [
+              ...n.materials,
+              {
+                ...material,
+                id: `material-${Date.now()}`,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          }
           : n
       ),
     })),
@@ -487,9 +527,9 @@ export const createNotebookSlice: StateCreator<
       notebooks: state.notebooks.map((n) =>
         n.id === notebookId
           ? {
-              ...n,
-              materials: n.materials.filter((m) => m.id !== materialId),
-            }
+            ...n,
+            materials: n.materials.filter((m) => m.id !== materialId),
+          }
           : n
       ),
     })),

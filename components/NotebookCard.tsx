@@ -10,6 +10,7 @@ import type { Notebook } from '@/lib/store';
 import { getTopicEmoji } from '@/lib/emoji-matcher';
 import { supabase } from '@/lib/supabase';
 import { useStore } from '@/lib/store';
+import { TikTokLoader } from '@/components/TikTokLoader';
 
 interface NotebookCardProps {
     notebook: Notebook;
@@ -176,10 +177,10 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
                     )}
                 </View>
 
-                {/* Loading spinner on the right side for extracting status */}
+                {/* TikTok loader on the right side for extracting status */}
                 {notebook.status === 'extracting' && (
-                    <View className="ml-3">
-                        <ActivityIndicator size="small" color="#6B7280" />
+                    <View className="ml-3 items-center justify-center">
+                        <TikTokLoader size={10} color="#6366f1" containerWidth={50} />
                     </View>
                 )}
             </TouchableOpacity>

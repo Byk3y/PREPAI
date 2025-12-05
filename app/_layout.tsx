@@ -43,15 +43,22 @@ export default function RootLayout() {
 
           setHasCreatedNotebook(profile?.meta?.has_created_notebook || false);
 
-          // Load notebooks and pet in background (don't await)
-          loadNotebooks();
+          // Load notebooks and pet - await notebooks to ensure they're loaded before initialization
+          try {
+            await loadNotebooks();
+          } catch (error) {
+            console.error('Error loading notebooks during initialization:', error);
+            // Continue initialization even if notebooks fail to load
+          }
+
+          // Load pet state in background (non-critical)
           loadPetState();
         }
       } catch (error) {
         console.error('Initialization error:', error);
         setAuthUser(null);
       } finally {
-        // Mark initialization complete (auth check done)
+        // Mark initialization complete (auth check done, notebooks attempted)
         setIsInitialized(true);
       }
     };
@@ -253,9 +260,9 @@ export default function RootLayout() {
         <Stack.Screen name="auth/callback" />
         <Stack.Screen name="exam/index" />
         <Stack.Screen name="lesson/[id]" />
-        <Stack.Screen name="flashcard/[id]" />
-        <Stack.Screen 
-          name="pet-sheet" 
+        <Stack.Screen name="quiz/[id]" />
+        <Stack.Screen
+          name="pet-sheet"
           options={{
             presentation: 'transparentModal',
             animation: 'none',

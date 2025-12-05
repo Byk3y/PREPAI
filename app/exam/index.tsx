@@ -90,9 +90,8 @@ export default function ExamHubScreen() {
                     <MotiView
                       from={{ width: 0 }}
                       animate={{
-                        width: `${
-                          (exam.completedQuestions / exam.totalQuestions) * 100
-                        }%`,
+                        width: `${(exam.completedQuestions / exam.totalQuestions) * 100
+                          }%`,
                       }}
                       transition={{ type: 'timing', duration: 500 }}
                       className="h-full bg-primary-500 rounded-full"
@@ -112,7 +111,7 @@ export default function ExamHubScreen() {
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => router.push(`/flashcard/${exam.id}`)}
+                    onPress={() => router.push(`/quiz/${exam.id}`)}
                     className="flex-1 bg-secondary-500 py-3 rounded-lg items-center"
                     activeOpacity={0.8}
                   >

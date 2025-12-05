@@ -24,6 +24,7 @@ import { ChatTab } from '@/components/notebook/ChatTab';
 import { StudioTab } from '@/components/notebook/StudioTab';
 import { supabase } from '@/lib/supabase';
 import { getTopicEmoji } from '@/lib/emoji-matcher';
+import { getFilenameFromPath } from '@/lib/utils';
 
 type TabType = 'sources' | 'chat' | 'studio';
 
@@ -53,6 +54,7 @@ export default function NotebookDetailScreen() {
       id: nb.materials.id,
       type: nb.materials.kind as Material['type'],
       uri: nb.materials.storage_path || nb.materials.external_url,
+      filename: getFilenameFromPath(nb.materials.storage_path),
       content: nb.materials.content,
       preview_text: nb.materials.preview_text,
       title: nb.title,
@@ -88,8 +90,7 @@ export default function NotebookDetailScreen() {
 
   // Real-time subscription for notebook updates
   useEffect(() => {
-    if (!id || !notebook) {
-      // Only set up subscription when notebook is loaded
+    if (!id) {
       return;
     }
 
@@ -110,13 +111,13 @@ export default function NotebookDetailScreen() {
           const updated = payload.new as any;
           const oldStatus = (payload.old as any)?.status;
           const newStatus = updated.status as Notebook['status'];
-          
+
           // Get current notebook state
           setNotebook((currentNotebook) => {
             if (!currentNotebook) return currentNotebook;
-            
+
             const oldStatusFromState = currentNotebook.status;
-            
+
             // Update Zustand store AFTER render (defer to avoid React warning)
             // Use queueMicrotask to schedule store update after current render cycle
             queueMicrotask(() => {
@@ -125,11 +126,11 @@ export default function NotebookDetailScreen() {
                 currentNotebooks.map((n) =>
                   n.id === id
                     ? {
-                        ...n,
-                        status: newStatus,
-                        title: updated.title,
-                        meta: updated.meta || {},
-                      }
+                      ...n,
+                      status: newStatus,
+                      title: updated.title,
+                      meta: updated.meta || {},
+                    }
                     : n
                 )
               );
@@ -157,12 +158,12 @@ export default function NotebookDetailScreen() {
                 .single()
                 .then(({ data: refreshedData, error }) => {
                   isReloadingRef.current = false;
-                  
+
                   if (!error && refreshedData) {
                     const refreshedNotebook = transformNotebook(refreshedData);
                     setNotebook(refreshedNotebook);
                     console.log('Notebook reloaded with updated materials');
-                    
+
                     // Update store with refreshed data
                     queueMicrotask(() => {
                       const currentNotebooks = useStore.getState().notebooks;
@@ -186,7 +187,7 @@ export default function NotebookDetailScreen() {
                   const updatedNotebook = transformNotebook(updated, currentNotebook.materials);
                   setNotebook(updatedNotebook);
                 });
-              
+
               // Return current state while reloading
               return transformNotebook(updated, currentNotebook.materials);
             } else {
@@ -217,7 +218,7 @@ export default function NotebookDetailScreen() {
       isReloadingRef.current = false;
       supabase.removeChannel(channel);
     };
-  }, [id, notebook?.id]); // Re-subscribe when notebook ID changes or when notebook is loaded
+  }, [id]); // Only re-subscribe when id changes
 
   if (loading) {
     return (
@@ -356,7 +357,7 @@ export default function NotebookDetailScreen() {
           </Text>
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={handleMenuPress}
           className="w-10 h-10 items-center justify-center"
         >
@@ -371,7 +372,7 @@ export default function NotebookDetailScreen() {
         {activeTab === 'studio' && (
           <StudioTab
             notebook={notebook}
-            onGenerateQuiz={triggerQuizGeneration ? () => {} : undefined}
+            onGenerateQuiz={triggerQuizGeneration ? () => { } : undefined}
           />
         )}
       </View>

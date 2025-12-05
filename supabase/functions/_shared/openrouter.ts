@@ -31,10 +31,10 @@ const MODELS: Record<string, ModelConfig> = {
     costPer1kOutput: 0.0, // FREE
   },
   studio: {
-    name: 'anthropic/claude-3.5-sonnet', // High quality for flashcards/quiz
-    maxTokens: 3000,
-    costPer1kInput: 0.003,
-    costPer1kOutput: 0.015,
+    name: 'x-ai/grok-4.1-fast', // High quality for flashcards/quiz with 128k context window
+    maxTokens: 4000, // Increased for batch generation
+    costPer1kInput: 0.0005, // $0.50 per 1M tokens
+    costPer1kOutput: 0.0015, // $1.50 per 1M tokens
   },
   audio_script: {
     name: 'anthropic/claude-3.5-sonnet',
@@ -47,7 +47,7 @@ const MODELS: Record<string, ModelConfig> = {
 // Fallback models if primary fails
 const FALLBACK_MODELS: Record<string, string[]> = {
   preview: ['deepseek/deepseek-chat', 'qwen/qwen-2.5-7b-instruct', 'mistralai/mistral-small'],
-  studio: ['google/gemini-2.0-flash-exp', 'openai/gpt-4o'],
+  studio: ['anthropic/claude-3.5-sonnet', 'openai/gpt-4o', 'google/gemini-2.0-flash-exp'],
   audio_script: ['openai/gpt-4o-mini'],
 };
 

@@ -8,8 +8,8 @@
  * 4. Logging usage for cost tracking
  *
  * Phase 2 Implementation with:
- * - Real PDF extraction
- * - Tesseract OCR for camera photos (with quality detection)
+ * - Gemini 2.0 Flash PDF extraction (multimodal AI)
+ * - Gemini 2.0 Flash OCR for camera photos (same API as PDFs)
  * - AssemblyAI audio transcription
  * - OpenRouter LLM title and preview generation
  */
@@ -66,9 +66,8 @@ async function extractContent(
 
     const fileBuffer = new Uint8Array(await fileData.arrayBuffer());
 
-    // Run OCR (Tesseract for MVP)
+    // Run OCR using Gemini 2.0 Flash (multimodal AI, same as PDF extraction)
     const ocrResult = await extractImageText(fileBuffer, {
-      useGoogleVision: false, // MVP: Tesseract only
       confidenceThreshold: 70,
     });
 
@@ -228,7 +227,7 @@ IMPORTANT: Use markdown formatting for emphasis IN THE OVERVIEW ONLY:
       throw new Error('Overview cannot be empty');
     }
     const wordCount = trimmedOverview.split(/\s+/).length;
-    
+
     // STRICT VALIDATION: Reject if less than 120 words (allowing small margin for 130 word minimum)
     if (wordCount < 120) {
       // Throw error to force retry - the model must generate a proper overview
@@ -459,6 +458,25 @@ serve(async (req) => {
       );
     } catch (processingError: any) {
       console.error('Processing error:', processingError);
+
+      // Clean up uploaded file from storage if it exists
+      if (material.storage_path) {
+        console.log(`Cleaning up storage file: ${material.storage_path}`);
+        try {
+          const { error: deleteError } = await supabase.storage
+            .from('uploads')
+            .remove([material.storage_path]);
+
+          if (deleteError) {
+            console.error('Failed to clean up storage:', deleteError);
+          } else {
+            console.log('Storage file cleaned up successfully');
+          }
+        } catch (cleanupError) {
+          console.error('Storage cleanup error:', cleanupError);
+          // Don't throw - cleanup is best effort
+        }
+      }
 
       // Update notebook with error (preserve original title and extracted content if it exists)
       await supabase

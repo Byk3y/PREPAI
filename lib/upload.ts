@@ -4,10 +4,33 @@
  */
 
 import { supabase } from './supabase';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 export interface UploadResult {
   storagePath: string;
   error?: string;
+}
+
+/**
+ * Compress image before upload
+ * Reduces file size from ~5MB to ~500KB while maintaining quality for OCR
+ */
+async function compressImage(uri: string): Promise<string> {
+  try {
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 2000 } }], // Max width 2000px (good for OCR)
+      {
+        compress: 0.8, // 80% quality (balance OCR accuracy vs size)
+        format: ImageManipulator.SaveFormat.JPEG,
+      }
+    );
+    return result.uri;
+  } catch (error) {
+    console.error('Image compression error:', error);
+    // Return original URI if compression fails
+    return uri;
+  }
 }
 
 /**
@@ -30,12 +53,19 @@ export async function uploadMaterialFile(
 
     // For React Native, use FormData with file URI
     const mimeType = getContentType(filename);
-    
+
+    // Compress images before upload
+    let uploadUri = fileUri;
+    if (mimeType.startsWith('image/')) {
+      console.log('Compressing image before upload...');
+      uploadUri = await compressImage(fileUri);
+    }
+
     // Create FormData for React Native
     const formData = new FormData();
     // @ts-ignore - React Native FormData format
     formData.append('file', {
-      uri: fileUri,
+      uri: uploadUri,
       type: mimeType,
       name: filename,
     });
@@ -107,6 +137,32 @@ export async function getSignedUrl(
     return { url: data.signedUrl };
   } catch (error: any) {
     return { url: '', error: error.message || 'Failed to get signed URL' };
+  }
+}
+
+/**
+ * Delete a file from storage
+ * @param storagePath - The storage path to delete
+ * @returns Success status or error
+ */
+export async function deleteFile(
+  storagePath: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.storage
+      .from('uploads')
+      .remove([storagePath]);
+
+    if (error) {
+      console.error('Storage delete error:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`Successfully deleted file: ${storagePath}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Storage delete error:', error);
+    return { success: false, error: error.message || 'Failed to delete file' };
   }
 }
 

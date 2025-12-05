@@ -28,7 +28,7 @@ export default function LessonScreen() {
     // Trigger pet reaction
     setPetReaction('excited');
     // TODO: Navigate to quiz/flashcard screen
-    router.push(`/flashcard/${id}`);
+    router.push(`/quiz/${id}`);
   };
 
   const handleCompleteLesson = () => {

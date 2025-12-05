@@ -62,6 +62,7 @@ export interface Material {
   content?: string; // Extracted text only (PDF→text, audio→transcript, image→OCR, NOT summary)
   preview_text?: string; // Short TL;DR preview string
   title?: string; // Optional: For backward compatibility, but notebooks.title is the source of truth
+  filename?: string; // Extracted from storage_path for display
   createdAt: string;
   thumbnail?: string; // Optional preview image
   meta?: {
@@ -74,6 +75,46 @@ export interface Material {
     };
     [key: string]: any; // Allow other metadata
   };
+}
+
+// Studio feature types (separate from legacy exam flashcards)
+export interface StudioFlashcard {
+  id: string;
+  notebook_id: string;
+  question: string;
+  answer: string;
+  explanation?: string;
+  tags?: string[];
+  created_at: string;
+}
+
+export interface Quiz {
+  id: string;
+  notebook_id: string;
+  title: string;
+  questions: QuizQuestion[];
+  score?: number;
+  total_questions: number;
+  created_at: string;
+}
+
+export interface QuizQuestion {
+  id: string;
+  question: string;
+  options: { A: string; B: string; C: string; D: string };
+  correct: 'A' | 'B' | 'C' | 'D';
+  explanation: string;
+  selected?: 'A' | 'B' | 'C' | 'D';
+}
+
+export interface AudioOverview {
+  id: string;
+  notebook_id: string;
+  title: string;
+  duration: number; // seconds
+  audio_url: string;
+  script: string;
+  generated_at: string;
 }
 
 export interface Notebook {
@@ -98,6 +139,10 @@ export interface Notebook {
     };
     summary?: string | null; // Only set in Studio tab, null during upload
   };
+  // Studio generated content
+  studio_flashcards?: StudioFlashcard[];
+  quizzes?: Quiz[];
+  audio_overviews?: AudioOverview[];
 }
 
 export type { User as SupabaseUser } from '@supabase/supabase-js';
