@@ -113,8 +113,23 @@ export interface AudioOverview {
   title: string;
   duration: number; // seconds
   audio_url: string;
+  storage_path?: string; // Storage path for deletion
   script: string;
   generated_at: string;
+}
+
+export interface AudioPlaybackPosition {
+  audioOverviewId: string;
+  notebookId: string;
+  position: number; // Playback position in seconds
+  duration: number; // Total duration in seconds
+  audioUrl: string; // For validation (URL might change on refresh)
+  lastPlayed: string; // ISO timestamp
+  percentComplete: number; // 0-100, for UI and cleanup logic
+}
+
+export interface AudioPositionMap {
+  [audioOverviewId: string]: AudioPlaybackPosition;
 }
 
 export interface Notebook {

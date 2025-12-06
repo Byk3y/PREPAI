@@ -7,7 +7,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-nativ
 
 interface PetNameEditorProps {
     name: string;
-    onNameChange: (newName: string) => void;
+    onNameChange: (newName: string) => void | Promise<void>;
 }
 
 export function PetNameEditor({ name, onNameChange }: PetNameEditorProps) {
@@ -21,10 +21,10 @@ export function PetNameEditor({ name, onNameChange }: PetNameEditorProps) {
         }
     }, [name, isEditing]);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const trimmedName = inputValue.trim();
         if (trimmedName) {
-            onNameChange(trimmedName);
+            await onNameChange(trimmedName);
         } else {
             setInputValue(name);
         }

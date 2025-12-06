@@ -152,7 +152,7 @@ Remember to take breaks and space out your study sessions for better retention!`
         {(notebook.meta?.preview?.overview || notebook.meta?.preview?.tl_dr) && (
           <View className="mb-6">
             <Text className="text-lg font-semibold text-neutral-900 mb-3">Overview</Text>
-            <MarkdownText className="text-base text-neutral-700 leading-6">
+            <MarkdownText style={{ fontSize: 16, color: '#404040', lineHeight: 24 }}>
               {notebook.meta.preview.overview || notebook.meta.preview.tl_dr || ''}
             </MarkdownText>
           </View>

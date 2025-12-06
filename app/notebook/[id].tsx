@@ -256,11 +256,44 @@ export default function NotebookDetailScreen() {
   const materialCount = notebook.materials?.length || 0;
 
   // Handle "Take quiz" action from Chat tab
-  const handleTakeQuiz = () => {
-    setActiveTab('studio');
-    setTriggerQuizGeneration(true);
-    // Reset trigger after a short delay
-    setTimeout(() => setTriggerQuizGeneration(false), 100);
+  const handleTakeQuiz = async () => {
+    if (!notebook || !id) return;
+
+    try {
+      // Check if a quiz already exists for this notebook
+      const { data: existingQuizzes, error } = await supabase
+        .from('studio_quizzes')
+        .select('id')
+        .eq('notebook_id', id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Error checking for existing quiz:', error);
+        // Fall back to generating new quiz on error
+        setActiveTab('studio');
+        setTriggerQuizGeneration(true);
+        setTimeout(() => setTriggerQuizGeneration(false), 100);
+        return;
+      }
+
+      // If a quiz exists, navigate to it
+      if (existingQuizzes && existingQuizzes.length > 0) {
+        router.push(`/quiz/${existingQuizzes[0].id}`);
+        return;
+      }
+
+      // No quiz exists, generate a new one
+      setActiveTab('studio');
+      setTriggerQuizGeneration(true);
+      setTimeout(() => setTriggerQuizGeneration(false), 100);
+    } catch (error) {
+      console.error('Error in handleTakeQuiz:', error);
+      // Fall back to generating new quiz on error
+      setActiveTab('studio');
+      setTriggerQuizGeneration(true);
+      setTimeout(() => setTriggerQuizGeneration(false), 100);
+    }
   };
 
   // Handle menu button press

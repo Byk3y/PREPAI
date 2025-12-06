@@ -12,3 +12,14 @@ export function getFilenameFromPath(storagePath: string | undefined): string | u
     const parts = storagePath.split('/');
     return parts[parts.length - 1] || undefined;
 }
+
+/**
+ * Format seconds into MM:SS string
+ * @param seconds - Time in seconds
+ * @returns Formatted time string
+ */
+export const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+};

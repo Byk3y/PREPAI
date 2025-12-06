@@ -16,6 +16,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '@/lib/store';
 import { usePetSheetGestures } from '@/hooks/usePetSheetGestures';
@@ -49,8 +50,8 @@ export default function PetSheetScreen() {
     { id: '3', title: 'Maintain 7-day streak', progress: user.streak, total: 7, reward: 100, completed: user.streak >= 7 },
   ];
 
-  const handleNameChange = (newName: string) => {
-    setPetState({ name: newName });
+  const handleNameChange = async (newName: string) => {
+    await setPetState({ name: newName });
   };
 
   return (
@@ -73,60 +74,64 @@ export default function PetSheetScreen() {
           style={[
             styles.sheet,
             {
-              height: SCREEN_HEIGHT * 0.85,
+              height: SCREEN_HEIGHT * 0.88,
               transform: [{ translateY }],
             },
           ]}
         >
-          <View style={styles.safeArea}>
-            <ScrollView
-              ref={scrollViewRef}
-              style={styles.scrollView}
-              showsVerticalScrollIndicator={false}
-              bounces={false}
-              alwaysBounceVertical={false}
-              contentContainerStyle={styles.scrollContent}
-              scrollEventThrottle={16}
-              nestedScrollEnabled={false}
-              removeClippedSubviews={false}
-              onScroll={(event) => {
-                scrollY.current = event.nativeEvent.contentOffset.y;
-              }}
-              onScrollEndDrag={(event) => {
-                scrollY.current = event.nativeEvent.contentOffset.y;
-              }}
-              onMomentumScrollEnd={(event) => {
-                scrollY.current = event.nativeEvent.contentOffset.y;
-              }}
-            >
-              {/* Handle bar - Swipe down enabled */}
-              <PetSheetHeader panHandlers={handleBarPanResponder.panHandlers} />
+          <LinearGradient
+            colors={['#FFE082', '#FFFFFF']}
+            style={styles.gradient}
+          >
+            <View style={styles.safeArea}>
+              <ScrollView
+                ref={scrollViewRef}
+                style={styles.scrollView}
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+                alwaysBounceVertical={false}
+                contentContainerStyle={styles.scrollContent}
+                scrollEventThrottle={16}
+                nestedScrollEnabled={false}
+                removeClippedSubviews={false}
+                onScroll={(event) => {
+                  scrollY.current = event.nativeEvent.contentOffset.y;
+                }}
+                onScrollEndDrag={(event) => {
+                  scrollY.current = event.nativeEvent.contentOffset.y;
+                }}
+                onMomentumScrollEnd={(event) => {
+                  scrollY.current = event.nativeEvent.contentOffset.y;
+                }}
+              >
+                {/* Handle bar - Swipe down enabled */}
+                <PetSheetHeader panHandlers={handleBarPanResponder.panHandlers} />
 
-              {/* Top Section - No swipe down (only streak and pet emoji) */}
-              <View style={styles.topSection}>
-                <PetDisplay streak={user.streak} petEmoji="🐾" />
-              </View>
+                <View style={styles.topSection}>
+                  <PetDisplay streak={user.streak} />
+                </View>
 
-              {/* Bottom Section - Swipeable (includes pet name, XP, missions, and stats) */}
-              <View style={styles.bottomSection} {...contentPanResponder.panHandlers}>
-                <PetInfo
-                  name={petState.name}
-                  xp={petState.xp}
-                  xpToNext={petState.xpToNext}
-                  onNameChange={handleNameChange}
-                />
+                {/* Bottom Section - Swipeable (includes pet name, XP, missions, and stats) */}
+                <View style={styles.bottomSection} {...contentPanResponder.panHandlers}>
+                  <PetInfo
+                    name={petState.name}
+                    xp={petState.xp}
+                    xpToNext={petState.xpToNext}
+                    onNameChange={handleNameChange}
+                  />
 
-                <MissionsList missions={missions} />
+                  <MissionsList missions={missions} />
 
-                <StatsCard
-                  coins={user.coins}
-                  level={petState.level}
-                  streak={user.streak}
-                />
-              </View>
-            </ScrollView>
-            <SafeAreaView style={styles.bottomSafeArea} edges={['bottom']} />
-          </View>
+                  <StatsCard
+                    coins={user.coins}
+                    level={petState.level}
+                    streak={user.streak}
+                  />
+                </View>
+              </ScrollView>
+              <SafeAreaView style={styles.bottomSafeArea} edges={['bottom']} />
+            </View>
+          </LinearGradient>
         </Animated.View>
       </View>
     </Modal>
@@ -147,7 +152,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#E5E1F5',
+    backgroundColor: 'transparent',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
@@ -162,7 +167,10 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#E5E1F5',
+    backgroundColor: 'transparent',
+  },
+  gradient: {
+    flex: 1,
   },
   bottomSafeArea: {
     position: 'absolute',
@@ -173,7 +181,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    backgroundColor: '#E5E1F5',
+    backgroundColor: 'transparent',
     overflow: 'visible',
   },
   scrollContent: {

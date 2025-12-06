@@ -11,6 +11,10 @@ import { createNotebookSlice, type NotebookSlice } from './slices/notebookSlice'
 import { createFlashcardSlice, type FlashcardSlice } from './slices/flashcardSlice';
 import { createExamSlice, type ExamSlice } from './slices/examSlice';
 import { createLessonSlice, type LessonSlice } from './slices/lessonSlice';
+import { createAudioPlaybackSlice, type AudioPlaybackSlice } from './slices/audioPlaybackSlice';
+
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Combined store type
 type AppState = AuthSlice &
@@ -19,18 +23,36 @@ type AppState = AuthSlice &
   NotebookSlice &
   FlashcardSlice &
   ExamSlice &
-  LessonSlice;
+  LessonSlice &
+  AudioPlaybackSlice;
 
 // Create the combined store
-export const useStore = create<AppState>()((...a) => ({
-  ...createAuthSlice(...a),
-  ...createUserSlice(...a),
-  ...createPetSlice(...a),
-  ...createNotebookSlice(...a),
-  ...createFlashcardSlice(...a),
-  ...createExamSlice(...a),
-  ...createLessonSlice(...a),
-}));
+export const useStore = create<AppState>()(
+  persist(
+    (...a) => ({
+      ...createAuthSlice(...a),
+      ...createUserSlice(...a),
+      ...createPetSlice(...a),
+      ...createNotebookSlice(...a),
+      ...createFlashcardSlice(...a),
+      ...createExamSlice(...a),
+      ...createLessonSlice(...a),
+      ...createAudioPlaybackSlice(...a),
+    }),
+    {
+      name: 'prep-ai-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        notebooks: state.notebooks,
+        petState: state.petState,
+        authUser: state.authUser,
+        hasCreatedNotebook: state.hasCreatedNotebook,
+        playbackPositions: state.playbackPositions,
+        // Add other persistent state here as needed
+      }),
+    }
+  )
+);
 
 // Re-export all types for backward compatibility
 export * from './types';

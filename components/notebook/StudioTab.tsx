@@ -3,15 +3,29 @@
  * Shows "Generate new" cards and "Generated media" section
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef, useMemo } from 'react';
+import { View, Text, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
-import type { Notebook } from '@/lib/store';
-import type { StudioFlashcard, Quiz } from '@/lib/store/types';
+import type { Notebook, AudioOverview, StudioFlashcard, Quiz } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { generateStudioContent } from '@/lib/api/studio';
+import { generateAudioOverview } from '@/lib/api/audio-overview';
 import { TikTokLoader } from '@/components/TikTokLoader';
+
+// Hooks
+import { useStudioContent } from '@/lib/hooks/useStudioContent';
+import { useAudioGeneration } from '@/lib/hooks/useAudioGeneration';
+import { useAppState } from '@/lib/hooks/useAppState';
+
+// Components
+import { AudioReadyNotification } from '@/components/AudioReadyNotification';
+
+// Components
+import { GenerateOption } from './studio/GenerateOption';
+import { StudioMediaItem } from './studio/StudioMediaItem';
+import { StudioEmptyState } from './studio/StudioEmptyState';
 
 interface StudioTabProps {
   notebook: Notebook;
@@ -22,66 +36,253 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
   const isExtracting = notebook.status === 'extracting';
   const router = useRouter();
 
-  // State for real data
-  const [flashcards, setFlashcards] = useState<StudioFlashcard[]>([]);
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [generatingType, setGeneratingType] = useState<'flashcards' | 'quiz' | null>(null);
-
-  const handleOpenAudioPlayer = (id: string, title: string, duration: number) => {
-    // Navigate to audio player route (same behavior as flashcards)
-    router.push({
-      pathname: '/audio-player/[id]',
-      params: { id, title, duration: duration.toString() }
-    });
+  // Helper to format duration (e.g. 125 -> "2m 5s")
+  const formatDuration = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}m ${s}s`;
   };
 
-  // Fetch studio content on mount and when notebook changes
+  // Helper to format relative time (e.g. "2h ago")
+  const getTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  // Custom Hooks
+  const {
+    flashcards,
+    quizzes,
+    audioOverviews,
+    setAudioOverviews,
+    loading,
+    refreshContent
+  } = useStudioContent(notebook.id);
+
+  // Unified media item type for sorting
+  type MediaItem = 
+    | { type: 'flashcard'; data: { count: number } }
+    | { type: 'quiz'; data: Quiz }
+    | { type: 'audio'; data: AudioOverview };
+
+  // Combine and sort all media items chronologically (oldest first, newest at bottom)
+  const sortedMediaItems = useMemo(() => {
+    const items: Array<MediaItem & { createdAt: string }> = [];
+
+    // Add flashcards (if any exist)
+    if (flashcards.length > 0) {
+      // Use the most recent flashcard's created_at as the date
+      const latestFlashcard = flashcards[0]; // Already sorted descending from query
+      items.push({
+        type: 'flashcard',
+        data: { count: flashcards.length },
+        createdAt: latestFlashcard.created_at,
+      });
+    }
+
+    // Add quizzes
+    quizzes.forEach((quiz) => {
+      items.push({
+        type: 'quiz',
+        data: quiz,
+        createdAt: quiz.created_at,
+      });
+    });
+
+    // Add audio overviews
+    audioOverviews.forEach((overview) => {
+      items.push({
+        type: 'audio',
+        data: overview,
+        createdAt: overview.generated_at,
+      });
+    });
+
+    // Sort by creation date ascending (oldest first, newest at bottom)
+    return items.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateA - dateB;
+    });
+  }, [flashcards, quizzes, audioOverviews]);
+
+  const {
+    generatingType,
+    setGeneratingType,
+    generatingAudioId,
+    setGeneratingAudioId,
+    audioProgress,
+    checkForPendingAudio,
+    startAudioPolling,
+    showAudioNotification,
+    completedAudioId,
+    notebookName,
+    dismissNotification,
+    handleListenNow,
+  } = useAudioGeneration(notebook.id, notebook.title, refreshContent);
+
+  // Check for in-progress audio generation on mount (handles navigation back)
   useEffect(() => {
-    fetchStudioContent();
-  }, [notebook.id]);
+    checkForPendingAudio();
+  }, [checkForPendingAudio]);
 
-  const fetchStudioContent = async () => {
+  // Monitor app state to recover from backgrounding
+  useAppState({
+    onForeground: () => {
+      // Re-check for pending audio when app comes to foreground
+      // This handles cases where app was backgrounded during generation
+      console.log('[StudioTab] App foregrounded, checking for pending audio...');
+      checkForPendingAudio();
+    },
+  });
+
+  const handleGenerateAudioOverview = async () => {
     try {
-      setLoading(true);
+      setGeneratingType('audio');
 
-      // Parallel fetch for better performance
-      const [flashcardResult, quizResult] = await Promise.all([
-        supabase
-          .from('studio_flashcards')
-          .select('*')
-          .eq('notebook_id', notebook.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('studio_quizzes')
-          .select('*')
-          .eq('notebook_id', notebook.id)
-          .order('created_at', { ascending: false }),
-      ]);
+      const result = await generateAudioOverview(notebook.id);
+      setGeneratingAudioId(result.overview_id);
 
-      if (flashcardResult.error) {
-        console.error('Error fetching flashcards:', flashcardResult.error);
-      } else if (flashcardResult.data && flashcardResult.data.length > 0) {
-        setFlashcards(flashcardResult.data);
+      // Start polling
+      startAudioPolling(result.overview_id);
+
+    } catch (error: any) {
+      console.error('Error generating audio overview:', error);
+      
+      // Check if this is a network error (app backgrounding, connection issues)
+      const isNetworkError = error?.isNetworkError || 
+        error?.message?.includes('Network request failed') ||
+        error?.message?.includes('network') ||
+        error?.message?.includes('fetch') ||
+        error?.name === 'TypeError' ||
+        error?.name === 'AbortError';
+
+      // For network errors, check if generation actually started on the server
+      if (isNetworkError) {
+        console.log('[StudioTab] Network error detected, checking if generation started...');
+        
+        try {
+          // Check for pending audio generation for this notebook
+          const { data: pendingAudio } = await supabase
+            .from('audio_overviews')
+            .select('id, status')
+            .eq('notebook_id', notebook.id)
+            .in('status', ['pending', 'generating_script', 'generating_audio'])
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (pendingAudio) {
+            // Generation actually started! Restore state and continue polling
+            console.log('[StudioTab] Found pending audio generation, restoring state:', pendingAudio.id);
+            setGeneratingType('audio');
+            setGeneratingAudioId(pendingAudio.id);
+            startAudioPolling(pendingAudio.id);
+            
+            // Don't show error - generation is in progress
+            return;
+          }
+        } catch (recoveryError) {
+          console.log('[StudioTab] No pending audio found, treating as real error');
+          // Fall through to show error
+        }
       }
 
-      if (quizResult.error) {
-        console.error('Error fetching quizzes:', quizResult.error);
-      } else if (quizResult.data) {
-        setQuizzes(quizResult.data);
+      // Only clear state and show error if generation didn't actually start
+      setGeneratingType(null);
+      setGeneratingAudioId(null);
+      
+      // Extract user-friendly error message
+      const errorMessage = error.message || 'Failed to generate audio overview';
+      
+      // Check if it's a quota error and provide better messaging
+      let userMessage = errorMessage;
+      let title = 'Generation Failed';
+      
+      if (errorMessage.includes('Trial limit reached') || errorMessage.includes('quota')) {
+        title = 'Limit Reached';
+        // Extract remaining/limit info if available
+        if (error.remaining !== undefined && error.limit !== undefined) {
+          userMessage = `You've used all ${error.limit} audio overviews in your trial. Upgrade to Premium for unlimited audio summaries!`;
+        } else {
+          userMessage = 'You\'ve reached your trial limit for audio overviews. Upgrade to Premium for unlimited access!';
+        }
+      } else if (errorMessage.includes('trial has expired')) {
+        title = 'Trial Expired';
+        userMessage = 'Your trial has ended. Upgrade to Premium to continue creating audio summaries!';
+      } else if (errorMessage.includes('Not authenticated')) {
+        title = 'Authentication Required';
+        userMessage = 'Please sign in to generate audio overviews.';
+      } else if (errorMessage.includes('Material content too short')) {
+        title = 'Content Too Short';
+        userMessage = 'Your material needs at least 500 characters to generate an audio overview.';
+      } else if (isNetworkError) {
+        // Network error that couldn't be recovered
+        title = 'Connection Issue';
+        userMessage = 'Unable to start audio generation. Please check your connection and try again.';
+      } else {
+        // Generic error - don't expose technical details
+        userMessage = 'Unable to generate audio overview. Please check your connection and try again.';
       }
-    } catch (error) {
-      console.error('Error fetching studio content:', error);
-    } finally {
-      setLoading(false);
+      
+      Alert.alert(
+        title,
+        userMessage,
+        [{ text: 'OK' }]
+      );
     }
   };
 
-  const handleGenerateAudioOverview = () => {
+  const handleDeleteAudioOverview = (overview: AudioOverview) => {
     Alert.alert(
-      'Coming Soon',
-      'Audio overview generation will be available in the next update.',
-      [{ text: 'OK' }]
+      'Delete Audio Overview',
+      `Are you sure you want to delete "${overview.title}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Delete from storage if path exists
+              if (overview.storage_path) {
+                const { error: storageError } = await supabase.storage
+                  .from('uploads')
+                  .remove([overview.storage_path]);
+
+                if (storageError) {
+                  console.warn('Storage delete warning:', storageError);
+                }
+              }
+
+              // Delete from database
+              const { error: dbError } = await supabase
+                .from('audio_overviews')
+                .delete()
+                .eq('id', overview.id);
+
+              if (dbError) {
+                throw dbError;
+              }
+
+              // Update local state without refetching everything
+              setAudioOverviews(prev => prev.filter(a => a.id !== overview.id));
+
+              Alert.alert('Deleted', 'Audio overview has been deleted.');
+            } catch (error: any) {
+              console.error('Error deleting audio overview:', error);
+              Alert.alert('Error', 'Failed to delete audio overview.');
+            }
+          }
+        }
+      ]
     );
   };
 
@@ -95,7 +296,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
       });
 
       // Refresh studio content
-      await fetchStudioContent();
+      await refreshContent();
 
       Alert.alert(
         'Success!',
@@ -104,9 +305,35 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
       );
     } catch (error: any) {
       console.error('Error generating flashcards:', error);
+      
+      // Extract user-friendly error message
+      const errorMessage = error.message || 'Failed to generate flashcards';
+      let userMessage = errorMessage;
+      let title = 'Generation Failed';
+      
+      if (errorMessage.includes('Trial limit reached') || errorMessage.includes('quota')) {
+        title = 'Limit Reached';
+        if (error.remaining !== undefined && error.limit !== undefined) {
+          userMessage = `You've used all ${error.limit} Studio jobs in your trial. Upgrade to Premium for unlimited flashcards and quizzes!`;
+        } else {
+          userMessage = 'You\'ve reached your trial limit. Upgrade to Premium for unlimited access!';
+        }
+      } else if (errorMessage.includes('trial has expired')) {
+        title = 'Trial Expired';
+        userMessage = 'Your trial has ended. Upgrade to Premium to continue creating flashcards!';
+      } else if (errorMessage.includes('Not authenticated')) {
+        title = 'Authentication Required';
+        userMessage = 'Please sign in to generate flashcards.';
+      } else if (errorMessage.includes('Material content too short')) {
+        title = 'Content Too Short';
+        userMessage = 'Your material needs at least 500 characters to generate flashcards.';
+      } else {
+        userMessage = 'Unable to generate flashcards. Please check your connection and try again.';
+      }
+      
       Alert.alert(
-        'Generation Failed',
-        error.message || 'Failed to generate flashcards. Please try again.',
+        title,
+        userMessage,
         [{ text: 'OK' }]
       );
     } finally {
@@ -124,7 +351,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
       });
 
       // Refresh studio content
-      await fetchStudioContent();
+      await refreshContent();
 
       Alert.alert(
         'Success!',
@@ -133,9 +360,35 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
       );
     } catch (error: any) {
       console.error('Error generating quiz:', error);
+      
+      // Extract user-friendly error message
+      const errorMessage = error.message || 'Failed to generate quiz';
+      let userMessage = errorMessage;
+      let title = 'Generation Failed';
+      
+      if (errorMessage.includes('Trial limit reached') || errorMessage.includes('quota')) {
+        title = 'Limit Reached';
+        if (error.remaining !== undefined && error.limit !== undefined) {
+          userMessage = `You've used all ${error.limit} Studio jobs in your trial. Upgrade to Premium for unlimited flashcards and quizzes!`;
+        } else {
+          userMessage = 'You\'ve reached your trial limit. Upgrade to Premium for unlimited access!';
+        }
+      } else if (errorMessage.includes('trial has expired')) {
+        title = 'Trial Expired';
+        userMessage = 'Your trial has ended. Upgrade to Premium to continue creating quizzes!';
+      } else if (errorMessage.includes('Not authenticated')) {
+        title = 'Authentication Required';
+        userMessage = 'Please sign in to generate quizzes.';
+      } else if (errorMessage.includes('Material content too short')) {
+        title = 'Content Too Short';
+        userMessage = 'Your material needs at least 500 characters to generate a quiz.';
+      } else {
+        userMessage = 'Unable to generate quiz. Please check your connection and try again.';
+      }
+      
       Alert.alert(
-        'Generation Failed',
-        error.message || 'Failed to generate quiz. Please try again.',
+        title,
+        userMessage,
         [{ text: 'OK' }]
       );
     } finally {
@@ -175,183 +428,159 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
 
   // Ready to generate
   return (
-    <ScrollView className="flex-1 bg-white">
-      {/* Generate New Section */}
-      <View className="px-4 py-6">
-        <Text className="text-sm font-medium text-neutral-500 mb-4 px-2">
-          Generate new
-        </Text>
-
-        {/* Audio Overview Card */}
-        <TouchableOpacity
-          onPress={handleGenerateAudioOverview}
-          className="bg-indigo-50 rounded-full p-4 flex-row items-center mb-3"
-          activeOpacity={0.7}
-        >
-          <View className="mr-4 ml-1">
-            <Ionicons name="stats-chart" size={24} color="#4f46e5" />
-          </View>
-          <Text className="flex-1 text-base font-semibold text-neutral-900">
-            Audio Overview
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ScrollView className="flex-1 bg-white">
+        {/* Generate New Section */}
+        <View className="px-4 py-6">
+          <Text className="text-sm font-medium text-neutral-500 mb-4 px-2">
+            Generate new
           </Text>
-          <View className="w-10 h-10 bg-black/5 rounded-full items-center justify-center">
-            <Ionicons name="pencil" size={18} color="#525252" />
-          </View>
-        </TouchableOpacity>
 
-        {/* Flashcards Card */}
-        <TouchableOpacity
-          onPress={handleGenerateFlashcards}
-          disabled={generatingType !== null}
-          className="bg-red-50 rounded-full p-4 flex-row items-center mb-3"
-          activeOpacity={0.7}
-        >
-          <View className="mr-4 ml-1">
-            <Ionicons name="albums-outline" size={24} color="#dc2626" />
-          </View>
-          <Text className="flex-1 text-base font-semibold text-neutral-900">
-            Flashcards
+          {/* Audio Overview Option */}
+          <GenerateOption
+            type="audio"
+            icon="stats-chart"
+            color="#4f46e5"
+            label="Audio Overview"
+            bgColor="bg-indigo-50"
+            textColor="text-indigo-600"
+            isGenerating={generatingType === 'audio'}
+            onPress={handleGenerateAudioOverview}
+            disabled={generatingType !== null}
+          />
+
+          {/* Flashcards Option */}
+          <GenerateOption
+            type="flashcards"
+            icon="albums-outline"
+            color="#dc2626"
+            label="Flashcards"
+            bgColor="bg-red-50"
+            textColor="text-red-600"
+            isGenerating={generatingType === 'flashcards'}
+            onPress={handleGenerateFlashcards}
+            disabled={generatingType !== null}
+          />
+
+          {/* Quiz Option */}
+          <GenerateOption
+            type="quiz"
+            icon="help-circle-outline"
+            color="#0891b2"
+            label="Quiz"
+            bgColor="bg-cyan-50"
+            textColor="text-cyan-600"
+            isGenerating={generatingType === 'quiz'}
+            onPress={handleGenerateQuiz}
+            disabled={generatingType !== null}
+          />
+        </View>
+
+        {/* Generated Media Section */}
+        <View className="px-4 py-2">
+          <Text className="text-sm font-medium text-neutral-500 mb-4 px-2">
+            Generated media
           </Text>
-          {generatingType === 'flashcards' ? (
-            <ActivityIndicator size="small" color="#dc2626" />
-          ) : (
-            <View className="w-10 h-10 bg-black/5 rounded-full items-center justify-center">
-              <Ionicons name="pencil" size={18} color="#525252" />
+
+          {loading ? (
+            <View className="items-center py-12">
+              <TikTokLoader size={12} color="#6366f1" containerWidth={60} />
             </View>
-          )}
-        </TouchableOpacity>
-
-        {/* Quiz Card */}
-        <TouchableOpacity
-          onPress={handleGenerateQuiz}
-          disabled={generatingType !== null}
-          className="bg-cyan-50 rounded-full p-4 flex-row items-center"
-          activeOpacity={0.7}
-        >
-          <View className="mr-4 ml-1">
-            <Ionicons name="help-circle-outline" size={24} color="#0891b2" />
-          </View>
-          <Text className="flex-1 text-base font-semibold text-neutral-900">
-            Quiz
-          </Text>
-          {generatingType === 'quiz' ? (
-            <ActivityIndicator size="small" color="#0891b2" />
           ) : (
-            <View className="w-10 h-10 bg-black/5 rounded-full items-center justify-center">
-              <Ionicons name="pencil" size={18} color="#525252" />
-            </View>
+            <>
+              {/* Sorted Media Items (chronologically, newest at bottom) */}
+              {sortedMediaItems.map((item) => {
+                if (item.type === 'flashcard') {
+                  return (
+                    <StudioMediaItem
+                      key="flashcards"
+                      icon="albums-outline"
+                      iconColor="#dc2626"
+                      title={`${notebook.title} Flashcards`}
+                      subtitle={`${item.data.count} cards • 1 source • ${getTimeAgo(item.createdAt)}`}
+                      onPress={() => router.push(`/flashcards/${notebook.id}`)}
+                    />
+                  );
+                } else if (item.type === 'quiz') {
+                  return (
+                    <StudioMediaItem
+                      key={item.data.id}
+                      icon="help-circle-outline"
+                      iconColor="#0891b2"
+                      title={item.data.title}
+                      subtitle={`${item.data.total_questions} questions • 1 source • ${getTimeAgo(item.createdAt)}`}
+                      onPress={() => router.push(`/quiz/${item.data.id}`)}
+                    />
+                  );
+                } else {
+                  // Audio overview
+                  return (
+                    <StudioMediaItem
+                      key={item.data.id}
+                      icon="stats-chart"
+                      iconColor="#4f46e5"
+                      title={item.data.title}
+                      subtitle={`${formatDuration(item.data.duration)} • ${getTimeAgo(item.createdAt)}`}
+                      onPress={() => router.push(`/audio-player/${item.data.id}`)}
+                      onDelete={() => handleDeleteAudioOverview(item.data)}
+                    />
+                  );
+                }
+              })}
+
+              {/* Generating States */}
+              {generatingType === 'flashcards' && (
+                <StudioMediaItem
+                  icon="albums-outline"
+                  iconColor="#737373"
+                  title="Flashcards"
+                  isGenerating={true}
+                  loadingColor="#2563eb"
+                  loadingText="Generating..."
+                />
+              )}
+
+              {generatingType === 'quiz' && (
+                <StudioMediaItem
+                  icon="help-circle-outline"
+                  iconColor="#737373"
+                  title="Quiz"
+                  isGenerating={true}
+                  loadingColor="#2563eb"
+                  loadingText="Generating..."
+                />
+              )}
+
+              {generatingType === 'audio' && (
+                <StudioMediaItem
+                  icon="stats-chart"
+                  iconColor="#737373"
+                  title="Audio Overview"
+                  isGenerating={true}
+                  loadingColor="#4f46e5"
+                  loadingText={audioProgress.stage}
+                />
+              )}
+
+              {/* Empty State */}
+              {!generatingType && sortedMediaItems.length === 0 && (
+                <StudioEmptyState />
+              )}
+            </>
           )}
-        </TouchableOpacity>
-      </View>
+        </View>
+      </ScrollView>
 
-      {/* Generated Media Section */}
-      <View className="px-4 py-2">
-        <Text className="text-sm font-medium text-neutral-500 mb-4 px-2">
-          Generated media
-        </Text>
-
-        {loading ? (
-          <View className="items-center py-12">
-            <TikTokLoader size={12} color="#6366f1" containerWidth={60} />
-          </View>
-        ) : (
-          <>
-            {/* Real Flashcards */}
-            {flashcards.length > 0 && (
-              <TouchableOpacity
-                onPress={() => router.push(`/flashcards/${notebook.id}`)}
-                className="p-3 mb-2 flex-row items-center"
-                activeOpacity={0.7}
-              >
-                <View className="mr-4">
-                  <Ionicons name="albums-outline" size={24} color="#dc2626" />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-base font-medium text-neutral-900">
-                    {notebook.title} Flashcards
-                  </Text>
-                  <Text className="text-xs text-neutral-500 mt-0.5">
-                    {flashcards.length} cards • 1 source • Just now
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
-
-            {/* Real Quizzes */}
-            {quizzes.map((quiz) => (
-              <TouchableOpacity
-                key={quiz.id}
-                onPress={() => router.push(`/quiz/${quiz.id}`)}
-                className="p-3 mb-2 flex-row items-center"
-                activeOpacity={0.7}
-              >
-                <View className="mr-4">
-                  <Ionicons name="help-circle-outline" size={24} color="#0891b2" />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-base font-medium text-neutral-900">
-                    {quiz.title}
-                  </Text>
-                  <Text className="text-xs text-neutral-500 mt-0.5">
-                    {quiz.total_questions} questions • 1 source • Just now
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-
-            {/* Generating States */}
-            {generatingType === 'flashcards' && (
-              <View className="p-3 mb-2 flex-row items-center">
-                <View className="mr-4">
-                  <Ionicons name="albums-outline" size={24} color="#737373" />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-base font-medium text-neutral-900">
-                    Flashcards
-                  </Text>
-                  <View className="flex-row items-center mt-0.5">
-                    <TikTokLoader size={10} color="#2563eb" containerWidth={50} />
-                    <Text className="text-xs text-blue-600 ml-2">
-                      Generating...
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {generatingType === 'quiz' && (
-              <View className="p-3 mb-2 flex-row items-center">
-                <View className="mr-4">
-                  <Ionicons name="help-circle-outline" size={24} color="#737373" />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-base font-medium text-neutral-900">
-                    Quiz
-                  </Text>
-                  <View className="flex-row items-center mt-0.5">
-                    <TikTokLoader size={10} color="#2563eb" containerWidth={50} />
-                    <Text className="text-xs text-blue-600 ml-2">
-                      Generating...
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* Empty State */}
-            {!generatingType && flashcards.length === 0 && quizzes.length === 0 && (
-              <View className="items-center py-12">
-                <View className="w-20 h-20 bg-neutral-100 rounded-full items-center justify-center mb-4">
-                  <Ionicons name="sparkles-outline" size={32} color="#a3a3a3" />
-                </View>
-                <Text className="text-neutral-500 text-center">
-                  No generated media yet
-                </Text>
-              </View>
-            )}
-          </>
-        )}
-      </View>
-    </ScrollView>
+      {/* Audio Ready Notification */}
+      {completedAudioId && (
+        <AudioReadyNotification
+          visible={showAudioNotification}
+          notebookName={notebookName}
+          overviewId={completedAudioId}
+          onDismiss={dismissNotification}
+          onListenNow={handleListenNow}
+        />
+      )}
+    </GestureHandlerRootView>
   );
 };

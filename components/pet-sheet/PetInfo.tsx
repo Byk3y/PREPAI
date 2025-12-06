@@ -4,7 +4,6 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { MotiViewCompat as MotiView } from '@/components/MotiViewCompat';
 import { PetNameEditor } from './PetNameEditor';
 
 interface PetInfoProps {
@@ -26,12 +25,7 @@ export function PetInfo({ name, xp, xpToNext, onNameChange }: PetInfoProps) {
                 {/* XP Progress Bar */}
                 <View style={styles.xpContainer}>
                     <View style={styles.xpBarBackground}>
-                        <MotiView
-                            from={{ width: 0 }}
-                            animate={{
-                                width: `${xpPercentage}%`,
-                            }}
-                            transition={{ type: 'timing', duration: 500 }}
+                        <View
                             style={[styles.xpBarFill, { width: `${xpPercentage}%` }]}
                         />
                     </View>
@@ -46,7 +40,7 @@ export function PetInfo({ name, xp, xpToNext, onNameChange }: PetInfoProps) {
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: '#E5E1F5',
+        backgroundColor: 'transparent',
         paddingHorizontal: 16,
         paddingTop: 8,
         paddingBottom: 16,
@@ -60,16 +54,16 @@ const styles = StyleSheet.create({
         width: 256,
     },
     xpBarBackground: {
-        height: 10,
-        backgroundColor: '#C8B7E8',
-        borderRadius: 5,
+        height: 14,
+        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+        borderRadius: 7,
         overflow: 'hidden',
         marginBottom: 8,
     },
     xpBarFill: {
         height: '100%',
-        backgroundColor: '#9370DB',
-        borderRadius: 5,
+        backgroundColor: '#FFB300',
+        borderRadius: 7,
     },
     xpText: {
         fontSize: 13,

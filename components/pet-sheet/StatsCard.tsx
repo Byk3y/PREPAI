@@ -40,8 +40,7 @@ export function StatsCard({ coins, level, streak }: StatsCardProps) {
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: 'white',
-        marginHorizontal: 16,
+        backgroundColor: 'white', marginHorizontal: 16,
         marginBottom: 0,
         marginTop: 0,
         padding: 20,

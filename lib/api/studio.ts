@@ -63,12 +63,18 @@ export async function generateStudioContent(
   if (!response.ok) {
     const errorData: StudioError = await response.json();
 
-    // Handle quota exceeded
-    if (response.status === 403 && errorData.remaining !== undefined) {
-      throw new Error(errorData.error || 'Quota exceeded');
+    // Create error with quota details preserved
+    const error: any = new Error(errorData.error || `Failed to generate ${request.content_type}`);
+    
+    // Preserve quota information for better error handling
+    if (errorData.remaining !== undefined) {
+      error.remaining = errorData.remaining;
     }
-
-    throw new Error(errorData.error || `Failed to generate ${request.content_type}`);
+    if (errorData.limit !== undefined) {
+      error.limit = errorData.limit;
+    }
+    
+    throw error;
   }
 
   const data: GenerateStudioContentResponse = await response.json();

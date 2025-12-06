@@ -3,184 +3,251 @@
  * Matches the reference design with header, progress bar, and playback controls
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
     View,
     Text,
     TouchableOpacity,
     SafeAreaView,
-    Dimensions,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
-import Svg, { Path, Circle, G } from 'react-native-svg';
+import Slider from '@react-native-community/slider';
+import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// ============== SVG Icons ==============
-
-const CloseIcon = ({ size = 24, color = '#1a1a1a' }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <Path
-            d="M18 6L6 18M6 6l12 12"
-            stroke={color}
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        />
-    </Svg>
-);
-
-const DownloadIcon = ({ size = 24, color = '#1a1a1a' }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <Path
-            d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
-            stroke={color}
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        />
-    </Svg>
-);
-
-const PlayIcon = ({ size = 32, color = '#fff' }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-        <Path d="M8 5v14l11-7z" />
-    </Svg>
-);
-
-const PauseIcon = ({ size = 32, color = '#fff' }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-        <Path d="M6 4h4v16H6zM14 4h4v16h-4z" />
-    </Svg>
-);
-
-const RewindIcon = ({ size = 28, color = '#4F5BD5' }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <Path
-            d="M11 19a8 8 0 100-16 8 8 0 000 16z"
-            stroke={color}
-            strokeWidth={1.5}
-        />
-        <Path
-            d="M11 19a8 8 0 110-16"
-            stroke={color}
-            strokeWidth={2}
-            strokeLinecap="round"
-        />
-        <G transform="translate(2, 0)">
-            <Path
-                d="M9 8v4l-2-2"
-                stroke={color}
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            />
-        </G>
-    </Svg>
-);
-
-const ForwardIcon = ({ size = 28, color = '#4F5BD5' }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <Path
-            d="M13 19a8 8 0 110-16 8 8 0 010 16z"
-            stroke={color}
-            strokeWidth={1.5}
-        />
-        <Path
-            d="M13 3a8 8 0 110 16"
-            stroke={color}
-            strokeWidth={2}
-            strokeLinecap="round"
-        />
-        <G transform="translate(-2, 0)">
-            <Path
-                d="M15 8v4l2-2"
-                stroke={color}
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            />
-        </G>
-    </Svg>
-);
-
-const ThumbUpIcon = ({ size = 24, color = '#9ca3af', filled = false }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <Path
-            d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"
-            stroke={color}
-            strokeWidth={1.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill={filled ? color : 'none'}
-        />
-    </Svg>
-);
-
-const ThumbDownIcon = ({ size = 24, color = '#9ca3af', filled = false }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <Path
-            d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10zM17 2h2.67A2.31 2.31 0 0122 4v7a2.31 2.31 0 01-2.33 2H17"
-            stroke={color}
-            strokeWidth={1.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill={filled ? color : 'none'}
-        />
-    </Svg>
-);
-
-// ============== Helper Functions ==============
-
-const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
-// ============== Component Props ==============
+import { Audio } from 'expo-av';
+import type { AVPlaybackStatus } from 'expo-av';
+import { useAudioPlaybackPosition } from '@/lib/hooks/useAudioPlaybackPosition';
+import { AudioVisualizer } from './AudioVisualizer';
+import {
+    CloseIcon,
+    DownloadIcon,
+    PlayIcon,
+    PauseIcon,
+    ThumbUpIcon,
+    ThumbDownIcon
+} from './AudioIcons';
+import { formatTime } from '@/lib/utils';
 
 interface AudioPlayerProps {
+    audioUrl: string; // Required: URL to audio file
+    audioOverviewId: string; // Required: Unique ID for position tracking
+    notebookId: string; // Required: Parent notebook ID
     title?: string;
     duration?: number; // in seconds
     onClose?: () => void;
     onDownload?: () => void;
 }
 
-// ============== Main Component ==============
-
 export function AudioPlayer({
-    title = 'Building the PAR Caregiving Companion ...',
-    duration = 640, // 10:40 in seconds
+    audioUrl,
+    audioOverviewId,
+    notebookId,
+    title = 'Audio Overview',
+    duration = 0,
     onClose,
     onDownload,
 }: AudioPlayerProps) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
+    const [audioDuration, setAudioDuration] = useState(duration);
     const [playbackSpeed, setPlaybackSpeed] = useState(1);
     const [liked, setLiked] = useState<boolean | null>(null);
+    const [loading, setLoading] = useState(true);
 
-    const progress = duration > 0 ? currentTime / duration : 0;
+    const sound = useRef<Audio.Sound | null>(null);
+    const isDraggingSlider = useRef(false);
+    const isSeeking = useRef(false);
 
-    const handlePlayPause = useCallback(() => {
-        setIsPlaying((prev) => !prev);
+    // Position persistence hook
+    const {
+        savedPosition,
+        saveCurrentPosition,
+        clearSavedPosition,
+    } = useAudioPlaybackPosition(audioOverviewId, notebookId, audioUrl, audioDuration);
+
+    // Initialize audio on mount
+    useEffect(() => {
+        loadAudio();
+
+        return () => {
+            // Save position before unmount (when navigating away)
+            if (sound.current) {
+                sound.current.getStatusAsync().then((status) => {
+                    if (status.isLoaded && status.positionMillis) {
+                        const positionInSeconds = status.positionMillis / 1000;
+                        saveCurrentPosition(positionInSeconds);
+                    }
+                });
+
+                sound.current.unloadAsync();
+            }
+        };
+    }, [audioUrl, saveCurrentPosition]);
+
+    const loadAudio = async () => {
+        try {
+            setLoading(true);
+
+            // Configure audio mode
+            await Audio.setAudioModeAsync({
+                allowsRecordingIOS: false,
+                playsInSilentModeIOS: true,
+                staysActiveInBackground: true,
+            });
+
+            // Load audio
+            const { sound: audioSound } = await Audio.Sound.createAsync(
+                { uri: audioUrl },
+                { shouldPlay: false, rate: playbackSpeed },
+                onPlaybackStatusUpdate
+            );
+
+            sound.current = audioSound;
+
+            // Get initial duration
+            const status = await audioSound.getStatusAsync();
+            if (status.isLoaded && status.durationMillis) {
+                setAudioDuration(status.durationMillis / 1000);
+            }
+
+            // Restore saved position if exists and is significant (>5 seconds)
+            if (savedPosition && savedPosition > 5) {
+                await audioSound.setPositionAsync(savedPosition * 1000); // Convert to ms
+                setCurrentTime(savedPosition);
+            }
+
+            setLoading(false);
+        } catch (error: any) {
+            console.error('Failed to load audio:', error);
+            setLoading(false);
+            Alert.alert('Error', 'Failed to load audio file');
+        }
+    };
+
+    const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
+        if (status.isLoaded) {
+            const positionInSeconds = (status.positionMillis || 0) / 1000;
+            setIsPlaying(status.isPlaying);
+
+            if (status.durationMillis) {
+                setAudioDuration(status.durationMillis / 1000);
+            }
+
+            // Save position periodically during playback
+            if (status.isPlaying) {
+                // Only update current time if not dragging slider to prevent jumping
+                if (!isDraggingSlider.current) {
+                    setCurrentTime(positionInSeconds);
+                    saveCurrentPosition(positionInSeconds);
+                }
+            }
+
+            // Auto-stop at end and clear saved position
+            if (status.didJustFinish) {
+                setIsPlaying(false);
+                setCurrentTime(0);
+                sound.current?.setPositionAsync(0);
+                clearSavedPosition(); // Clear saved position when audio finishes
+            }
+        }
+    };
+
+    // Safe seek helper to prevent "Interrupted" errors
+    const safeSeek = useCallback(async (positionMillis: number) => {
+        if (!sound.current || isSeeking.current) return;
+
+        try {
+            isSeeking.current = true;
+            await sound.current.setPositionAsync(positionMillis);
+        } catch (error: any) {
+            // Ignore interruption errors which happen during rapid seeking
+            if (error.message && error.message.includes('Seeking interrupted')) {
+                console.log('Seeking interrupted (harmless)');
+            } else {
+                console.error('Seek error:', error);
+            }
+        } finally {
+            isSeeking.current = false;
+        }
     }, []);
 
-    const handleSeekBack = useCallback(() => {
-        setCurrentTime((prev) => Math.max(0, prev - 10));
+    const handleSlidingStart = useCallback(() => {
+        isDraggingSlider.current = true;
     }, []);
 
-    const handleSeekForward = useCallback(() => {
-        setCurrentTime((prev) => Math.min(duration, prev + 10));
-    }, [duration]);
+    const handleSlidingComplete = useCallback(async (value: number) => {
+        if (!sound.current) return;
+        const newPositionMillis = value * 1000;
 
-    const handleSpeedChange = useCallback(() => {
-        setPlaybackSpeed((prev) => {
-            if (prev === 1) return 1.5;
-            if (prev === 1.5) return 2;
-            return 1;
-        });
-    }, []);
+        // Optimistic update
+        setCurrentTime(value);
+
+        await safeSeek(newPositionMillis);
+        isDraggingSlider.current = false;
+    }, [safeSeek]);
+
+    const handlePlayPause = useCallback(async () => {
+        if (!sound.current || loading) return;
+
+        try {
+            const status = await sound.current.getStatusAsync();
+            if (status.isLoaded) {
+                if (status.isPlaying) {
+                    await sound.current.pauseAsync();
+                    // Save position immediately on pause
+                    const positionInSeconds = (status.positionMillis || 0) / 1000;
+                    saveCurrentPosition(positionInSeconds);
+                } else {
+                    await sound.current.playAsync();
+                }
+            }
+        } catch (error) {
+            console.error('Play/Pause error:', error);
+        }
+    }, [loading, saveCurrentPosition]);
+
+    const handleSeekBack = useCallback(async () => {
+        if (!sound.current || loading) return;
+        try {
+            const status = await sound.current.getStatusAsync();
+            if (status.isLoaded) {
+                const newPosition = Math.max(0, (status.positionMillis || 0) - 10000);
+                // Optimistic update
+                setCurrentTime(newPosition / 1000);
+                await safeSeek(newPosition);
+            }
+        } catch (error) {
+            console.error('Status check error:', error);
+        }
+    }, [loading, safeSeek]);
+
+    const handleSeekForward = useCallback(async () => {
+        if (!sound.current || loading) return;
+        try {
+            const status = await sound.current.getStatusAsync();
+            if (status.isLoaded && status.durationMillis) {
+                const newPosition = Math.min(status.durationMillis, (status.positionMillis || 0) + 10000);
+                // Optimistic update
+                setCurrentTime(newPosition / 1000);
+                await safeSeek(newPosition);
+            }
+        } catch (error) {
+            console.error('Status check error:', error);
+        }
+    }, [loading, safeSeek]);
+
+    const handleSpeedChange = useCallback(async () => {
+        if (!sound.current || loading) return;
+
+        try {
+            const newSpeed = playbackSpeed === 1 ? 1.5 : playbackSpeed === 1.5 ? 2 : 1;
+            await sound.current.setRateAsync(newSpeed, true);
+            setPlaybackSpeed(newSpeed);
+        } catch (error) {
+            console.error('Speed change error:', error);
+        }
+    }, [playbackSpeed, loading]);
 
     const handleLike = useCallback(() => {
         setLiked((prev) => (prev === true ? null : true));
@@ -227,8 +294,10 @@ export function AudioPlayer({
                     {/* Blue Accent Line */}
                     <View className="w-full h-0.5 bg-[#4F5BD5] mb-8" />
 
-                    {/* Main Content Area - Empty/placeholder for visualizer */}
-                    <View className="flex-1" />
+                    {/* Main Content Area - Audio Visualization Space */}
+                    <View className="flex-1 px-6 justify-center items-center">
+                        <AudioVisualizer isPlaying={isPlaying} />
+                    </View>
 
                     {/* Secondary Controls */}
                     <View className="flex-row items-center justify-center gap-12 mb-8 px-6">
@@ -267,23 +336,31 @@ export function AudioPlayer({
                     {/* Progress Bar */}
                     <View className="px-6 mb-8">
                         <View className="flex-row items-center">
-                            <Text className="text-sm text-gray-500 w-12">
+                            <Text className="text-sm text-gray-500 w-12 font-medium">
                                 {formatTime(currentTime)}
                             </Text>
-                            <View className="flex-1 h-1 bg-gray-200 rounded-full mx-3 overflow-hidden">
-                                <View
-                                    className="h-full bg-gray-400 rounded-full"
-                                    style={{ width: `${progress * 100}%` }}
+                            <View className="flex-1 mx-3">
+                                <Slider
+                                    style={{ width: '100%', height: 40 }}
+                                    minimumValue={0}
+                                    maximumValue={audioDuration || 1}
+                                    value={currentTime}
+                                    onSlidingStart={handleSlidingStart}
+                                    onSlidingComplete={handleSlidingComplete}
+                                    minimumTrackTintColor="#4F5BD5"
+                                    maximumTrackTintColor="#E5E7EB"
+                                    thumbTintColor="#4F5BD5"
+                                    tapToSeek={true}
                                 />
                             </View>
-                            <Text className="text-sm text-gray-500 w-12 text-right">
-                                {formatTime(duration)}
+                            <Text className="text-sm text-gray-500 w-12 text-right font-medium">
+                                {formatTime(audioDuration)}
                             </Text>
                         </View>
                     </View>
 
                     {/* Primary Controls */}
-                    <View className="flex-row items-center justify-center gap-8 mb-6">
+                    <View className="flex-row items-center justify-center gap-10 mb-20">
                         <TouchableOpacity
                             onPress={handleSeekBack}
                             className="w-14 h-14 items-center justify-center"
@@ -314,19 +391,23 @@ export function AudioPlayer({
 
                         <TouchableOpacity
                             onPress={handlePlayPause}
-                            className="w-16 h-16 rounded-full bg-[#4F5BD5] items-center justify-center shadow-lg"
+                            disabled={loading}
+                            className="w-20 h-20 rounded-full bg-[#4F5BD5] items-center justify-center shadow-lg"
                             style={{
                                 shadowColor: '#4F5BD5',
-                                shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.3,
-                                shadowRadius: 8,
-                                elevation: 8,
+                                shadowOffset: { width: 0, height: 8 },
+                                shadowOpacity: 0.4,
+                                shadowRadius: 12,
+                                elevation: 12,
+                                opacity: loading ? 0.7 : 1,
                             }}
                         >
-                            {isPlaying ? (
-                                <PauseIcon size={28} color="#fff" />
+                            {loading ? (
+                                <ActivityIndicator size="small" color="#fff" />
+                            ) : isPlaying ? (
+                                <PauseIcon size={36} color="#fff" />
                             ) : (
-                                <PlayIcon size={28} color="#fff" />
+                                <PlayIcon size={36} color="#fff" />
                             )}
                         </TouchableOpacity>
 

@@ -3,15 +3,15 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { MotiViewCompat as MotiView } from '@/components/MotiViewCompat';
 
 interface PetDisplayProps {
     streak: number;
-    petEmoji?: string;
+
 }
 
-export function PetDisplay({ streak, petEmoji = '🐾' }: PetDisplayProps) {
+export function PetDisplay({ streak }: PetDisplayProps) {
     return (
         <View style={styles.container}>
             {/* Streak Days */}
@@ -20,7 +20,6 @@ export function PetDisplay({ streak, petEmoji = '🐾' }: PetDisplayProps) {
                 <Text style={styles.streakValue}>{streak}</Text>
             </View>
 
-            {/* Pet Character */}
             <View style={styles.petCharacterContainer}>
                 <MotiView
                     from={{ scale: 1 }}
@@ -30,10 +29,16 @@ export function PetDisplay({ streak, petEmoji = '🐾' }: PetDisplayProps) {
                         duration: 2000,
                         loop: true,
                         repeatReverse: true,
+                        delay: 0,
                     }}
                     style={styles.petEmojiContainer}
                 >
-                    <Text style={styles.petEmoji}>{petEmoji}</Text>
+                    <Image
+                        source={require('@/assets/pets/stage-1/full-view.png')}
+                        style={styles.petImage}
+                        resizeMode="contain"
+                        fadeDuration={0}
+                    />
                 </MotiView>
             </View>
         </View>
@@ -42,7 +47,7 @@ export function PetDisplay({ streak, petEmoji = '🐾' }: PetDisplayProps) {
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: '#E5E1F5',
+        backgroundColor: 'transparent',
         paddingHorizontal: 16,
         paddingTop: 8,
         paddingBottom: 16,
@@ -68,13 +73,14 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     petEmojiContainer: {
-        width: 192,
-        height: 192,
+        width: 250,
+        height: 250,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 8,
     },
-    petEmoji: {
-        fontSize: 144,
+    petImage: {
+        width: '100%',
+        height: '100%',
     },
 });

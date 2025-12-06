@@ -7,7 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { useEffect } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Image } from 'react-native';
 import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
 import { useStore } from '@/lib/store';
@@ -26,75 +26,63 @@ export default function RootLayout() {
   const { setAuthUser, setHasCreatedNotebook, setIsInitialized, loadNotebooks, loadPetState } = useStore();
 
   useEffect(() => {
-    // Initialize in background - don't block UI
-    const initializeApp = async () => {
-      try {
-        // Check auth
-        const { data: { user } } = await supabase.auth.getUser();
-        setAuthUser(user);
+    // Single source of truth for auth state and initialization
+    // This prevents race conditions between getUser() and onAuthStateChange
+    let mounted = true;
 
-        if (user) {
-          // Load profile
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('meta')
-            .eq('id', user.id)
-            .single();
-
-          setHasCreatedNotebook(profile?.meta?.has_created_notebook || false);
-
-          // Load notebooks and pet - await notebooks to ensure they're loaded before initialization
-          try {
-            await loadNotebooks();
-          } catch (error) {
-            console.error('Error loading notebooks during initialization:', error);
-            // Continue initialization even if notebooks fail to load
-          }
-
-          // Load pet state in background (non-critical)
-          loadPetState();
-        }
-      } catch (error) {
-        console.error('Initialization error:', error);
-        setAuthUser(null);
-      } finally {
-        // Mark initialization complete (auth check done, notebooks attempted)
-        setIsInitialized(true);
-      }
-    };
-
-    initializeApp();
-
-    // Listen for auth changes (simplified)
     const {
       data: { subscription: authSubscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`Auth state changed: ${event}, user: ${session?.user?.id}`);
+
+      if (!mounted) return;
+
       setAuthUser(session?.user ?? null);
 
       if (session?.user) {
-        // Load profile and data in background
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('meta')
-          .eq('id', session.user.id)
-          .single();
+        try {
+          // 1. Load profile data
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('meta')
+            .eq('id', session.user.id)
+            .single();
 
-        setHasCreatedNotebook(profile?.meta?.has_created_notebook || false);
-        loadNotebooks();
-        loadPetState();
+          if (mounted && profile?.meta?.has_created_notebook) {
+            setHasCreatedNotebook(true);
+          } else if (mounted) {
+            setHasCreatedNotebook(false);
+          }
+
+          // 2. Load notebooks
+          // We always reload on auth change to ensure freshness
+          // The store handles caching/diffing if needed, or we just overwrite
+          await loadNotebooks();
+
+          // 3. Load pet state (non-critical)
+          loadPetState();
+        } catch (error) {
+          console.error('Error loading user data:', error);
+        }
+      } else {
+        // Clear sensitive state on sign out
+        // Note: The store might need a clear() method, but for now specific slices handle their own cleanup
+        // or we rely on them replacing data when new user logs in. 
+        // Ideally we should clear notebooks here but loadNotebooks() handles "no user" check.
+      }
+
+      // Mark initialization as complete after processing the auth state
+      if (mounted) {
+        setIsInitialized(true);
       }
     });
 
     // Handle deep links when app is opened via magic link
     const handleDeepLink = async (event: { url: string }) => {
       const { url } = event;
-
-      // Parse the URL to extract path and query params
       const parsed = Linking.parse(url);
 
-      // If it's an auth callback, navigate to it
       if (parsed.path === 'auth/callback' || parsed.path === '/auth/callback') {
-        // Extract tokens from query params
         const queryParams = parsed.queryParams || {};
         const accessToken = queryParams.access_token as string | undefined;
         const refreshToken = queryParams.refresh_token as string | undefined;
@@ -110,26 +98,38 @@ export default function RootLayout() {
             router.replace('/auth');
           }
         } else {
-          // Navigate to callback screen to handle it
           router.push('/auth/callback');
         }
       }
     };
 
-    // Check if app was opened via deep link
     Linking.getInitialURL().then((url) => {
-      if (url) {
-        handleDeepLink({ url });
-      }
+      if (url) handleDeepLink({ url });
     });
 
-    // Listen for deep links when app is already running
     const linkingSubscription = Linking.addEventListener('url', handleDeepLink);
 
     return () => {
+      mounted = false;
       authSubscription.unsubscribe();
       linkingSubscription.remove();
     };
+  }, []);
+
+  // Preload assets
+  useEffect(() => {
+    const preloadAssets = async () => {
+      try {
+        const image = require('@/assets/pets/stage-1/full-view.png');
+        const uri = Image.resolveAssetSource(image).uri;
+        await Image.prefetch(uri);
+        console.log('Pet image preloaded successfully');
+      } catch (error) {
+        console.error('Failed to preload pet image:', error);
+      }
+    };
+
+    preloadAssets();
   }, []);
 
   // Monitor app state for foreground recovery of stuck notebooks
@@ -150,7 +150,7 @@ export default function RootLayout() {
             .select('id, material_id')
             .eq('user_id', authUser.id)
             .eq('status', 'extracting')
-            .lt('created_at', threeMinutesAgo);
+            .lt('updated_at', threeMinutesAgo);
 
           if (error) {
             console.error('Error checking for stuck notebooks:', error);
@@ -176,20 +176,23 @@ export default function RootLayout() {
                 }),
                 timeoutPromise,
               ])
-                .then((result: any) => {
+                .then(async (result: any) => {
                   const { data, error } = result;
                   if (error) {
                     console.error(`Failed to retry notebook ${notebook.id}:`, error);
                     // Mark as failed
-                    supabase
+                    const { error: updateError } = await supabase
                       .from('notebooks')
                       .update({ status: 'failed' })
                       .eq('id', notebook.id);
+                    if (updateError) {
+                      console.error(`Failed to update notebook ${notebook.id} status:`, updateError);
+                    }
                   } else {
                     console.log(`Successfully retried notebook ${notebook.id}:`, data);
                   }
                 })
-                .catch((err) => {
+                .catch(async (err) => {
                   console.error(`Error retrying notebook ${notebook.id}:`, err);
                   // Don't mark as failed on timeout/network errors - will retry on next foreground
                   const isTimeout = err.message?.includes('timeout');
@@ -198,10 +201,13 @@ export default function RootLayout() {
 
                   if (!isTimeout && !isNetworkError) {
                     // Permanent error, mark as failed
-                    supabase
+                    const { error: updateError } = await supabase
                       .from('notebooks')
                       .update({ status: 'failed' })
                       .eq('id', notebook.id);
+                    if (updateError) {
+                      console.error(`Failed to update notebook ${notebook.id} status:`, updateError);
+                    }
                   }
                 });
             }
@@ -270,6 +276,14 @@ export default function RootLayout() {
           }}
         />
       </Stack>
+      {/* 
+        Hidden render to force texture decoding of the large pet image.
+        This ensures it's in GPU memory before the sheet opens. 
+      */}
+      <Image
+        source={require('@/assets/pets/stage-1/full-view.png')}
+        style={{ width: 0, height: 0, opacity: 0, position: 'absolute' }}
+      />
     </>
   );
 }

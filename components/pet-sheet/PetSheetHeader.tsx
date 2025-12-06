@@ -23,7 +23,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingTop: 12,
         paddingBottom: 8,
-        backgroundColor: '#E5E1F5',
+        backgroundColor: 'transparent',
         minHeight: 32,
     },
     handle: {

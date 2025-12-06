@@ -5,12 +5,12 @@
  */
 
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, PanResponder, Dimensions, Animated } from 'react-native';
+import { View, Text, PanResponder, Dimensions, Animated, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
-const PET_SIZE = 64;
-const EDGE_PADDING = 8; // Reduced significantly for more visible difference
+const PET_SIZE = 100;
+const EDGE_PADDING = 0; // Reduced for closer edge snapping
 const TOP_PADDING = 80; // Increased to prevent reaching header/profile icon area
 const BOTTOM_PADDING = 100;
 
@@ -18,7 +18,7 @@ export const PetBubble: React.FC = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [screenDimensions, setScreenDimensions] = useState(Dimensions.get('window'));
-  
+
   // Calculate usable screen area (excluding safe areas)
   // Use the maximum of left/right insets to ensure symmetric padding
   const horizontalInset = Math.max(insets.left, insets.right);
@@ -28,7 +28,7 @@ export const PetBubble: React.FC = () => {
   const maxY = screenDimensions.height - insets.bottom - PET_SIZE / 2 - BOTTOM_PADDING;
   const minX = horizontalInset + PET_SIZE / 2 + EDGE_PADDING; // Left edge boundary (symmetric padding)
   const maxX = screenDimensions.width - horizontalInset - PET_SIZE / 2 - EDGE_PADDING; // Right edge boundary (symmetric padding)
-  
+
   // Calculate initial position based on safe area - upper right (not at very top)
   const getInitialPosition = () => {
     const width = screenDimensions.width;
@@ -42,17 +42,17 @@ export const PetBubble: React.FC = () => {
 
   const [position, setPosition] = useState(getInitialPosition());
   const positionRef = useRef(position);
-  
+
   // Update ref whenever position changes
   useEffect(() => {
     positionRef.current = position;
   }, [position]);
-  
+
   // Separate animated values to avoid useNativeDriver conflicts
   const scaleAnim = useRef(new Animated.Value(1)).current; // Uses native driver
   const panX = useRef(new Animated.Value(0)).current; // No native driver (for pan)
   const panY = useRef(new Animated.Value(0)).current; // No native driver (for pan)
-  
+
   // Use Animated.Value for left/top to avoid layout recalculation flashes
   // Initialize based on initial position
   const getInitialLeft = () => {
@@ -65,7 +65,7 @@ export const PetBubble: React.FC = () => {
   };
   const leftAnim = useRef(new Animated.Value(getInitialLeft())).current;
   const topAnim = useRef(new Animated.Value(getInitialTop())).current;
-  
+
   const isDragging = useRef(false);
   const hasMoved = useRef(false); // Track if user actually moved during gesture
   const currentPanX = useRef(0); // Track current pan X value
@@ -108,12 +108,12 @@ export const PetBubble: React.FC = () => {
     if (isDragging.current) {
       return; // Don't start if currently dragging
     }
-    
+
     // Stop any existing idle animation
     if (idleBounceRef.current) {
       idleBounceRef.current.stop();
     }
-    
+
     const bounce = Animated.loop(
       Animated.sequence([
         Animated.timing(scaleAnim, {
@@ -128,7 +128,7 @@ export const PetBubble: React.FC = () => {
         }),
       ])
     );
-    
+
     idleBounceRef.current = bounce;
     bounce.start();
   }, [scaleAnim]);
@@ -162,7 +162,7 @@ export const PetBubble: React.FC = () => {
           idleBounceRef.current.stop();
         }
         scaleAnim.stopAnimation();
-        
+
         // Scale up on grab
         Animated.spring(scaleAnim, {
           toValue: 1.2,
@@ -213,7 +213,7 @@ export const PetBubble: React.FC = () => {
       },
       onPanResponderRelease: (_, gestureState) => {
         isDragging.current = false;
-        
+
         // Detect tap vs drag - use both movement flag and distance
         const totalDistance = Math.sqrt(gestureState.dx ** 2 + gestureState.dy ** 2);
         const isTap = !hasMoved.current && totalDistance < 10; // Increased threshold to 10px
@@ -222,7 +222,7 @@ export const PetBubble: React.FC = () => {
           // Tap detected - only reset if pan values are non-zero to avoid jump
           const needsResetX = Math.abs(currentPanX.current) > 0.1;
           const needsResetY = Math.abs(currentPanY.current) > 0.1;
-          
+
           if (needsResetX || needsResetY) {
             // Reset pan values smoothly if they exist
             Animated.parallel([
@@ -285,7 +285,7 @@ export const PetBubble: React.FC = () => {
         // Calculate where the bubble would be with the gesture movement
         const potentialLeft = baseLeft + gestureState.dx;
         const potentialTop = baseTop + gestureState.dy;
-        
+
         // Clamp the potential position to stay within bounds
         const clampedLeft = Math.max(minLeft, Math.min(maxLeft, potentialLeft));
         const clampedTop = Math.max(minTop, Math.min(maxTop, potentialTop));
@@ -367,16 +367,16 @@ export const PetBubble: React.FC = () => {
         // Before: visual = currentX + currentPanXValue
         // After setPosition: visual = targetX + adjustedPanX (should equal currentVisualX)
         // After animation: visual = targetX + 0 = targetX ✓
-        
+
         // Calculate what pan values should be to maintain current visual position
         // visual = position + pan, so pan = visual - position
         const adjustedPanX = currentVisualX - symmetricTargetX;
         const adjustedPanY = currentVisualY - finalClampedY;
-        
+
         // Calculate new left/top values (top-left corner from center coordinates)
         const newLeft = symmetricTargetX - PET_SIZE / 2;
         const newTop = finalClampedY - PET_SIZE / 2;
-        
+
         // CRITICAL FIX: Set ALL animated values synchronously BEFORE any React state update
         // This ensures native animated values are correct when React renders
         // No layout recalculation flash because we're updating animated values, not layout props
@@ -386,7 +386,7 @@ export const PetBubble: React.FC = () => {
         panY.setValue(adjustedPanY);
         currentPanX.current = adjustedPanX;
         currentPanY.current = adjustedPanY;
-        
+
         // Now update position state - React will render but animated values are already correct
         setPosition({ x: symmetricTargetX, y: finalClampedY });
         positionRef.current = { x: symmetricTargetX, y: finalClampedY };
@@ -473,6 +473,8 @@ export const PetBubble: React.FC = () => {
 
   // Update animated left/top values when position state changes
   // This keeps them in sync without causing layout recalculation flashes
+
+
   useEffect(() => {
     leftAnim.setValue(leftValue);
     topAnim.setValue(topValue);
@@ -496,12 +498,15 @@ export const PetBubble: React.FC = () => {
         style={{
           transform: [{ scale: scaleAnim }],
         }}
-        className="w-16 h-16 rounded-full bg-primary-400 items-center justify-center shadow-lg"
+        className="items-center justify-center"
       >
-        {/* Placeholder pet emoji - replace with actual pet image */}
-        <Text className="text-3xl">🐾</Text>
+        {/* Living Pet Bubble */}
+        <Image
+          source={require('@/assets/pets/stage-1/bubble.png')}
+          style={{ width: 100, height: 100 }}
+          resizeMode="contain"
+        />
       </Animated.View>
     </Animated.View>
   );
 };
-

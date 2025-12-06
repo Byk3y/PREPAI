@@ -19,7 +19,10 @@
       "bundleIdentifier": "com.prepai.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "This app needs access to your camera to take photos of study materials."
+        "NSCameraUsageDescription": "This app needs access to your camera to take photos of study materials.",
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
