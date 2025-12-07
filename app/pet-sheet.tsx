@@ -5,7 +5,7 @@
  * REFACTORED: Now uses modular components for better maintainability
  */
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -36,6 +36,7 @@ export default function PetSheetScreen() {
   const { user, petState, setPetState } = useStore();
   const scrollY = useRef(0);
   const scrollViewRef = useRef<ScrollView>(null);
+  const [stage, setStage] = useState<1 | 2>(1);
 
   // Gesture handling hook
   const { translateY, handleBarPanResponder, contentPanResponder, dismiss } = usePetSheetGestures({
@@ -80,7 +81,7 @@ export default function PetSheetScreen() {
           ]}
         >
           <LinearGradient
-            colors={['#FFE082', '#FFFFFF']}
+            colors={stage === 1 ? ['#FFE082', '#FFFFFF'] : ['#FFB74D', '#FFFFFF']}
             style={styles.gradient}
           >
             <View style={styles.safeArea}>
@@ -108,7 +109,12 @@ export default function PetSheetScreen() {
                 <PetSheetHeader panHandlers={handleBarPanResponder.panHandlers} />
 
                 <View style={styles.topSection}>
-                  <PetDisplay streak={user.streak} />
+                  <PetDisplay
+                    streak={user.streak}
+                    stage={stage}
+                    onNextStage={() => setStage(2)}
+                    onPrevStage={() => setStage(1)}
+                  />
                 </View>
 
                 {/* Bottom Section - Swipeable (includes pet name, XP, missions, and stats) */}

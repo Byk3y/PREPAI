@@ -11,7 +11,7 @@ import type { Notebook, Material, SupabaseUser } from '../types';
 export interface NotebookSlice {
   notebooks: Notebook[];
   setNotebooks: (notebooks: Notebook[]) => void;
-  loadNotebooks: () => Promise<void>;
+  loadNotebooks: (userId?: string) => Promise<void>;
   addNotebook: (
     notebook: Omit<Notebook, 'id' | 'createdAt'> & {
       material?: Omit<Material, 'id' | 'createdAt'> & {
@@ -40,9 +40,11 @@ export const createNotebookSlice: StateCreator<
 
   setNotebooks: (notebooks) => set({ notebooks }),
 
-  loadNotebooks: async () => {
-    const { authUser } = get();
-    if (!authUser) {
+  loadNotebooks: async (userId?: string) => {
+    // Use passed userId if available, otherwise fall back to store
+    // This avoids race condition when auth state hasn't propagated yet
+    const effectiveUserId = userId || get().authUser?.id;
+    if (!effectiveUserId) {
       set({ notebooks: [] });
       return;
     }
@@ -52,7 +54,7 @@ export const createNotebookSlice: StateCreator<
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const notebooks = await notebookService.fetchNotebooks(authUser.id);
+        const notebooks = await notebookService.fetchNotebooks(effectiveUserId);
 
         set({ notebooks });
 

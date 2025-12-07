@@ -55,9 +55,8 @@ export default function RootLayout() {
           }
 
           // 2. Load notebooks
-          // We always reload on auth change to ensure freshness
-          // The store handles caching/diffing if needed, or we just overwrite
-          await loadNotebooks();
+          // Pass userId directly to avoid race condition with store state propagation
+          await loadNotebooks(session.user.id);
 
           // 3. Load pet state (non-critical)
           loadPetState();
@@ -278,11 +277,18 @@ export default function RootLayout() {
       </Stack>
       {/* 
         Hidden render to force texture decoding of the large pet image.
-        This ensures it's in GPU memory before the sheet opens. 
+        Using 1x1 size (not 0x0) to ensure React Native doesn't optimize it away.
+        This ensures the image is in GPU memory before the sheet opens. 
       */}
       <Image
         source={require('@/assets/pets/stage-1/full-view.png')}
-        style={{ width: 0, height: 0, opacity: 0, position: 'absolute' }}
+        style={{ width: 1, height: 1, opacity: 0, position: 'absolute' }}
+        fadeDuration={0}
+      />
+      <Image
+        source={require('@/assets/pets/stage-2/silhouette.png')}
+        style={{ width: 1, height: 1, opacity: 0, position: 'absolute' }}
+        fadeDuration={0}
       />
     </>
   );
