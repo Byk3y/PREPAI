@@ -102,7 +102,7 @@ export interface QuizQuestion {
   question: string;
   options: { A: string; B: string; C: string; D: string };
   correct: 'A' | 'B' | 'C' | 'D';
-  explanation: string;
+  hint?: string | null;
   selected?: 'A' | 'B' | 'C' | 'D';
 }
 
@@ -161,6 +161,9 @@ export interface Notebook {
 
 
 export type { User as SupabaseUser } from '@supabase/supabase-js';
+
+// Theme types
+export type { ThemeMode } from './slices/themeSlice';
 
 // Task types
 export interface DailyTask {

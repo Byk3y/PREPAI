@@ -6,7 +6,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '@/lib/ThemeContext';
 
 interface StreakBadgesProps {
     streak: number;
@@ -15,9 +15,28 @@ interface StreakBadgesProps {
 const MILESTONES = [3, 10, 30, 100, 200];
 
 export function StreakBadges({ streak }: StreakBadgesProps) {
+    const { isDarkMode } = useTheme();
+
+    // Semi-transparent white card for glass effect on golden gradient
+    const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.12)' : 'white';
+    const cardTextColor = isDarkMode ? '#FFFFFF' : '#171717';
+
+    // Theme-aware colors
+    const inactiveIconColor = isDarkMode ? 'rgba(255,255,255,0.3)' : '#D4D4D4';
+    const inactiveLabelColor = isDarkMode ? 'rgba(255,255,255,0.5)' : '#A3A3A3';
+    const inactiveLineColor = isDarkMode ? 'rgba(255,255,255,0.2)' : '#E5E5E5';
+    const activeLineColor = isDarkMode ? '#FDBA74' : '#FDBA74';
+
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Your Streak badges</Text>
+        <View style={[
+            styles.container, 
+            { 
+                backgroundColor: cardBg,
+                borderWidth: 0,
+                shadowOpacity: isDarkMode ? 0 : 0.05,
+            }
+        ]}>
+            <Text style={[styles.title, { color: cardTextColor }]}>Your Streak badges</Text>
 
             <View style={styles.badgesContainer}>
                 {MILESTONES.map((milestone, index) => {
@@ -34,14 +53,14 @@ export function StreakBadges({ streak }: StreakBadgesProps) {
                                     </View>
                                 ) : (
                                     <View style={[styles.iconContainer, styles.iconInactive]}>
-                                        <Ionicons name="flame" size={28} color="#D4D4D4" />
+                                        <Ionicons name="flame" size={28} color={inactiveIconColor} />
                                     </View>
                                 )}
 
                                 {/* Label */}
                                 <Text style={[
                                     styles.label,
-                                    isUnlocked ? styles.labelActive : styles.labelInactive
+                                    isUnlocked ? styles.labelActive : { color: inactiveLabelColor }
                                 ]}>
                                     {milestone}d
                                 </Text>
@@ -52,7 +71,7 @@ export function StreakBadges({ streak }: StreakBadgesProps) {
                                 <View style={styles.lineContainer}>
                                     <View style={[
                                         styles.line,
-                                        streak >= MILESTONES[index + 1] ? styles.lineActive : styles.lineInactive
+                                        { backgroundColor: streak >= MILESTONES[index + 1] ? activeLineColor : inactiveLineColor }
                                     ]} />
                                 </View>
                             )}
@@ -66,21 +85,18 @@ export function StreakBadges({ streak }: StreakBadgesProps) {
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: 'white',
         marginHorizontal: 16,
         marginBottom: 32, // Extra space at bottom of sheet
         padding: 24,
         borderRadius: 24,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
         shadowRadius: 8,
         elevation: 2,
     },
     title: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#171717',
         marginBottom: 20,
     },
     badgesContainer: {
@@ -114,30 +130,16 @@ const styles = StyleSheet.create({
     labelActive: {
         color: '#EA580C', // Deep Orange
     },
-    labelInactive: {
-        color: '#A3A3A3', // Neutral Gray
-    },
     lineContainer: {
         flex: 1,
         height: 48, // Match icon container height to center line
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: -26, // Pull up to align with icon center (48 height + 8 margin + text height roughly)
-        // Actually simpler: just place it absolute or calculate offset.
-        // Let's rely on flex centering. The wrapper is row.
-        // badgeContent is one item, lineContainer is the other.
-        // We want line to connect ICONS.
-        // Let's adjust margin to visually align.
     },
     line: {
         height: 2,
         width: '100%',
         borderRadius: 1,
-    },
-    lineActive: {
-        backgroundColor: '#FDBA74', // Orange-300
-    },
-    lineInactive: {
-        backgroundColor: '#E5E5E5',
     },
 });

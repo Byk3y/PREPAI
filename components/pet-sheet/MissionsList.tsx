@@ -6,6 +6,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MissionCard } from './MissionCard';
 import { DailyTask, TaskProgress } from '@/lib/store/types';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 interface MissionsListProps {
     missions: DailyTask[];
@@ -14,6 +15,9 @@ interface MissionsListProps {
 }
 
 export function MissionsList({ missions, taskProgress, activeColor }: MissionsListProps) {
+    const { isDarkMode } = useTheme();
+    const colors = getThemeColors(isDarkMode);
+
     if (!missions || missions.length === 0) return null;
 
     // Show all tasks (foundational and daily) - completed foundational tasks remain visible
@@ -26,16 +30,29 @@ export function MissionsList({ missions, taskProgress, activeColor }: MissionsLi
 
     if (visibleMissions.length === 0) {
         return (
-            <View style={styles.container}>
-                <Text style={styles.title}>All tasks complete!</Text>
-                <Text style={styles.subtitle}>Great job for today. Come back tomorrow for more.</Text>
+            <View style={[styles.container, { backgroundColor: colors.surfaceElevated }]}>
+                <Text style={[styles.title, { color: colors.text }]}>All tasks complete!</Text>
+                <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                    Great job for today. Come back tomorrow for more.
+                </Text>
             </View>
         );
     }
 
+    // Use semi-transparent white that blends with golden gradient in dark mode
+    const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.12)' : 'white';
+    const cardTextColor = isDarkMode ? '#FFFFFF' : '#171717';
+
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Grow your Pet</Text>
+        <View style={[
+            styles.container, 
+            { 
+                backgroundColor: cardBg,
+                borderWidth: 0,
+                shadowOpacity: isDarkMode ? 0 : 0.08,
+            }
+        ]}>
+            <Text style={[styles.title, { color: cardTextColor }]}>Grow your Pet</Text>
             {visibleMissions.map((task) => {
                 const progress = taskProgress[task.task_key];
 
@@ -67,7 +84,6 @@ export function MissionsList({ missions, taskProgress, activeColor }: MissionsLi
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: 'white',
         marginHorizontal: 16,
         marginBottom: 12,
         padding: 20,
@@ -77,19 +93,16 @@ const styles = StyleSheet.create({
             width: 0,
             height: 1,
         },
-        shadowOpacity: 0.08,
         shadowRadius: 4,
         elevation: 2,
     },
     title: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#171717',
         marginBottom: 16,
     },
     subtitle: {
         fontSize: 16,
-        color: '#666',
         marginTop: -10,
         marginBottom: 10,
     }

@@ -12,6 +12,7 @@ import { TikTokLoader } from '@/components/TikTokLoader';
 import type { StudioFlashcard } from '@/lib/store/types';
 import { fetchFlashcardProgress } from '@/lib/api/studio';
 import { supabase } from '@/lib/supabase';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 export default function FlashcardsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>(); // notebook_id
@@ -21,6 +22,9 @@ export default function FlashcardsScreen() {
   const [initialIndex, setInitialIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const { isDarkMode } = useTheme();
+  const colors = getThemeColors(isDarkMode);
 
   useEffect(() => {
     fetchFlashcards();
@@ -94,20 +98,20 @@ export default function FlashcardsScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
         <TikTokLoader size={14} color="#6366f1" containerWidth={60} />
-        <Text className="mt-4 text-neutral-600">Loading flashcards...</Text>
+        <Text style={{ marginTop: 16, color: colors.textSecondary }}>Loading flashcards...</Text>
       </View>
     );
   }
 
   if (error || flashcards.length === 0) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-lg font-semibold text-neutral-900 mb-2">
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background, paddingHorizontal: 24 }}>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: colors.text, marginBottom: 8 }}>
           {error || 'No flashcards available'}
         </Text>
-        <Text className="text-neutral-600 text-center">
+        <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
           Generate flashcards from the Studio tab to start studying
         </Text>
       </View>

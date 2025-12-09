@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { TikTokLoader } from '@/components/TikTokLoader';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 interface StudioMediaItemProps {
     onPress?: () => void;
@@ -27,35 +28,86 @@ export const StudioMediaItem: React.FC<StudioMediaItemProps> = ({
     loadingColor = '#2563eb',
     loadingText = 'Generating...'
 }) => {
+    const { isDarkMode } = useTheme();
+    const colors = getThemeColors(isDarkMode);
+
+    // Get icon background color based on icon type
+    const getIconBgColor = () => {
+        if (icon === 'help-circle-outline') return isDarkMode ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5'; // Quiz - green
+        if (icon === 'copy-outline') return isDarkMode ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2'; // Flashcard - red
+        if (icon === 'bar-chart-outline') return isDarkMode ? 'rgba(59, 130, 246, 0.15)' : '#EFF6FF'; // Audio - blue
+        return isDarkMode ? 'rgba(107, 114, 128, 0.15)' : '#F3F4F6'; // Default
+    };
+
     const content = (
         <TouchableOpacity
             onPress={onPress}
             disabled={!onPress}
-            className={`p-3 mb-2 flex-row items-center ${!isGenerating ? 'bg-white' : ''}`}
+            style={{
+                paddingVertical: 16,
+                paddingHorizontal: 16,
+                marginBottom: 10,
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: isGenerating ? 'transparent' : colors.mediaCard,
+                borderRadius: 14,
+                borderWidth: isGenerating ? 0 : 1,
+                borderColor: colors.mediaCardBorder,
+                minHeight: 72,
+            }}
             activeOpacity={0.7}
         >
-            <View className="mr-4">
-                <Ionicons name={icon} size={24} color={iconColor} />
+            {/* Icon with background */}
+            <View style={{ 
+                marginRight: 14,
+                width: 42,
+                height: 42,
+                borderRadius: 10,
+                backgroundColor: getIconBgColor(),
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}>
+                <Ionicons name={icon} size={22} color={iconColor} />
             </View>
-            <View className="flex-1">
-                <Text className="text-base font-medium text-neutral-900">
+            
+            {/* Content */}
+            <View style={{ flex: 1 }}>
+                <Text 
+                    style={{ 
+                        fontSize: 15, 
+                        fontWeight: '600', 
+                        color: colors.text,
+                        letterSpacing: -0.2,
+                    }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                >
                     {title}
                 </Text>
                 {isGenerating ? (
-                    <View className="flex-row items-center mt-0.5">
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                         <TikTokLoader size={10} color={loadingColor} containerWidth={50} />
-                        <Text className="text-xs ml-2" style={{ color: loadingColor }}>
+                        <Text style={{ fontSize: 13, marginLeft: 8, color: loadingColor }}>
                             {loadingText}
                         </Text>
                     </View>
                 ) : (
-                    <Text className="text-xs text-neutral-500 mt-0.5">
+                    <Text style={{ 
+                        fontSize: 13, 
+                        color: colors.textSecondary, 
+                        marginTop: 4,
+                        letterSpacing: -0.1,
+                    }}>
                         {subtitle}
                     </Text>
                 )}
             </View>
+            
+            {/* Chevron */}
             {!isGenerating && onPress && (
-                <Ionicons name="chevron-forward" size={20} color="#a3a3a3" />
+                <View style={{ marginLeft: 8 }}>
+                    <Ionicons name="chevron-forward" size={20} color={colors.iconMuted} />
+                </View>
             )}
         </TouchableOpacity>
     );
@@ -72,8 +124,15 @@ export const StudioMediaItem: React.FC<StudioMediaItemProps> = ({
                     return (
                         <TouchableOpacity
                             onPress={onDelete}
-                            className="bg-red-500 justify-center items-center px-6 mb-2"
-                            style={{ borderRadius: 8 }}
+                            style={{
+                                backgroundColor: '#ef4444',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                paddingHorizontal: 24,
+                                marginBottom: 10,
+                                borderRadius: 14,
+                                minHeight: 72,
+                            }}
                         >
                             <Animated.View style={{ transform: [{ scale }] }}>
                                 <Ionicons name="trash-outline" size={24} color="#fff" />

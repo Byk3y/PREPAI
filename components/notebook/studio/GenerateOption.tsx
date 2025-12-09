@@ -1,46 +1,81 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 interface GenerateOptionProps {
-    type: string;
+    type: 'audio' | 'flashcards' | 'quiz';
     icon: keyof typeof Ionicons.glyphMap;
     color: string;
     label: string;
-    bgColor: string;
-    textColor: string;
+    bgColor: string; // kept for backwards compatibility but not used
+    textColor: string; // kept for backwards compatibility but not used
     isGenerating: boolean;
     onPress: () => void;
     disabled: boolean;
 }
 
 export const GenerateOption: React.FC<GenerateOptionProps> = ({
+    type,
     icon,
     color,
     label,
-    bgColor,
     isGenerating,
     onPress,
     disabled
-}) => (
-    <TouchableOpacity
-        onPress={onPress}
-        disabled={disabled}
-        className={`${bgColor} rounded-full p-4 flex-row items-center mb-3`}
-        activeOpacity={0.7}
-    >
-        <View className="mr-4 ml-1">
-            <Ionicons name={icon} size={24} color={color} />
-        </View>
-        <Text className="flex-1 text-base font-semibold text-neutral-900">
-            {label}
-        </Text>
-        {isGenerating ? (
-            <ActivityIndicator size="small" color={color} />
-        ) : (
-            <View className="w-10 h-10 bg-black/5 rounded-full items-center justify-center">
-                <Ionicons name="pencil" size={18} color="#525252" />
+}) => {
+    const { isDarkMode } = useTheme();
+    const colors = getThemeColors(isDarkMode);
+    
+    // Get the appropriate background color based on type
+    const getBackgroundColor = () => {
+        switch (type) {
+            case 'audio':
+                return colors.cardAudio;
+            case 'flashcards':
+                return colors.cardFlashcard;
+            case 'quiz':
+                return colors.cardQuiz;
+            default:
+                return colors.surfaceAlt;
+        }
+    };
+
+    return (
+        <TouchableOpacity
+            onPress={onPress}
+            disabled={disabled}
+            style={{
+                backgroundColor: getBackgroundColor(),
+                borderRadius: 999,
+                padding: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: 12,
+                opacity: disabled && !isGenerating ? 0.6 : 1,
+            }}
+            activeOpacity={0.7}
+        >
+            <View style={{ marginRight: 16, marginLeft: 4 }}>
+                <Ionicons name={icon} size={24} color={color} />
             </View>
-        )}
-    </TouchableOpacity>
-);
+            <Text style={{ flex: 1, fontSize: 16, fontWeight: '600', color: colors.text }}>
+                {label}
+            </Text>
+            {isGenerating ? (
+                <ActivityIndicator size="small" color={color} />
+            ) : (
+                <View style={{ 
+                    width: 40, 
+                    height: 40, 
+                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', 
+                    borderRadius: 20, 
+                    alignItems: 'center', 
+                    justifyContent: 'center' 
+                }}>
+                    <Ionicons name="pencil" size={18} color={colors.iconMuted} />
+                </View>
+            )}
+        </TouchableOpacity>
+    );
+};

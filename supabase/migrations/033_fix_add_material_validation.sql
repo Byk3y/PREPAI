@@ -275,3 +275,4 @@ GRANT EXECUTE ON FUNCTION award_task_points(UUID, TEXT, DATE, TEXT) TO authentic
 
 
 
+

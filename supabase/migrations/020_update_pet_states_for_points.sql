@@ -95,3 +95,4 @@ ALTER TABLE pet_states
 -- Note: Rollback preserves all data, just restores original column names
 -- The xp_to_next calculation handles edge cases where points are exactly at stage boundaries
 
+

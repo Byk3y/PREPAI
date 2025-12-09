@@ -13,6 +13,7 @@ import { createExamSlice, type ExamSlice } from './slices/examSlice';
 import { createLessonSlice, type LessonSlice } from './slices/lessonSlice';
 import { createAudioPlaybackSlice, type AudioPlaybackSlice } from './slices/audioPlaybackSlice';
 import { createTaskSlice, type TaskSlice } from './slices/taskSlice';
+import { createThemeSlice, type ThemeSlice } from './slices/themeSlice';
 
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -26,7 +27,8 @@ type AppState = AuthSlice &
   ExamSlice &
   LessonSlice &
   AudioPlaybackSlice &
-  TaskSlice;
+  TaskSlice &
+  ThemeSlice;
 
 // Create the combined store
 export const useStore = create<AppState>()(
@@ -41,6 +43,7 @@ export const useStore = create<AppState>()(
       ...createLessonSlice(...a),
       ...createAudioPlaybackSlice(...a),
       ...createTaskSlice(...a),
+      ...createThemeSlice(...a),
     }),
     {
       name: 'prep-ai-storage',
@@ -59,6 +62,7 @@ export const useStore = create<AppState>()(
         playbackPositions: state.playbackPositions,
         dailyTasks: state.dailyTasks,
         taskProgress: state.taskProgress,
+        themeMode: state.themeMode, // Persist theme preference
         // Add other persistent state here as needed
       }),
       migrate: (persistedState: any, version: number) => {

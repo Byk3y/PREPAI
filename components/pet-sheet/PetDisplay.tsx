@@ -6,6 +6,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { MotiViewCompat as MotiView } from '@/components/MotiViewCompat';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 interface PetDisplayProps {
     streak: number;
@@ -15,12 +16,23 @@ interface PetDisplayProps {
 }
 
 export function PetDisplay({ streak, stage, onNextStage, onPrevStage }: PetDisplayProps) {
+    const { isDarkMode } = useTheme();
+    const colors = getThemeColors(isDarkMode);
+
+    // On golden gradient - dark text in light mode, white in dark mode
+    const textOnGradient = isDarkMode ? '#FFFFFF' : '#000000';
+    const textSecondaryOnGradient = isDarkMode ? '#FFFFFF' : '#333333';
+
     return (
         <View style={styles.container}>
             {/* Streak Days */}
             <View style={styles.streakContainer}>
-                <Text style={styles.streakLabel}>Streak days</Text>
-                <Text style={styles.streakValue}>{streak}</Text>
+                <Text style={[styles.streakLabel, { color: textSecondaryOnGradient }]}>
+                    Streak days
+                </Text>
+                <Text style={[styles.streakValue, { color: textOnGradient }]}>
+                    {streak}
+                </Text>
             </View>
 
             <View style={styles.petCharacterContainer}>
@@ -70,7 +82,7 @@ export function PetDisplay({ streak, stage, onNextStage, onPrevStage }: PetDispl
                     onPress={onNextStage}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                    <Ionicons name="chevron-forward" size={32} color="#000000" />
+                    <Ionicons name="chevron-forward" size={32} color={textSecondaryOnGradient} />
                 </TouchableOpacity>
             )}
 
@@ -81,7 +93,7 @@ export function PetDisplay({ streak, stage, onNextStage, onPrevStage }: PetDispl
                     onPress={onPrevStage}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                    <Ionicons name="chevron-back" size={32} color="#000000" />
+                    <Ionicons name="chevron-back" size={32} color={textSecondaryOnGradient} />
                 </TouchableOpacity>
             )}
         </View >
@@ -102,14 +114,12 @@ const styles = StyleSheet.create({
     },
     streakLabel: {
         fontSize: 15,
-        color: '#000000',
         marginBottom: 4,
         fontWeight: '500',
     },
     streakValue: {
         fontSize: 56,
         fontWeight: 'bold',
-        color: '#000000',
         letterSpacing: -2,
     },
     petCharacterContainer: {

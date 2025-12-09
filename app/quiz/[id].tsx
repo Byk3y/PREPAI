@@ -10,6 +10,7 @@ import { QuizViewer } from '@/components/studio/QuizViewer';
 import { TikTokLoader } from '@/components/TikTokLoader';
 import type { Quiz } from '@/lib/store/types';
 import { supabase } from '@/lib/supabase';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 export default function QuizScreen() {
   const router = useRouter();
@@ -17,6 +18,9 @@ export default function QuizScreen() {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const { isDarkMode } = useTheme();
+  const colors = getThemeColors(isDarkMode);
 
   useEffect(() => {
     fetchQuiz();
@@ -57,7 +61,7 @@ export default function QuizScreen() {
             question: q.question,
             options: q.options,
             correct: q.correct_answer,
-            explanation: q.explanation,
+            hint: q.hint ?? null,
           })),
       };
 
@@ -76,20 +80,20 @@ export default function QuizScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
         <TikTokLoader size={14} color="#6366f1" containerWidth={60} />
-        <Text className="mt-4 text-neutral-600">Loading quiz...</Text>
+        <Text style={{ marginTop: 16, color: colors.textSecondary }}>Loading quiz...</Text>
       </View>
     );
   }
 
   if (error || !quiz) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
-        <Text className="text-lg font-semibold text-neutral-900 mb-2">
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background, paddingHorizontal: 24 }}>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: colors.text, marginBottom: 8 }}>
           {error || 'Quiz not available'}
         </Text>
-        <Text className="text-neutral-600 text-center">
+        <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
           Generate a quiz from the Studio tab to test your knowledge
         </Text>
       </View>
@@ -97,9 +101,8 @@ export default function QuizScreen() {
   }
 
   return (
-    <View className="flex-1">
+    <View style={{ flex: 1 }}>
       <QuizViewer quiz={quiz} onClose={handleClose} />
     </View>
   );
 }
-

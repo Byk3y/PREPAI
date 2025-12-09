@@ -3,6 +3,7 @@
  * Shows pet with gradient background, streak, XP, and missions
  * 
  * REFACTORED: Now uses modular components for better maintainability
+ * Updated: Dark mode support
  */
 
 import React, { useRef, useState } from 'react';
@@ -28,6 +29,7 @@ import {
   StreakBadges,
 } from '@/components/pet-sheet';
 import { usePetTasks } from '@/hooks/usePetTasks';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -36,6 +38,10 @@ export default function PetSheetScreen() {
   const { user, petState, updatePetName } = useStore();
   const scrollY = useRef(0);
   const scrollViewRef = useRef<ScrollView>(null);
+  
+  // Theme
+  const { isDarkMode } = useTheme();
+  const colors = getThemeColors(isDarkMode);
 
   // Derive stage from petState (automatically calculated from points)
   // Clamp to valid stage range for UI (1-2 for now, since we only have assets for stages 1-2)
@@ -64,14 +70,23 @@ export default function PetSheetScreen() {
     loadFoundationalTasks();
   }, []);
 
-  // REMOVED: Auto-check for name_pet task
-  // This was causing issues because it ran before pet state was fully loaded from database
-  // The task should only be awarded when user actually changes the name via updatePetName
-  // The server-side validation in award_task_points will handle checking if the name is valid
-
   const handleNameChange = async (newName: string) => {
     // Use updatePetName instead of setPetState to trigger task completion check
     await updatePetName(newName);
+  };
+
+  // Dark mode gradient colors - slightly muted version of the golden theme
+  const getGradientColors = (): [string, string] => {
+    if (isDarkMode) {
+      // Slightly darker/muted golden - blends into new background
+      return previewStage === 1 
+        ? ['#D4A843', '#29292b']  // Muted gold to background
+        : ['#C88A30', '#29292b']; // Muted amber to background
+    }
+    // Light mode - original yellow gradients
+    return previewStage === 1 
+      ? ['#FFE082', '#FFFFFF'] 
+      : ['#FFB74D', '#FFFFFF'];
   };
 
   return (
@@ -100,7 +115,7 @@ export default function PetSheetScreen() {
           ]}
         >
           <LinearGradient
-            colors={previewStage === 1 ? ['#FFE082', '#FFFFFF'] : ['#FFB74D', '#FFFFFF']}
+            colors={getGradientColors()}
             style={styles.gradient}
           >
             <View style={styles.safeArea}>

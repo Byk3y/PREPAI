@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 interface TextInputModalProps {
   visible: boolean;
@@ -33,6 +34,10 @@ export default function TextInputModal({
 }: TextInputModalProps) {
   const [content, setContent] = useState('');
   const [inputHeight, setInputHeight] = useState(80);
+  
+  // Dark mode support using theme context
+  const { isDarkMode } = useTheme();
+  const colors = getThemeColors(isDarkMode);
 
   const handleSave = () => {
     if (!content.trim()) {
@@ -77,7 +82,7 @@ export default function TextInputModal({
       presentationStyle="pageSheet"
       onRequestClose={handleCancel}
     >
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
           style={styles.keyboardView}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -86,11 +91,11 @@ export default function TextInputModal({
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={handleCancel} style={styles.headerButton}>
-              <Ionicons name="arrow-back" size={24} color="#171717" />
+              <Ionicons name="arrow-back" size={24} color={colors.icon} />
             </TouchableOpacity>
             <View style={styles.headerSpacer} />
             <TouchableOpacity onPress={handleCancel} style={styles.headerButton}>
-              <Ionicons name="close" size={24} color="#171717" />
+              <Ionicons name="close" size={24} color={colors.icon} />
             </TouchableOpacity>
           </View>
 
@@ -99,16 +104,16 @@ export default function TextInputModal({
             <View style={styles.content}>
             {/* Central Icon */}
             <View style={styles.iconContainer}>
-              <View style={styles.iconBackground}>
+              <View style={[styles.iconBackground, { backgroundColor: isDarkMode ? '#1e3a5f' : '#EFF6FF' }]}>
                 <Ionicons name="document-text" size={32} color="#3B82F6" />
               </View>
             </View>
 
             {/* Title */}
-            <Text style={styles.title}>Paste Copied Text</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Paste Copied Text</Text>
 
             {/* Description */}
-            <Text style={styles.description}>
+            <Text style={[styles.description, { color: colors.textSecondary }]}>
               Paste your copied text below to upload as a source in PrepAI.
             </Text>
 
@@ -116,10 +121,15 @@ export default function TextInputModal({
             <TextInput
               style={[
                 styles.textInput,
-                { height: inputHeight },
+                { 
+                  height: inputHeight,
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
               ]}
               placeholder="Paste text here"
-              placeholderTextColor="#A3A3A3"
+              placeholderTextColor={colors.textMuted}
               value={content}
               onChangeText={handleContentChange}
               multiline={true}
@@ -138,14 +148,16 @@ export default function TextInputModal({
               onPress={handleSave}
               style={[
                 styles.addButton,
-                !content.trim() && styles.addButtonDisabled,
+                { backgroundColor: isDarkMode ? colors.text : '#171717' },
+                !content.trim() && [styles.addButtonDisabled, { backgroundColor: isDarkMode ? colors.surface : '#E5E5E5' }],
               ]}
               disabled={!content.trim()}
             >
               <Text
                 style={[
                   styles.addButtonText,
-                  !content.trim() && styles.addButtonTextDisabled,
+                  { color: isDarkMode ? colors.background : '#FFFFFF' },
+                  !content.trim() && [styles.addButtonTextDisabled, { color: colors.textMuted }],
                 ]}
               >
                 Add
@@ -162,7 +174,6 @@ export default function TextInputModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   keyboardView: {
     flex: 1,
@@ -197,20 +208,17 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#171717',
     marginBottom: 8,
     textAlign: 'center',
   },
   description: {
     fontSize: 15,
-    color: '#737373',
     textAlign: 'center',
     marginBottom: 24,
     paddingHorizontal: 16,
@@ -219,18 +227,14 @@ const styles = StyleSheet.create({
   textInput: {
     width: '100%',
     fontSize: 16,
-    color: '#171717',
-    backgroundColor: '#F9FAFB',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
     marginBottom: 24,
     textAlignVertical: 'top',
   },
   addButton: {
     width: '100%',
-    backgroundColor: '#171717',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -238,15 +242,10 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     marginBottom: 32,
   },
-  addButtonDisabled: {
-    backgroundColor: '#E5E5E5',
-  },
+  addButtonDisabled: {},
   addButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
-  addButtonTextDisabled: {
-    color: '#A3A3A3',
-  },
+  addButtonTextDisabled: {},
 });

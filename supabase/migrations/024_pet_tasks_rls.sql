@@ -128,3 +128,4 @@ CREATE POLICY "Users can update own study sessions"
 -- Note: Disabling RLS makes tables accessible to all users. Only do this if you
 --       have other security measures in place (e.g., application-level auth).
 
+

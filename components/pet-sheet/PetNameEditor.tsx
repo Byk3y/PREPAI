@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTheme } from '@/lib/ThemeContext';
 
 interface PetNameEditorProps {
     name: string;
@@ -11,6 +12,7 @@ interface PetNameEditorProps {
 }
 
 export function PetNameEditor({ name, onNameChange }: PetNameEditorProps) {
+    const { isDarkMode } = useTheme();
     const [isEditing, setIsEditing] = useState(false);
     const [inputValue, setInputValue] = useState(name);
 
@@ -36,17 +38,22 @@ export function PetNameEditor({ name, onNameChange }: PetNameEditorProps) {
         setIsEditing(true);
     };
 
+    // White text in dark mode, dark text in light mode
+    const textColor = isDarkMode ? '#FFFFFF' : '#000000';
+    const inputBorderColor = isDarkMode ? '#FBBF24' : '#9370DB';
+
     if (isEditing) {
         return (
             <View style={styles.container}>
                 <TextInput
-                    style={styles.input}
+                    style={[styles.input, { color: textColor, borderBottomColor: inputBorderColor }]}
                     value={inputValue}
                     onChangeText={setInputValue}
                     onBlur={handleSave}
                     onSubmitEditing={handleSave}
                     autoFocus
                     maxLength={20}
+                    placeholderTextColor="#666666"
                 />
             </View>
         );
@@ -54,7 +61,7 @@ export function PetNameEditor({ name, onNameChange }: PetNameEditorProps) {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.name}>{name}</Text>
+            <Text style={[styles.name, { color: textColor }]}>{name}</Text>
             <TouchableOpacity
                 onPress={handleEdit}
                 style={styles.editButton}
@@ -76,15 +83,12 @@ const styles = StyleSheet.create({
     name: {
         fontSize: 26,
         fontWeight: 'bold',
-        color: '#000000',
     },
     input: {
         fontSize: 26,
         fontWeight: 'bold',
-        color: '#000000',
         textAlign: 'center',
         borderBottomWidth: 2,
-        borderBottomColor: '#9370DB',
         paddingVertical: 4,
         minWidth: 100,
     },

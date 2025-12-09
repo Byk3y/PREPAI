@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import type { PanResponderGestureState, GestureResponderHandlers } from 'react-native';
+import type { GestureResponderHandlers } from 'react-native';
 
 interface PetSheetHeaderProps {
     panHandlers: GestureResponderHandlers;
@@ -29,11 +29,7 @@ const styles = StyleSheet.create({
     handle: {
         width: 36,
         height: 4,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(0,0,0,0.25)', // Dark handle visible on golden gradient
         borderRadius: 2.5,
-        shadowColor: '#000',
-        shadowOpacity: 0.08,
-        shadowRadius: 2,
-        shadowOffset: { width: 0, height: 1 },
     },
 });

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '@/lib/ThemeContext';
 
 export interface Mission {
     id: string;
@@ -17,6 +18,13 @@ interface MissionCardProps {
 }
 
 export function MissionCard({ mission, activeColor = '#FBBF24' }: MissionCardProps) {
+    const { isDarkMode } = useTheme();
+
+    // Inactive badge color - semi-transparent for glass effect
+    const inactiveBadgeColor = isDarkMode ? 'rgba(255,255,255,0.2)' : '#F3F4F6';
+    const inactiveCheckColor = isDarkMode ? 'rgba(255,255,255,0.5)' : '#9CA3AF';
+    const textColor = isDarkMode ? '#FFFFFF' : '#171717';
+
     return (
         <View style={styles.container}>
             <View style={styles.iconContainer}>
@@ -24,7 +32,7 @@ export function MissionCard({ mission, activeColor = '#FBBF24' }: MissionCardPro
                 <MaterialCommunityIcons
                     name="decagram"
                     size={32}
-                    color={mission.completed ? activeColor : '#F3F4F6'}
+                    color={mission.completed ? activeColor : inactiveBadgeColor}
                 />
 
                 {/* Checkmark Overlay */}
@@ -32,13 +40,13 @@ export function MissionCard({ mission, activeColor = '#FBBF24' }: MissionCardPro
                     <MaterialCommunityIcons
                         name="check"
                         size={16}
-                        color={mission.completed ? 'white' : '#9CA3AF'}
+                        color={mission.completed ? 'white' : inactiveCheckColor}
                     />
                 </View>
             </View>
 
             <View style={styles.info}>
-                <Text style={styles.title}>{mission.title}</Text>
+                <Text style={[styles.title, { color: textColor }]}>{mission.title}</Text>
                 <Text style={[styles.reward, { color: activeColor }]}>
                     +{mission.reward} growth points
                 </Text>
@@ -75,7 +83,6 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: 16,
-        color: '#171717',
         marginBottom: 4,
         fontWeight: '500',
     },

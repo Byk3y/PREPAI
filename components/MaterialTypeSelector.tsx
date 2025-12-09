@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -38,6 +39,10 @@ export default function MaterialTypeSelector({
 }: MaterialTypeSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  
+  // Dark mode support using theme context
+  const { isDarkMode } = useTheme();
+  const colors = getThemeColors(isDarkMode);
 
   // Track current translateY value
   const currentTranslateY = useRef(0);
@@ -204,20 +209,21 @@ export default function MaterialTypeSelector({
             {
               height: SCREEN_HEIGHT * 0.85,
               transform: [{ translateY }],
+              backgroundColor: colors.background,
             },
           ]}
           {...panResponder.panHandlers}
         >
-          <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+          <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['bottom']}>
             {/* Handle bar */}
-            <View style={styles.handleContainer}>
-              <View style={styles.handle} />
+            <View style={[styles.handleContainer, { backgroundColor: colors.background }]}>
+              <View style={[styles.handle, { backgroundColor: isDarkMode ? colors.border : '#D1D1D6' }]} />
             </View>
 
             {/* Close Button */}
             <View style={styles.closeButtonContainer}>
               <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                <MaterialIcons name="close" size={24} color="#171717" />
+                <MaterialIcons name="close" size={24} color={colors.icon} />
               </TouchableOpacity>
             </View>
 
@@ -226,7 +232,7 @@ export default function MaterialTypeSelector({
               <View style={styles.contentWrapper}>
                 {/* Title */}
                 <View style={styles.header}>
-                  <Text style={styles.title}>Create study notebooks</Text>
+                  <Text style={[styles.title, { color: colors.text }]}>Create study notebooks</Text>
                   <Text style={styles.titleSubtext}>
                     <Text style={styles.titleHighlight}>from</Text>{' '}
                     <Text style={styles.titleHighlight2}>your materials</Text>
@@ -236,9 +242,16 @@ export default function MaterialTypeSelector({
                 {/* Search Input */}
                 <View style={styles.searchContainer}>
                   <TextInput
-                    style={styles.searchInput}
+                    style={[
+                      styles.searchInput,
+                      { 
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
+                        color: colors.text,
+                      }
+                    ]}
                     placeholder="Find sources from the web"
-                    placeholderTextColor="#A3A3A3"
+                    placeholderTextColor={colors.textMuted}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     onSubmitEditing={handleSearch}
@@ -248,19 +261,20 @@ export default function MaterialTypeSelector({
                     onPress={handleSearch}
                     style={[
                       styles.sendButton,
+                      { backgroundColor: isDarkMode ? colors.text : '#171717' },
                       !searchQuery.trim() && styles.sendButtonDisabled,
                     ]}
                     disabled={!searchQuery.trim()}
                   >
-                    <MaterialIcons name="arrow-forward" size={18} color="#FFFFFF" />
+                    <MaterialIcons name="arrow-forward" size={18} color={isDarkMode ? colors.background : '#FFFFFF'} />
                   </TouchableOpacity>
                 </View>
 
                 {/* Separator */}
                 <View style={styles.separatorContainer}>
-                  <View style={styles.separatorLine} />
-                  <Text style={styles.separatorText}>Or upload your files</Text>
-                  <View style={styles.separatorLine} />
+                  <View style={[styles.separatorLine, { backgroundColor: colors.border }]} />
+                  <Text style={[styles.separatorText, { color: colors.textSecondary }]}>Or upload your files</Text>
+                  <View style={[styles.separatorLine, { backgroundColor: colors.border }]} />
                 </View>
 
                 {/* Material Type Options */}
@@ -268,7 +282,13 @@ export default function MaterialTypeSelector({
                   {materialOptions.map((option) => (
                     <TouchableOpacity
                       key={option.type}
-                      style={styles.optionButton}
+                      style={[
+                        styles.optionButton,
+                        {
+                          backgroundColor: colors.surface,
+                          borderColor: colors.border,
+                        }
+                      ]}
                       onPress={() => handleSelectType(option.type)}
                       activeOpacity={0.7}
                     >
@@ -276,18 +296,18 @@ export default function MaterialTypeSelector({
                         <Ionicons 
                           name={option.iconName as any} 
                           size={20} 
-                          color="#171717" 
+                          color={colors.icon} 
                           style={styles.buttonIcon}
                         />
                       ) : (
                         <MaterialIcons 
                           name={option.iconName as any} 
                           size={20} 
-                          color="#171717" 
+                          color={colors.icon} 
                           style={styles.buttonIcon}
                         />
                       )}
-                      <Text style={styles.buttonLabel}>{option.label}</Text>
+                      <Text style={[styles.buttonLabel, { color: colors.text }]}>{option.label}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -314,7 +334,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
@@ -329,7 +348,6 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
     minHeight: SCREEN_HEIGHT * 0.85,
   },
   contentWrapper: {
@@ -339,12 +357,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 12,
     paddingBottom: 8,
-    backgroundColor: '#FFFFFF',
   },
   handle: {
     width: 36,
     height: 4,
-    backgroundColor: '#D1D1D6',
     borderRadius: 2.5,
   },
   closeButtonContainer: {
@@ -368,7 +384,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#171717',
     textAlign: 'center',
     lineHeight: 32,
     marginBottom: 4,
@@ -397,19 +412,15 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 48,
-    backgroundColor: '#F9FAFB',
     borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: '#171717',
     borderWidth: 1,
-    borderColor: '#E5E5E5',
   },
   sendButton: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#171717',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -426,11 +437,9 @@ const styles = StyleSheet.create({
   separatorLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E5E5E5',
   },
   separatorText: {
     fontSize: 14,
-    color: '#737373',
     fontWeight: '500',
   },
   optionsContainer: {
@@ -441,12 +450,10 @@ const styles = StyleSheet.create({
   optionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
   },
   buttonIcon: {
     marginRight: 12,
@@ -454,6 +461,5 @@ const styles = StyleSheet.create({
   buttonLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#171717',
   },
 });

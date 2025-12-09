@@ -128,3 +128,4 @@ COMMENT ON FUNCTION increment_streak IS 'Increments user streak with timezone su
 -- Step 8: Add comment to column
 COMMENT ON COLUMN profiles.last_streak_date IS 'Date when streak was last incremented (in user timezone). Separate from updated_at to track only streak activity.';
 
+

@@ -106,3 +106,4 @@ CREATE TRIGGER update_pet_tasks_updated_at
 --
 -- Note: This will also drop any seed data that was inserted
 
+

@@ -245,7 +245,8 @@ Deno.serve(async (req) => {
             question: q.question,
             options: q.options,
             correct_answer: q.correct,
-            explanation: q.explanation,
+            hint: q.hint || null,
+            explanation: null,
             display_order: idx,
           }))
         );
@@ -374,7 +375,7 @@ OUTPUT FORMAT (JSON only):
           "D": "Option text"
         },
         "correct": "A",
-        "explanation": "Why this answer is correct and others are wrong (2-3 sentences)"
+        "hint": "Short nudge (1 sentence) that helps without giving the answer"
       }
     ]
   }
@@ -385,7 +386,7 @@ QUALITY RULES:
 2. Distractors (wrong options) must be plausible but clearly incorrect
 3. Difficulty: 30% easy (recall), 50% medium (application), 20% hard (analysis)
 4. Cover ALL major topics - don't cluster on one area
-5. Explanation must explain WHY correct answer is right AND why common wrong answers are incorrect
+5. Hint should NOT reveal the answer; give a gentle nudge only (≤25 words)
 6. Avoid "All/None of the above" options
 7. Balance correct answers across A/B/C/D (not all A's)
 

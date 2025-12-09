@@ -1,10 +1,10 @@
 /**
  * QuizViewer - Interactive quiz interface with multiple choice questions
  * Features: question navigation, answer selection, scoring, results display
- * Updated: Dark mode support
+ * Updated: Dark mode support, quiz completion tracking for daily task
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { Quiz, QuizQuestion } from '@/lib/store/types';
 import { useStore } from '@/lib/store';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import { supabase } from '@/lib/supabase';
 
 interface QuizViewerProps {
   quiz: Quiz;
@@ -26,7 +27,10 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
   const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, boolean>>({});
   const [showReviewAnswers, setShowReviewAnswers] = useState(false);
   const [revealedHints, setRevealedHints] = useState<Record<string, boolean>>({});
-  const { petState } = useStore();
+  
+  // Task completion tracking
+  const completionRecordedRef = useRef(false);
+  const { petState, authUser, checkAndAwardTask, refreshTaskProgress, getUserTimezone } = useStore();
   const petName = petState?.name || 'Maria';
   
   const { isDarkMode } = useTheme();
@@ -63,7 +67,7 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
   };
 
   // Calculate and show results
-  const calculateResults = () => {
+  const calculateResults = async () => {
     let correctCount = 0;
     quiz.questions.forEach((q) => {
       if (answers[q.id] === q.correct) {
@@ -71,9 +75,49 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
       }
     });
 
+    const scorePercent = Math.round((correctCount / totalQuestions) * 100);
+
     setShowResults(true);
     if (onComplete) {
-      onComplete((correctCount / totalQuestions) * 100);
+      onComplete(scorePercent);
+    }
+
+    // Record quiz completion for daily task (only once per quiz session)
+    if (!completionRecordedRef.current && authUser) {
+      completionRecordedRef.current = true;
+      
+      try {
+        // Insert quiz completion record
+        const { error } = await supabase.from('quiz_completions').insert({
+          user_id: authUser.id,
+          quiz_id: quiz.id,
+          score: correctCount,
+          total_questions: totalQuestions,
+          score_percentage: scorePercent
+        });
+
+        if (error) {
+          console.error('[QuizViewer] Error recording quiz completion:', error);
+          return;
+        }
+
+        // Refresh progress and check for task completion
+        await refreshTaskProgress('complete_quiz');
+        
+        const timezone = await getUserTimezone();
+        const { data: progress } = await supabase.rpc('get_task_progress', {
+          p_user_id: authUser.id,
+          p_task_key: 'complete_quiz',
+          p_timezone: timezone
+        });
+
+        // If user has completed at least 1 quiz today, award the task
+        if (progress && progress.current >= 1) {
+          await checkAndAwardTask('complete_quiz');
+        }
+      } catch (err) {
+        console.error('[QuizViewer] Failed to record completion:', err);
+      }
     }
   };
 

@@ -118,7 +118,7 @@ export const createTaskSlice: StateCreator<
             const progressiveTasks = tasks.filter(
                 (t: DailyTask) =>
                     !t.completed &&
-                    (t.task_key === 'study_flashcards' || t.task_key === 'study_15_minutes')
+                    (t.task_key === 'study_flashcards' || t.task_key === 'complete_quiz')
             );
 
             // Load progress in parallel
