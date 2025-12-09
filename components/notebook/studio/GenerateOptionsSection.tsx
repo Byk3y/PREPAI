@@ -1,0 +1,84 @@
+/**
+ * GenerateOptionsSection - The "Generate new" section with generation buttons
+ */
+
+import React from 'react';
+import { View, Text } from 'react-native';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import { GenerateOption } from './GenerateOption';
+
+type GeneratingType = 'flashcards' | 'quiz' | 'audio' | null;
+
+interface GenerateOptionsSectionProps {
+  generatingType: GeneratingType;
+  onGenerateAudio: () => void;
+  onGenerateFlashcards: () => void;
+  onGenerateQuiz: () => void;
+}
+
+export const GenerateOptionsSection: React.FC<GenerateOptionsSectionProps> = ({
+  generatingType,
+  onGenerateAudio,
+  onGenerateFlashcards,
+  onGenerateQuiz,
+}) => {
+  const { isDarkMode } = useTheme();
+  const colors = getThemeColors(isDarkMode);
+
+  const isDisabled = generatingType !== null;
+
+  return (
+    <View style={{ paddingHorizontal: 16, paddingVertical: 24 }}>
+      <Text
+        style={{
+          fontSize: 14,
+          fontWeight: '500',
+          color: colors.textSecondary,
+          marginBottom: 16,
+          paddingHorizontal: 8,
+        }}
+      >
+        Generate new
+      </Text>
+
+      {/* Audio Overview Option */}
+      <GenerateOption
+        type="audio"
+        icon="stats-chart"
+        color="#4f46e5"
+        label="Audio Overview"
+        bgColor="bg-indigo-50"
+        textColor="text-indigo-600"
+        isGenerating={generatingType === 'audio'}
+        onPress={onGenerateAudio}
+        disabled={isDisabled}
+      />
+
+      {/* Flashcards Option */}
+      <GenerateOption
+        type="flashcards"
+        icon="albums-outline"
+        color="#dc2626"
+        label="Flashcards"
+        bgColor="bg-red-50"
+        textColor="text-red-600"
+        isGenerating={generatingType === 'flashcards'}
+        onPress={onGenerateFlashcards}
+        disabled={isDisabled}
+      />
+
+      {/* Quiz Option */}
+      <GenerateOption
+        type="quiz"
+        icon="help-circle-outline"
+        color="#0891b2"
+        label="Quiz"
+        bgColor="bg-cyan-50"
+        textColor="text-cyan-600"
+        isGenerating={generatingType === 'quiz'}
+        onPress={onGenerateQuiz}
+        disabled={isDisabled}
+      />
+    </View>
+  );
+};
