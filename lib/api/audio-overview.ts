@@ -40,8 +40,6 @@ export async function generateAudioOverview(
       throw new Error('Not authenticated');
     }
 
-    console.log('[Audio API] Generating audio overview for notebook:', notebookId);
-
     const response = await fetch(EDGE_FUNCTION_URL, {
       method: 'POST',
       headers: {
@@ -89,8 +87,6 @@ export async function generateAudioOverview(
       enhancedError.raw = raw;
       throw enhancedError;
     }
-
-    console.log('[Audio API] Generation started:', data);
 
     return data;
 
@@ -215,7 +211,6 @@ export async function getAudioOverview(overviewId: string): Promise<AudioOvervie
     let audioUrl = data.audio_url;
 
     if (needsRefresh && data.storage_path) {
-      console.log('[Audio API] Refreshing signed URL...');
       const { data: signedData } = await supabase.storage
         .from('uploads')
         .createSignedUrl(data.storage_path, 7 * 24 * 3600); // 7 days
@@ -290,8 +285,6 @@ export async function deleteAudioOverview(overviewId: string): Promise<void> {
         .from('uploads')
         .remove([data.storage_path]);
     }
-
-    console.log('[Audio API] Deleted audio overview:', overviewId);
 
   } catch (error: any) {
     console.error('[Audio API] Failed to delete:', error);

@@ -61,7 +61,7 @@ function RootLayoutInner() {
     const {
       data: { subscription: authSubscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`Auth state changed: ${event}, user: ${session?.user?.id}`);
+      // Auth state changed - handled silently
 
       if (!mounted) return;
 
@@ -176,7 +176,6 @@ function RootLayoutInner() {
         const uri1 = Image.resolveAssetSource(stage1).uri;
         const uri2 = Image.resolveAssetSource(stage2).uri;
         await Promise.all([Image.prefetch(uri1), Image.prefetch(uri2)]);
-        console.log('Pet images preloaded successfully');
       } catch (error) {
         console.error('Failed to preload pet images:', error);
       }
@@ -189,8 +188,7 @@ function RootLayoutInner() {
   useEffect(() => {
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
       if (nextAppState === 'active') {
-        // App returned to foreground
-        console.log('App foregrounded, checking for stuck notebooks...');
+        // App returned to foreground - check for stuck notebooks
 
         const { authUser } = useStore.getState();
         if (!authUser) return;
@@ -211,11 +209,8 @@ function RootLayoutInner() {
           }
 
           if (stuckNotebooks && stuckNotebooks.length > 0) {
-            console.log(`Found ${stuckNotebooks.length} stuck notebook(s), retrying...`);
-
             // Retry Edge Function for each stuck notebook
             for (const notebook of stuckNotebooks) {
-              console.log(`Retrying notebook ${notebook.id} with material ${notebook.material_id}`);
 
               // Create timeout promise
               const timeoutPromise = new Promise((_, reject) =>
@@ -241,8 +236,6 @@ function RootLayoutInner() {
                     if (updateError) {
                       console.error(`Failed to update notebook ${notebook.id} status:`, updateError);
                     }
-                  } else {
-                    console.log(`Successfully retried notebook ${notebook.id}:`, data);
                   }
                 })
                 .catch(async (err) => {

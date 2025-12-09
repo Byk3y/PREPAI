@@ -136,8 +136,6 @@ export const useStudioGeneration = ({
 
       // For network errors, check if generation actually started on the server
       if (isNetworkError(error)) {
-        console.log('[useStudioGeneration] Network error detected, checking if generation started...');
-
         try {
           // Check for pending audio generation for this notebook
           const { data: pendingAudio } = await supabase
@@ -151,17 +149,13 @@ export const useStudioGeneration = ({
 
           if (pendingAudio) {
             // Generation actually started! Restore state and continue polling
-            console.log('[useStudioGeneration] Found pending audio generation, restoring state:', pendingAudio.id);
             setGeneratingType('audio');
             setGeneratingAudioId(pendingAudio.id);
             startAudioPolling(pendingAudio.id);
-
-            // Don't show error - generation is in progress
-            return;
+            return; // Don't show error - generation is in progress
           }
-        } catch (recoveryError) {
-          console.log('[useStudioGeneration] No pending audio found, treating as real error');
-          // Fall through to show error
+        } catch {
+          // No pending audio found, fall through to show error
         }
       }
 

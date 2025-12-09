@@ -99,8 +99,6 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
                         n.id === notebook.id ? { ...n, status: 'failed' as const } : n
                     )
                 );
-            } else {
-                console.log('Edge Function retry successful:', data);
             }
         } catch (error) {
             console.error('Error during retry:', error);

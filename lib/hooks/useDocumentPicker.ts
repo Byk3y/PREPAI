@@ -21,7 +21,6 @@ export const useDocumentPicker = () => {
   const pickDocument = async (): Promise<DocumentResult | null> => {
     // Prevent multiple simultaneous picker calls
     if (isPickerActive || loading) {
-      console.log('Document picker already active, ignoring call');
       return null;
     }
 

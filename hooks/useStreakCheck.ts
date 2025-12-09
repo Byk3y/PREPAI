@@ -31,27 +31,12 @@ export function useStreakCheck() {
                 }
 
                 if (incrementResult?.success) {
-                    console.log('[StreakCheck] Streak updated:', {
-                        previous: incrementResult.previous_streak,
-                        new: incrementResult.new_streak,
-                        was_incremented: incrementResult.was_incremented
-                    });
-
                     // Reload user profile to update streak in store
                     await loadUserProfile();
 
-                    // Step 2: Award the maintain_streak task if streak was incremented
-                    // Only award if streak actually increased (not reset, not already updated today)
+                    // Award the maintain_streak task if streak was incremented
                     if (incrementResult.was_incremented) {
-                        const result = await checkAndAwardTask('maintain_streak');
-
-                        if (result.success) {
-                            console.log('[StreakCheck] Daily streak task completed');
-                        } else {
-                            console.log('[StreakCheck] Streak task not awarded:', result.error);
-                        }
-                    } else {
-                        console.log('[StreakCheck] Streak not incremented (already updated today or reset)');
+                        await checkAndAwardTask('maintain_streak');
                     }
                 }
             } catch (error) {

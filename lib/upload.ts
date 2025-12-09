@@ -57,7 +57,6 @@ export async function uploadMaterialFile(
     // Compress images before upload
     let uploadUri = fileUri;
     if (mimeType.startsWith('image/')) {
-      console.log('Compressing image before upload...');
       uploadUri = await compressImage(fileUri);
     }
 
@@ -158,7 +157,6 @@ export async function deleteFile(
       return { success: false, error: error.message };
     }
 
-    console.log(`Successfully deleted file: ${storagePath}`);
     return { success: true };
   } catch (error: any) {
     console.error('Storage delete error:', error);

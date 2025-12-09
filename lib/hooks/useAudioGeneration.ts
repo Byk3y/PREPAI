@@ -77,8 +77,7 @@ export const useAudioGeneration = (
                     error?.name === 'AbortError';
 
                 if (isNetworkError) {
-                    console.log('[Polling] Transient network error, will retry on next poll');
-                    return;
+                    return; // Transient network error, will retry on next poll
                 }
 
                 console.error('Error polling status:', error);
@@ -101,13 +100,12 @@ export const useAudioGeneration = (
                 .single();
 
             if (pendingAudio) {
-                console.log('[StudioTab] Found pending audio generation:', pendingAudio.id);
                 setGeneratingType('audio');
                 setGeneratingAudioId(pendingAudio.id);
                 startAudioPolling(pendingAudio.id);
             }
-        } catch (error) {
-            console.log('[StudioTab] No pending audio generation found');
+        } catch {
+            // No pending audio generation found
         }
     }, [notebookId, startAudioPolling]);
 
@@ -115,9 +113,7 @@ export const useAudioGeneration = (
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextAppState) => {
             if (nextAppState === 'active' && generatingAudioId && !pollIntervalRef.current) {
-                // App came to foreground and we have a pending audio but polling stopped
-                // Restart polling to resume status checks
-                console.log('[useAudioGeneration] App foregrounded, restarting polling for:', generatingAudioId);
+                // App came to foreground - restart polling to resume status checks
                 startAudioPolling(generatingAudioId);
             }
         });

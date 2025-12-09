@@ -95,8 +95,6 @@ export default function NotebookDetailScreen() {
       return;
     }
 
-    console.log('Setting up real-time subscription for notebook:', id);
-
     const channel = supabase
       .channel(`notebook:${id}`)
       .on(
@@ -108,7 +106,6 @@ export default function NotebookDetailScreen() {
           filter: `id=eq.${id}`,
         },
         async (payload) => {
-          console.log('Real-time update received:', payload);
           const updated = payload.new as any;
           const oldStatus = (payload.old as any)?.status;
           const newStatus = updated.status as Notebook['status'];
@@ -142,7 +139,6 @@ export default function NotebookDetailScreen() {
             if (newStatus === 'preview_ready' && oldStatusFromState === 'extracting') {
               // Prevent multiple simultaneous reloads
           if (isReloadingRef.current) {
-            console.log('Material reload already in progress, skipping...');
             return transformNotebook(updated, currentNotebook.materials);
           }
 
@@ -165,7 +161,6 @@ export default function NotebookDetailScreen() {
                   if (!error && refreshedData) {
                     const refreshedNotebook = transformNotebook(refreshedData);
                     setNotebook(refreshedNotebook);
-                    console.log('Notebook reloaded with updated materials');
 
                     // Update store with refreshed data
                     queueMicrotask(() => {
@@ -203,23 +198,15 @@ export default function NotebookDetailScreen() {
         }
       )
       .subscribe((status, err) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to notebook updates');
-        } else if (status === 'CHANNEL_ERROR') {
-          // Only log if there's an actual error (not during cleanup)
-          if (err) {
-            console.error('Channel subscription error:', err);
-          }
+        if (status === 'CHANNEL_ERROR' && err) {
+          console.error('Channel subscription error:', err);
         } else if (status === 'TIMED_OUT') {
           console.warn('Subscription timed out');
-        } else if (status === 'CLOSED') {
-          console.log('Subscription closed');
         }
       });
 
     // Cleanup subscription on unmount
     return () => {
-      console.log('Cleaning up real-time subscription for notebook:', id);
       isReloadingRef.current = false;
       supabase.removeChannel(channel);
     };

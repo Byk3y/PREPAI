@@ -84,7 +84,6 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
   // Monitor app state to recover from backgrounding
   useAppState({
     onForeground: () => {
-      console.log('[StudioTab] App foregrounded, checking for pending audio...');
       checkForPendingAudio();
       refreshContent();
     },
