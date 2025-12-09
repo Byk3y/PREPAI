@@ -44,12 +44,7 @@ function RootLayoutInner() {
   const { setColorScheme, colorScheme } = useNativeWindColorScheme();
   
   useEffect(() => {
-    console.log('Theme Debug:', { 
-      isDarkMode,
-      effectiveColorScheme,
-      currentNativeWindScheme: colorScheme 
-    });
-    
+    // Sync NativeWind with our theme context (for components using dark: classes)
     if (colorScheme !== effectiveColorScheme) {
       setColorScheme(effectiveColorScheme);
     }
