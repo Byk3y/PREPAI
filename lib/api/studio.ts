@@ -80,3 +80,65 @@ export async function generateStudioContent(
   const data: GenerateStudioContentResponse = await response.json();
   return data;
 }
+
+export interface FlashcardProgress {
+  notebook_id: string;
+  last_flashcard_id: string | null;
+  last_index: number;
+  updated_at: string;
+}
+
+/**
+ * Fetch the user's last viewed flashcard for a notebook.
+ * Returns null when unauthenticated or no progress exists.
+ */
+export async function fetchFlashcardProgress(
+  notebookId: string
+): Promise<FlashcardProgress | null> {
+  const { data: auth } = await supabase.auth.getUser();
+  const user = auth?.user;
+  if (!user) return null;
+
+  const { data, error, status } = await supabase
+    .from('user_flashcard_progress')
+    .select('notebook_id,last_flashcard_id,last_index,updated_at')
+    .eq('user_id', user.id)
+    .eq('notebook_id', notebookId)
+    .maybeSingle();
+
+  // MaybeSingle returns 406 when no rows; treat as null
+  if (status === 406 || (error && error.code === 'PGRST116')) {
+    return null;
+  }
+  if (error) throw error;
+  return data as FlashcardProgress | null;
+}
+
+/**
+ * Upsert the user's flashcard progress for a notebook.
+ * No-op for unauthenticated users.
+ */
+export async function upsertFlashcardProgress(params: {
+  notebookId: string;
+  lastFlashcardId: string | null;
+  lastIndex: number;
+}): Promise<FlashcardProgress | null> {
+  const { notebookId, lastFlashcardId, lastIndex } = params;
+  const { data: auth } = await supabase.auth.getUser();
+  const user = auth?.user;
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('user_flashcard_progress')
+    .upsert({
+      user_id: user.id,
+      notebook_id: notebookId,
+      last_flashcard_id: lastFlashcardId,
+      last_index: lastIndex,
+    }, { onConflict: 'user_id,notebook_id' })
+    .select('notebook_id,last_flashcard_id,last_index,updated_at')
+    .single();
+
+  if (error) throw error;
+  return data as FlashcardProgress;
+}

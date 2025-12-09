@@ -3,7 +3,7 @@
  * Features: tap to flip, swipe navigation, dark card design
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Dimensions, StyleSheet, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -17,6 +17,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import type { StudioFlashcard } from '@/lib/store/types';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
+import { upsertFlashcardProgress } from '@/lib/api/studio';
 
 interface FlashcardViewerProps {
   flashcards: StudioFlashcard[];
@@ -45,6 +46,33 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
   const completedCardsRef = useRef(new Set<string>());
 
   const { authUser, checkAndAwardTask, getUserTimezone } = useStore();
+  const notebookId = flashcards[0]?.notebook_id;
+
+  // Keep state in sync if parent passes a different starting index (resume)
+  useEffect(() => {
+    setCurrentIndex(initialIndex);
+    setIsFlipped(false);
+    flipRotation.value = 0;
+  }, [initialIndex, flipRotation]);
+
+  const persistProgress = useCallback(
+    async (indexToSave: number) => {
+      if (!authUser || !notebookId) return;
+      const card = flashcards[indexToSave];
+      if (!card) return;
+
+      try {
+        await upsertFlashcardProgress({
+          notebookId,
+          lastFlashcardId: card.id,
+          lastIndex: indexToSave,
+        });
+      } catch (err) {
+        // Silently ignore; progress save failures shouldn't block UI
+      }
+    },
+    [authUser, flashcards, notebookId]
+  );
 
   // Helper to record completion
   const recordCompletion = async (cardId: string) => {
@@ -91,6 +119,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
     }
 
     setIsFlipped(!isFlipped);
+    persistProgress(currentIndex);
   };
 
   // Navigation
@@ -160,6 +189,14 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
   });
 
   const currentCard = flashcards[currentIndex];
+
+  // Persist whenever the index changes (navigation or resume)
+  useEffect(() => {
+    persistProgress(currentIndex);
+  }, [currentIndex, persistProgress]);
+
+  // No cleanup needed (progress writes are immediate)
+  useEffect(() => undefined, []);
 
   return (
     <SafeAreaView className="flex-1 bg-neutral-50">
