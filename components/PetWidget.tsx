@@ -61,22 +61,22 @@ export const PetWidget: React.FC<PetWidgetProps> = ({
       </MotiView>
       
       <Text className="text-lg font-semibold text-neutral-800">{petState.name}</Text>
-      <Text className="text-sm text-neutral-500">Level {petState.level}</Text>
+      <Text className="text-sm text-neutral-500">Stage {petState.stage}</Text>
       
-      {/* XP Bar */}
+      {/* Points Progress Bar */}
       <View className="w-full max-w-xs mt-2">
         <View className="h-2 bg-neutral-200 rounded-full overflow-hidden">
           <MotiView
             from={{ width: 0 }}
             animate={{ 
-              width: `${(petState.xp / petState.xpToNext) * 100}%` 
+              width: `${((petState.points % 100) / 100) * 100}%` 
             }}
             transition={{ type: 'timing', duration: 500 }}
             className="h-full bg-primary-500 rounded-full"
           />
         </View>
         <Text className="text-xs text-neutral-500 mt-1 text-center">
-          {petState.xp} / {petState.xpToNext} XP
+          {petState.points % 100} / 100 points
         </Text>
       </View>
     </View>

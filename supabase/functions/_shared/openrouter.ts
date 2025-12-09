@@ -125,7 +125,7 @@ export async function callLLM(
       latency,
       model: modelName,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     const latency = Date.now() - startTime;
 
     // Try fallback models if available
@@ -138,7 +138,8 @@ export async function callLLM(
       });
     }
 
-    throw new Error(`LLM call failed: ${error.message} (latency: ${latency}ms)`);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`LLM call failed: ${message} (latency: ${latency}ms)`);
   }
 }
 
@@ -157,17 +158,18 @@ export async function callLLMWithRetry(
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       return await callLLM(jobType, systemPrompt, userPrompt, options);
-    } catch (error) {
-      lastError = error as Error;
-      console.error(`LLM call attempt ${attempt + 1} failed:`, error.message);
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      lastError = err;
+      console.error(`LLM call attempt ${attempt + 1} failed:`, err.message);
 
       // Don't retry on certain errors (auth, invalid request)
       if (
-        error.message.includes('401') ||
-        error.message.includes('400') ||
-        error.message.includes('invalid')
+        err.message.includes('401') ||
+        err.message.includes('400') ||
+        err.message.includes('invalid')
       ) {
-        throw error;
+        throw err;
       }
 
       // Exponential backoff: 1s, 2s, 4s

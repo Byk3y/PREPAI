@@ -216,8 +216,9 @@ async function geminiOCR(
         processingTime,
       },
     };
-  } catch (error) {
-    throw new Error(`Gemini OCR error: ${error.message}`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Gemini OCR error: ${message}`);
   }
 }
 
@@ -294,8 +295,9 @@ async function googleVisionOCR(
         processingTime,
       },
     };
-  } catch (error) {
-    throw new Error(`Google Vision OCR error: ${error.message}`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Google Vision OCR error: ${message}`);
   }
 }
 
@@ -372,8 +374,9 @@ export async function transcribeAudio(audioUrl: string): Promise<string> {
     }
 
     throw new Error('Transcription timeout (10 minutes)');
-  } catch (error) {
-    throw new Error(`Audio transcription error: ${error.message}`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Audio transcription error: ${message}`);
   }
 }
 

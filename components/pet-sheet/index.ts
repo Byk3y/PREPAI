@@ -8,4 +8,4 @@ export { PetNameEditor } from './PetNameEditor';
 export { PetInfo } from './PetInfo';
 export { MissionCard, type Mission } from './MissionCard';
 export { MissionsList } from './MissionsList';
-export { StatsCard } from './StatsCard';
+export { StreakBadges } from './StreakBadges';

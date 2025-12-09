@@ -9,9 +9,10 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
+  RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '@/lib/store';
 import { useNotebookCreation } from '@/lib/hooks/useNotebookCreation';
@@ -26,7 +27,14 @@ import { HomeActionButtons } from '@/components/home/HomeActionButtons';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { notebooks, loadNotebooks, authUser, isInitialized } = useStore();
+  const {
+    notebooks,
+    loadNotebooks,
+    authUser,
+    isInitialized,
+    notebooksSyncedAt,
+    notebooksUserId,
+  } = useStore();
 
   // Custom Hook for creation logic
   const {
@@ -42,6 +50,7 @@ export default function HomeScreen() {
   const [isNavigating, setIsNavigating] = useState(false);
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isNavigatingRef = useRef(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Real-time updates
   useEffect(() => {
@@ -98,6 +107,9 @@ export default function HomeScreen() {
 
   // Navigation Helper
   const navigateToNotebook = (notebookId: string) => {
+    // Prevent rapid double-taps from pushing the route twice
+    if (isNavigatingRef.current) return;
+
     setIsNavigating(true);
     isNavigatingRef.current = true;
     router.push(`/notebook/${notebookId}`);
@@ -108,7 +120,7 @@ export default function HomeScreen() {
     navigationTimeoutRef.current = setTimeout(() => {
       setIsNavigating(false);
       isNavigatingRef.current = false;
-    }, 1000);
+    }, 800);
   };
 
   const handleCreateNotebook = () => {
@@ -163,8 +175,29 @@ export default function HomeScreen() {
   };
 
   const handleNotebookPress = (notebookId: string) => {
-    router.push(`/notebook/${notebookId}`);
+    navigateToNotebook(notebookId);
   };
+
+  const handleRefresh = async () => {
+    if (!authUser) return;
+    try {
+      setIsRefreshing(true);
+      await loadNotebooks();
+    } catch (e) {
+      console.error('Refresh failed', e);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Fast-path render: if we have a recent cache for this user, show it immediately
+  const isNotebookCacheFresh =
+    !!authUser &&
+    notebooksUserId === authUser.id &&
+    typeof notebooksSyncedAt === 'number' &&
+    Date.now() - notebooksSyncedAt < 24 * 60 * 60 * 1000; // 24h freshness window
+
+  const canShowContent = authUser ? isInitialized || isNotebookCacheFresh : false;
 
   return (
     <SafeAreaView
@@ -174,9 +207,8 @@ export default function HomeScreen() {
       <HomeHeader />
 
       {/* Content */}
-      {!isInitialized ? (
-        <View className="flex-1 bg-white" />
-      ) : !authUser ? (
+      {!canShowContent ? (
+        !authUser ? (
         <View className="flex-1 bg-white items-center justify-center px-6">
           <Text className="text-2xl font-bold text-neutral-900 mb-4">
             Not Signed In
@@ -193,12 +225,34 @@ export default function HomeScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+        ) : (
+          <View className="flex-1 bg-white" />
+        )
       ) : (
         <ScrollView
           className="flex-1 bg-white"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 120 }}
+          contentContainerStyle={{
+            paddingHorizontal: 24,
+            paddingTop: 8,
+            paddingBottom: 120,
+            flexGrow: 1, // allow pull-to-refresh from anywhere
+          }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor="transparent"
+              colors={['transparent']}
+              style={{ backgroundColor: 'transparent' }}
+            />
+          }
         >
+          {isRefreshing && (
+            <View style={{ alignItems: 'center', paddingVertical: 12 }}>
+              <TikTokLoader size={10} color="#6366f1" containerWidth={60} />
+            </View>
+          )}
           {[...notebooks]
             .sort((a, b) => {
               const dateA = new Date(a.createdAt).getTime();

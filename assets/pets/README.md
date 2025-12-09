@@ -33,3 +33,5 @@ pets/
 2. Add `bubble.png` and `full-view.png` to the folder
 3. The code will automatically use the correct assets based on `petState.level`
 
+
+

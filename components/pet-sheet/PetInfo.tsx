@@ -8,13 +8,20 @@ import { PetNameEditor } from './PetNameEditor';
 
 interface PetInfoProps {
     name: string;
-    xp: number;
-    xpToNext: number;
+    points: number;
     onNameChange: (newName: string) => void;
 }
 
-export function PetInfo({ name, xp, xpToNext, onNameChange }: PetInfoProps) {
-    const xpPercentage = (xp / xpToNext) * 100;
+export function PetInfo({ name, points, onNameChange }: PetInfoProps) {
+    // Calculate progress within current stage (0-100 points per stage)
+    // Handle edge case: at exactly 100, 200, etc., show 100% progress
+    const pointsInStage = points % 100;
+    const progressPercentage = pointsInStage === 0 && points > 0 
+        ? 100  // At stage boundary (100, 200, etc.), show 100%
+        : (pointsInStage / 100) * 100;
+    const pointsToNext = pointsInStage === 0 && points > 0
+        ? 0  // At stage boundary, already at next stage
+        : 100 - pointsInStage;
 
     return (
         <View style={styles.container}>
@@ -26,11 +33,11 @@ export function PetInfo({ name, xp, xpToNext, onNameChange }: PetInfoProps) {
                 <View style={styles.xpContainer}>
                     <View style={styles.xpBarBackground}>
                         <View
-                            style={[styles.xpBarFill, { width: `${xpPercentage}%` }]}
+                            style={[styles.xpBarFill, { width: `${progressPercentage}%` }]}
                         />
                     </View>
                     <Text style={styles.xpText}>
-                        {xpToNext - xp} points to unlock the next look
+                        {pointsToNext} points to unlock the next look
                     </Text>
                 </View>
             </View>

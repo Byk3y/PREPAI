@@ -9,23 +9,32 @@ export const HomeHeader: React.FC = () => {
     const { authUser } = useStore();
 
     const handleProfilePress = () => {
-        Alert.alert(
-            'Account',
-            authUser ? `Signed in as ${authUser.email}` : 'Not signed in',
-            [
+        const buttons = authUser
+            ? [
                 {
-                    text: 'Cancel',
-                    style: 'cancel'
+                    text: 'Cancel' as const,
+                    style: 'cancel' as const,
                 },
-                ...(authUser ? [{
-                    text: 'Sign Out',
-                    style: 'destructive',
+                {
+                    text: 'Sign Out' as const,
+                    style: 'destructive' as const,
                     onPress: async () => {
                         await supabase.auth.signOut();
                         router.replace('/auth');
-                    }
-                }] : [])
+                    },
+                },
             ]
+            : [
+                {
+                    text: 'OK' as const,
+                    style: 'default' as const,
+                },
+            ];
+
+        Alert.alert(
+            'Account',
+            authUser ? `Signed in as ${authUser.email}` : 'Not signed in',
+            buttons,
         );
     };
 

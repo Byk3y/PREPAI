@@ -43,6 +43,24 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
     return `${m}m ${s}s`;
   };
 
+  // Simple confirmation used on second+ generations
+  const confirmRepeatGeneration = (label: string, existingCount: number) => {
+    if (existingCount === 0) {
+      return Promise.resolve(true);
+    }
+    return new Promise<boolean>((resolve) => {
+      Alert.alert(
+        `Generate another ${label}?`,
+        `You've already generated a ${label.toLowerCase()} for this notebook. Generate another?`,
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Generate', style: 'destructive', onPress: () => resolve(true) },
+        ],
+        { cancelable: true }
+      );
+    });
+  };
+
   // Helper to format relative time (e.g. "2h ago")
   const getTimeAgo = (dateString: string) => {
     const now = new Date();
@@ -140,11 +158,17 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
       // This handles cases where app was backgrounded during generation
       console.log('[StudioTab] App foregrounded, checking for pending audio...');
       checkForPendingAudio();
+
+      // Also refresh studio content to avoid stuck loading after resume
+      refreshContent();
     },
   });
 
   const handleGenerateAudioOverview = async () => {
     try {
+      const ok = await confirmRepeatGeneration('Audio Overview', audioOverviews.length);
+      if (!ok) return;
+
       setGeneratingType('audio');
 
       const result = await generateAudioOverview(notebook.id);
@@ -288,6 +312,9 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
 
   const handleGenerateFlashcards = async () => {
     try {
+      const ok = await confirmRepeatGeneration('Flashcards', flashcards.length);
+      if (!ok) return;
+
       setGeneratingType('flashcards');
 
       const result = await generateStudioContent({
@@ -343,6 +370,9 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
 
   const handleGenerateQuiz = async () => {
     try {
+      const ok = await confirmRepeatGeneration('Quiz', quizzes.length);
+      if (!ok) return;
+
       setGeneratingType('quiz');
 
       const result = await generateStudioContent({

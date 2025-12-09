@@ -3,11 +3,13 @@
  * Features: play/pause, progress slider, time display, playback speed
  */
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Slider } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import type { AudioOverview } from '@/lib/store/types';
+import { useStore } from '@/lib/store';
 
 interface AudioPlayerProps {
   audio: AudioOverview;
@@ -19,6 +21,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audio }) => {
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(audio.duration * 1000); // Convert to ms
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+  const { checkAndAwardTask } = useStore();
+
+  // Track if we've already triggered the task this session
+  const hasTriggeredTaskRef = useRef(false);
 
   // Load audio on mount
   useEffect(() => {
@@ -64,6 +70,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audio }) => {
       await sound.pauseAsync();
     } else {
       await sound.playAsync();
+
+      // Trigger "Listen to an audio overview" task (only once per session)
+      if (checkAndAwardTask && !hasTriggeredTaskRef.current) {
+        hasTriggeredTaskRef.current = true;
+        checkAndAwardTask('listen_audio_overview');
+      }
     }
   };
 

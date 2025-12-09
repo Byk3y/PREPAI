@@ -132,24 +132,25 @@ export const notebookService = {
             }
 
             // Update user profile - set has_created_notebook flag (non-blocking)
-            supabase
-                .from('profiles')
-                .select('meta')
-                .eq('id', userId)
-                .single()
-                .then(({ data: profile }) => {
-                    const updatedMeta = {
-                        ...(profile?.meta || {}),
-                        has_created_notebook: true
-                    };
-                    return supabase
-                        .from('profiles')
-                        .update({ meta: updatedMeta })
-                        .eq('id', userId);
-                })
-                .catch((err) => {
-                    console.error('Failed to update has_created_notebook flag:', err);
-                });
+            try {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('meta')
+                    .eq('id', userId)
+                    .single();
+
+                const updatedMeta = {
+                    ...(profile?.meta || {}),
+                    has_created_notebook: true
+                };
+
+                await supabase
+                    .from('profiles')
+                    .update({ meta: updatedMeta })
+                    .eq('id', userId);
+            } catch (err) {
+                console.error('Failed to update has_created_notebook flag:', err);
+            }
 
             return { newNotebook, material, isFileUpload, storagePath };
         } catch (error) {

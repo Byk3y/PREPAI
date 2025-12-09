@@ -204,39 +204,38 @@ Remember to take breaks and space out your study sessions for better retention!`
             </View>
           </View>
         )}
-      </ScrollView>
+        {/* Suggested Chat Pills - moved inside ScrollView to sit below content */}
+        {!showStudyPlan && (
+          <View className="pt-6 pb-2">
+            <Text className="text-xs text-neutral-500 mb-2">Suggested</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {/* Get Study Plan Pill */}
+              <TouchableOpacity
+                onPress={handleGetStudyPlan}
+                className="bg-neutral-100 rounded-full px-4 py-2.5 flex-row items-center"
+                activeOpacity={0.7}
+              >
+                <Ionicons name="bulb-outline" size={16} color="#525252" className="mr-1.5" />
+                <Text className="text-sm text-neutral-700 font-medium ml-1.5">
+                  Get study plan
+                </Text>
+              </TouchableOpacity>
 
-      {/* Suggested Chat Pills */}
-      {!showStudyPlan && (
-        <View className="border-t border-neutral-200 px-4 py-3 bg-white">
-          <Text className="text-xs text-neutral-500 mb-2">Suggested</Text>
-          <View className="flex-row flex-wrap gap-2">
-            {/* Get Study Plan Pill */}
-            <TouchableOpacity
-              onPress={handleGetStudyPlan}
-              className="bg-neutral-100 rounded-full px-4 py-2.5 flex-row items-center"
-              activeOpacity={0.7}
-            >
-              <Ionicons name="bulb-outline" size={16} color="#525252" className="mr-1.5" />
-              <Text className="text-sm text-neutral-700 font-medium ml-1.5">
-                Get study plan
-              </Text>
-            </TouchableOpacity>
-
-            {/* Take Quiz Pill */}
-            <TouchableOpacity
-              onPress={handleTakeQuiz}
-              className="bg-neutral-100 rounded-full px-4 py-2.5 flex-row items-center"
-              activeOpacity={0.7}
-            >
-              <Ionicons name="help-circle-outline" size={16} color="#525252" className="mr-1.5" />
-              <Text className="text-sm text-neutral-700 font-medium ml-1.5">
-                Take quiz
-              </Text>
-            </TouchableOpacity>
+              {/* Take Quiz Pill */}
+              <TouchableOpacity
+                onPress={handleTakeQuiz}
+                className="bg-neutral-100 rounded-full px-4 py-2.5 flex-row items-center"
+                activeOpacity={0.7}
+              >
+                <Ionicons name="help-circle-outline" size={16} color="#525252" className="mr-1.5" />
+                <Text className="text-sm text-neutral-700 font-medium ml-1.5">
+                  Take quiz
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      )}
+        )}
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 };

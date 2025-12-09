@@ -6,11 +6,25 @@ import type { StateCreator } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import type { PetState, SupabaseUser } from '../types';
 
+// Type for cross-slice access to TaskSlice's checkAndAwardTask
+interface TaskSliceAccessor {
+  checkAndAwardTask?: (taskKey: string) => Promise<{ success: boolean; newPoints?: number; error?: string }>;
+}
+
 export interface PetSlice {
   petState: PetState;
-  setPetState: (petState: Partial<PetState>) => void;
-  addPetXP: (amount: number) => void;
+  petStateReady: boolean;
+  petStateSyncedAt: number | null;
+  petStateUserId: string | null;
+  cachedPetState?: PetState;
+  cachedPetSyncedAt?: number | null;
+  cachedPetUserId?: string | null;
+  setPetState: (petState: Partial<PetState>) => Promise<void>;
+  addPetPoints: (amount: number) => Promise<void>;
   loadPetState: () => Promise<void>;
+  updatePetName: (newName: string) => Promise<void>;
+  hydratePetStateFromCache: () => void;
+  resetPetState: () => void;
 }
 
 export const createPetSlice: StateCreator<
@@ -20,38 +34,50 @@ export const createPetSlice: StateCreator<
   PetSlice
 > = (set, get) => ({
   petState: {
-    level: 1,
-    xp: 23,
-    xpToNext: 100,
-    name: 'Sparky',
+    stage: 1,
+    points: 0,
+    name: 'Nova',
     mood: 'happy',
   },
+  petStateReady: false,
+  petStateSyncedAt: null,
+  petStateUserId: null,
+  cachedPetState: undefined,
+  cachedPetSyncedAt: null,
+  cachedPetUserId: null,
 
+  // Renamed from setPetState to handle simple updates, but specific actions like name update should use updatePetName
   setPetState: async (updates) => {
     const { authUser } = get();
     if (!authUser) return;
 
     // Get current pet state to merge with updates
     const currentPetState = get().petState;
-    
+
     // Merge current state with updates
     const mergedPetState = { ...currentPetState, ...updates };
 
     // Update local state
     set((state) => ({
       petState: mergedPetState,
+      petStateReady: true,
+      petStateSyncedAt: Date.now(),
+      petStateUserId: authUser.id,
+      cachedPetState: mergedPetState,
+      cachedPetSyncedAt: Date.now(),
+      cachedPetUserId: authUser.id,
     }));
 
-    // Persist to database - include all fields so upsert can match on user_id unique constraint
-    // Map TypeScript field names to database column names
     try {
+      // Calculate stage from points (always authoratative)
+      const calculatedStage = Math.floor(mergedPetState.points / 100) + 1;
+
       const { error } = await supabase
         .from('pet_states')
         .upsert({
           user_id: authUser.id,
-          level: mergedPetState.level,
-          xp: mergedPetState.xp,
-          xp_to_next: mergedPetState.xpToNext,
+          current_stage: calculatedStage,
+          current_points: mergedPetState.points,
           name: mergedPetState.name,
           mood: mergedPetState.mood,
         }, {
@@ -66,29 +92,40 @@ export const createPetSlice: StateCreator<
     }
   },
 
-  addPetXP: async (amount) => {
+  updatePetName: async (newName: string) => {
+    const { setPetState } = get();
+
+    // 1. Update state locally and persist
+    await setPetState({ name: newName });
+
+    // 2. Check for "Name your pet" task completion
+    // We do this here as a convenient trigger point
+    // Use typed accessor for cross-slice access to TaskSlice
+    const state = get() as unknown as TaskSliceAccessor;
+    if (newName !== 'Pet' && newName !== 'Nova' && typeof state.checkAndAwardTask === 'function') {
+      await state.checkAndAwardTask('name_pet');
+    }
+  },
+
+  addPetPoints: async (amount) => {
     const { authUser } = get();
     const state = get();
-    const newXP = state.petState.xp + amount;
-    const xpToNext = state.petState.xpToNext;
 
-    let newPetState: PetState;
+    // Clamp to prevent negative points (per spec Section 9: Negative Points Protection)
+    const newPoints = Math.max(0, state.petState.points + amount);
 
-    if (newXP >= xpToNext) {
-      // Level up!
-      newPetState = {
-        ...state.petState,
-        level: state.petState.level + 1,
-        xp: newXP - xpToNext,
-        xpToNext: Math.floor(xpToNext * 1.5), // Increase XP needed for next level
-        mood: 'happy',
-      };
-    } else {
-      newPetState = {
-        ...state.petState,
-        xp: newXP,
-      };
-    }
+    // Calculate stage from total points (fixed 100 points per stage)
+    // Stage 1: 0-100, Stage 2: 100-200, Stage 3: 200-300, etc.
+    const newStage = Math.floor(newPoints / 100) + 1;
+    const oldStage = Math.floor(state.petState.points / 100) + 1;
+
+    const newPetState: PetState = {
+      ...state.petState,
+      points: newPoints,
+      stage: newStage,
+      // Set mood to happy if stage increased
+      mood: newStage > oldStage ? 'happy' : state.petState.mood,
+    };
 
     // Update local state
     set({ petState: newPetState });
@@ -100,17 +137,18 @@ export const createPetSlice: StateCreator<
           .from('pet_states')
           .upsert({
             user_id: authUser.id,
-            level: newPetState.level,
-            xp: newPetState.xp,
-            xp_to_next: newPetState.xpToNext,
+            current_stage: newStage,
+            current_points: newPoints,
             mood: newPetState.mood,
+          }, {
+            onConflict: 'user_id'
           });
 
         if (error) {
-          console.error('Error saving pet XP:', error);
+          console.error('Error saving pet points:', error);
         }
       } catch (error) {
-        console.error('Error persisting pet XP:', error);
+        console.error('Error persisting pet points:', error);
       }
     }
   },
@@ -133,28 +171,49 @@ export const createPetSlice: StateCreator<
       }
 
       if (data) {
+        // Calculate stage from points (fixed 100 points per stage)
+        const points = data.current_points || 0;
+        const stage = Math.floor(points / 100) + 1;
+
         set({
           petState: {
-            level: data.level || 1,
-            xp: data.xp || 0,
-            xpToNext: data.xp_to_next || 100,
-            name: data.name || 'Sparky',
+            stage: stage,
+            points: points,
+            name: data.name || 'Nova',
             mood: data.mood || 'happy',
           },
+          petStateReady: true,
+          petStateSyncedAt: Date.now(),
+          petStateUserId: authUser.id,
+          cachedPetState: {
+            stage: stage,
+            points: points,
+            name: data.name || 'Nova',
+            mood: data.mood || 'happy',
+          },
+          cachedPetSyncedAt: Date.now(),
+          cachedPetUserId: authUser.id,
         });
       } else {
         // No pet state exists, create default one using upsert to handle race conditions
-        // Upsert will insert if not exists, or update if it does (handles concurrent requests)
-        const defaultPetState = get().petState;
+        // Use hardcoded defaults instead of persisted state to prevent cross-user contamination
+        const defaultPetState = {
+          stage: 1,
+          points: 0,
+          name: 'Nova',
+          mood: 'happy' as const,
+        };
+        
         const { data: upsertedData, error: insertError } = await supabase
           .from('pet_states')
           .upsert({
             user_id: authUser.id,
-            level: defaultPetState.level,
-            xp: defaultPetState.xp,
-            xp_to_next: defaultPetState.xpToNext,
+            current_stage: defaultPetState.stage,
+            current_points: defaultPetState.points,
             name: defaultPetState.name,
             mood: defaultPetState.mood,
+          }, {
+            onConflict: 'user_id'
           })
           .select()
           .single();
@@ -163,19 +222,74 @@ export const createPetSlice: StateCreator<
           console.error('Error creating initial pet state:', insertError);
         } else if (upsertedData) {
           // Update local state with the upserted data
+          const points = upsertedData.current_points || 0;
+          const stage = Math.floor(points / 100) + 1;
+
           set({
             petState: {
-              level: upsertedData.level || 1,
-              xp: upsertedData.xp || 0,
-              xpToNext: upsertedData.xp_to_next || 100,
-              name: upsertedData.name || 'Sparky',
+              stage: stage,
+              points: points,
+              name: upsertedData.name || 'Nova',
               mood: upsertedData.mood || 'happy',
             },
+            petStateReady: true,
+            petStateSyncedAt: Date.now(),
+            petStateUserId: authUser.id,
+            cachedPetState: {
+              stage: stage,
+              points: points,
+              name: upsertedData.name || 'Nova',
+              mood: upsertedData.mood || 'happy',
+            },
+            cachedPetSyncedAt: Date.now(),
+            cachedPetUserId: authUser.id,
+          });
+        } else {
+          // Fallback: set default state if upsert didn't return data
+          set({
+            petState: defaultPetState,
+            petStateReady: true,
+            petStateSyncedAt: Date.now(),
+            petStateUserId: authUser.id,
+            cachedPetState: defaultPetState,
+            cachedPetSyncedAt: Date.now(),
+            cachedPetUserId: authUser.id,
           });
         }
       }
     } catch (error) {
       console.error('Error loading pet state:', error);
     }
+  },
+
+  hydratePetStateFromCache: () => {
+    const { authUser, cachedPetState, cachedPetUserId, cachedPetSyncedAt } = get();
+    if (!authUser) return;
+    if (cachedPetState && cachedPetUserId === authUser.id) {
+      set({
+        petState: cachedPetState,
+        petStateReady: true,
+        petStateSyncedAt: cachedPetSyncedAt ?? null,
+        petStateUserId: cachedPetUserId,
+      });
+    }
+  },
+
+  resetPetState: () => {
+    // Reset pet state to defaults (used when user logs out or switches accounts)
+    set({
+      petState: {
+        stage: 1,
+        points: 0,
+        name: 'Nova',
+        mood: 'happy',
+      },
+      petStateReady: false,
+      petStateSyncedAt: null,
+      petStateUserId: null,
+      cachedPetState: undefined,
+      cachedPetSyncedAt: null,
+      cachedPetUserId: null,
+    });
   },
 });

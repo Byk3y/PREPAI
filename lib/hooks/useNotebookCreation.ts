@@ -48,6 +48,11 @@ export const useNotebookCreation = () => {
             });
             // Reload notebooks to show the new one immediately
             await loadNotebooks();
+            // Trigger "Add your first study material" task
+            const { checkAndAwardTask } = useStore.getState();
+            if (checkAndAwardTask) {
+                checkAndAwardTask('add_material');
+            }
             setIsAddingNotebook(false);
             return notebookId;
         } catch (error) {
@@ -83,6 +88,11 @@ export const useNotebookCreation = () => {
             });
             // Reload notebooks to show the new one immediately
             await loadNotebooks();
+            // Trigger "Add your first study material" task
+            const { checkAndAwardTask } = useStore.getState();
+            if (checkAndAwardTask) {
+                checkAndAwardTask('add_material');
+            }
             setIsAddingNotebook(false);
             return notebookId;
         } catch (error) {
@@ -141,6 +151,12 @@ export const useNotebookCreation = () => {
             });
             // Reload notebooks to show the new one immediately
             await loadNotebooks();
+            // Trigger "Add your first study material" task
+            const { checkAndAwardTask } = useStore.getState();
+            if (checkAndAwardTask) {
+                checkAndAwardTask('add_material');
+            }
+
             setIsAddingNotebook(false);
             return notebookId;
         } catch (error) {
@@ -178,6 +194,12 @@ export const useNotebookCreation = () => {
             });
             // Reload notebooks to show the new one immediately
             await loadNotebooks();
+            // Trigger "Add your first study material" task
+            const { checkAndAwardTask } = useStore.getState();
+            if (checkAndAwardTask) {
+                checkAndAwardTask('add_material');
+            }
+
             setIsAddingNotebook(false);
             return notebookId;
         } catch (error) {
@@ -203,6 +225,15 @@ export const useNotebookCreation = () => {
                     title: title,
                 },
             });
+
+            // Trigger "Add your first study material" task
+            // We use the store via import as this hook uses useStore
+            const { checkAndAwardTask } = useStore.getState();
+            if (checkAndAwardTask) {
+                checkAndAwardTask('add_material');
+            }
+
+
 
             setIsAddingNotebook(false);
             return notebookId;

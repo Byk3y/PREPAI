@@ -316,7 +316,11 @@ Deno.serve(async (req) => {
     const audioUrl = signedUrlData?.signedUrl || null;
 
     // 14. COMPLETE: Update record with final data
-    const actualDuration = getAudioDuration(audioResult.audioBytes);
+    // Prefer TTS-reported durationSeconds for accuracy; fall back to file-size heuristic only if missing.
+    const actualDuration =
+      typeof audioResult.durationSeconds === 'number' && !Number.isNaN(audioResult.durationSeconds)
+        ? Math.max(1, Math.round(audioResult.durationSeconds * 10) / 10) // keep one decimal, min 1s
+        : getAudioDuration(audioResult.audioBytes);
     const ttsCostCents = Math.ceil((audioResult.audioTokens / 1000) * 10); // $10 per 1M tokens
     const totalCostCents = scriptResult.costCents + ttsCostCents;
 

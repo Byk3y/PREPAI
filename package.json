@@ -6,7 +6,9 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "check:functions": "deno task -c supabase/functions/deno.json check",
+    "lint:functions": "deno task -c supabase/functions/deno.json lint"
   },
   "dependencies": {
     "@expo-google-fonts/space-grotesk": "^0.4.1",

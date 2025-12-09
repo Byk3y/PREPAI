@@ -10,10 +10,12 @@ import type { Notebook, Material, SupabaseUser } from '../types';
 
 export interface NotebookSlice {
   notebooks: Notebook[];
+  notebooksSyncedAt: number | null;
+  notebooksUserId: string | null;
   setNotebooks: (notebooks: Notebook[]) => void;
   loadNotebooks: (userId?: string) => Promise<void>;
   addNotebook: (
-    notebook: Omit<Notebook, 'id' | 'createdAt'> & {
+    notebook: Omit<Notebook, 'id' | 'createdAt' | 'materials'> & {
       material?: Omit<Material, 'id' | 'createdAt'> & {
         fileUri?: string;
         filename?: string;
@@ -37,6 +39,8 @@ export const createNotebookSlice: StateCreator<
   NotebookSlice
 > = (set, get) => ({
   notebooks: [],
+  notebooksSyncedAt: null,
+  notebooksUserId: null,
 
   setNotebooks: (notebooks) => set({ notebooks }),
 
@@ -56,7 +60,11 @@ export const createNotebookSlice: StateCreator<
       try {
         const notebooks = await notebookService.fetchNotebooks(effectiveUserId);
 
-        set({ notebooks });
+        set({
+          notebooks,
+          notebooksSyncedAt: Date.now(),
+          notebooksUserId: effectiveUserId,
+        });
 
         if (notebooks.length > 0 && get().setHasCreatedNotebook) {
           get().setHasCreatedNotebook!(true);
@@ -68,7 +76,11 @@ export const createNotebookSlice: StateCreator<
         console.error(`Error loading notebooks (attempt ${attempt}/${maxRetries}):`, lastError);
 
         if (attempt === maxRetries) {
-          set({ notebooks: [] });
+          set({
+            notebooks: [],
+            notebooksSyncedAt: Date.now(),
+            notebooksUserId: effectiveUserId,
+          });
           throw lastError;
         }
 
@@ -92,7 +104,8 @@ export const createNotebookSlice: StateCreator<
 
     try {
       // 1. Create Notebook (Upload + DB Insert)
-      const { newNotebook, material, isFileUpload, storagePath } = await notebookService.createNotebook(authUser.id, notebook);
+      // Force cast notebook to any to bypass strict type check against Service expecting 'materials'
+      const { newNotebook, material, isFileUpload, storagePath } = await notebookService.createNotebook(authUser.id, notebook as any);
 
       // 2. Optimistic Update
       const transformedNotebook: Notebook = {
@@ -135,7 +148,7 @@ export const createNotebookSlice: StateCreator<
 
       // 3. Trigger Processing (Edge Function)
       // Run in background, don't await blocking the UI return
-      notebookService.triggerProcessing(newNotebook.id, material.id, isFileUpload, storagePath)
+      notebookService.triggerProcessing(newNotebook.id, material.id, !!isFileUpload, storagePath)
         .then((result) => {
           if (result.status === 'failed') {
             set((state) => ({

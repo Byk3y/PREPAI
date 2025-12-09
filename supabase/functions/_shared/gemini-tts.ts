@@ -206,7 +206,7 @@ export async function generatePodcastAudio(
 
     // Decode base64 audio to bytes
     const binaryString = atob(audioData);
-    let audioBytes = new Uint8Array(binaryString.length);
+    let audioBytes: Uint8Array = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
       audioBytes[i] = binaryString.charCodeAt(i);
     }

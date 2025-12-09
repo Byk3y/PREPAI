@@ -19,6 +19,7 @@ import { Audio } from 'expo-av';
 import type { AVPlaybackStatus } from 'expo-av';
 import { useAudioPlaybackPosition } from '@/lib/hooks/useAudioPlaybackPosition';
 import { AudioVisualizer } from './AudioVisualizer';
+import { useStore } from '@/lib/store';
 import {
     CloseIcon,
     DownloadIcon,
@@ -58,6 +59,9 @@ export function AudioPlayer({
     const sound = useRef<Audio.Sound | null>(null);
     const isDraggingSlider = useRef(false);
     const isSeeking = useRef(false);
+    const hasAwardedTaskRef = useRef(false);
+
+    const checkAndAwardTask = useStore((state) => state.checkAndAwardTask);
 
     // Position persistence hook
     const {
@@ -200,12 +204,18 @@ export function AudioPlayer({
                     saveCurrentPosition(positionInSeconds);
                 } else {
                     await sound.current.playAsync();
+
+                    // Award "listen to an audio overview" once per session
+                    if (checkAndAwardTask && !hasAwardedTaskRef.current) {
+                        hasAwardedTaskRef.current = true;
+                        checkAndAwardTask('listen_audio_overview');
+                    }
                 }
             }
         } catch (error) {
             console.error('Play/Pause error:', error);
         }
-    }, [loading, saveCurrentPosition]);
+    }, [loading, saveCurrentPosition, checkAndAwardTask]);
 
     const handleSeekBack = useCallback(async () => {
         if (!sound.current || loading) return;

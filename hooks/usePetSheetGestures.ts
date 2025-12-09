@@ -35,7 +35,7 @@ export function usePetSheetGestures({ onDismiss, scrollY }: UsePetSheetGesturesC
         requestAnimationFrame(() => {
             Animated.timing(translateY, {
                 toValue: 0,
-                duration: 400,
+                duration: 320, // slightly faster slide-up
                 useNativeDriver: true,
             }).start();
         });

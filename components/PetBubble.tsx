@@ -8,6 +8,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, PanResponder, Dimensions, Animated, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useStore } from '@/lib/store';
 
 const PET_SIZE = 100;
 const EDGE_PADDING = 0; // Reduced for closer edge snapping
@@ -17,6 +18,10 @@ const BOTTOM_PADDING = 100;
 export const PetBubble: React.FC = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const {
+    authUser,
+    petStateReady,
+  } = useStore();
   const [screenDimensions, setScreenDimensions] = useState(Dimensions.get('window'));
 
   // Calculate usable screen area (excluding safe areas)
@@ -219,6 +224,11 @@ export const PetBubble: React.FC = () => {
         const isTap = !hasMoved.current && totalDistance < 10; // Increased threshold to 10px
 
         if (isTap) {
+          const openPetSheet = () => {
+            if (!authUser) return;
+            router.push('/pet-sheet');
+          };
+
           // Tap detected - only reset if pan values are non-zero to avoid jump
           const needsResetX = Math.abs(currentPanX.current) > 0.1;
           const needsResetY = Math.abs(currentPanY.current) > 0.1;
@@ -249,7 +259,7 @@ export const PetBubble: React.FC = () => {
               currentPanY.current = 0;
               // Restart idle bounce animation
               startIdleAnimation();
-              router.push('/pet-sheet');
+              openPetSheet();
             });
           } else {
             // No movement, just open sheet directly
@@ -261,7 +271,7 @@ export const PetBubble: React.FC = () => {
             }).start(() => {
               // Restart idle bounce animation
               startIdleAnimation();
-              router.push('/pet-sheet');
+              openPetSheet();
             });
           }
           return;

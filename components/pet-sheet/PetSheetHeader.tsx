@@ -29,7 +29,11 @@ const styles = StyleSheet.create({
     handle: {
         width: 36,
         height: 4,
-        backgroundColor: '#D1D1D6',
+        backgroundColor: '#FFFFFF',
         borderRadius: 2.5,
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        shadowRadius: 2,
+        shadowOffset: { width: 0, height: 1 },
     },
 });

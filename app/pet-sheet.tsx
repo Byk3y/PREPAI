@@ -25,18 +25,29 @@ import {
   PetDisplay,
   PetInfo,
   MissionsList,
-  StatsCard,
-  type Mission,
+  StreakBadges,
 } from '@/components/pet-sheet';
+import { usePetTasks } from '@/hooks/usePetTasks';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 export default function PetSheetScreen() {
   const router = useRouter();
-  const { user, petState, setPetState } = useStore();
+  const { user, petState, updatePetName } = useStore();
   const scrollY = useRef(0);
   const scrollViewRef = useRef<ScrollView>(null);
-  const [stage, setStage] = useState<1 | 2>(1);
+
+  // Derive stage from petState (automatically calculated from points)
+  // Clamp to valid stage range for UI (1-2 for now, since we only have assets for stages 1-2)
+  const currentStage = Math.min(Math.max(petState.stage, 1), 2) as 1 | 2;
+
+  // Local state for previewing next/previous stage (UI preview only, doesn't change actual stage)
+  const [previewStage, setPreviewStage] = useState<1 | 2>(currentStage);
+
+  // Update preview stage when actual stage changes
+  React.useEffect(() => {
+    setPreviewStage(currentStage);
+  }, [currentStage]);
 
   // Gesture handling hook
   const { translateY, handleBarPanResponder, contentPanResponder, dismiss } = usePetSheetGestures({
@@ -44,15 +55,23 @@ export default function PetSheetScreen() {
     scrollY,
   });
 
-  // Pet growth missions - TODO: Move to store when implementing real missions
-  const missions: Mission[] = [
-    { id: '1', title: 'Complete 5 flashcards', progress: 3, total: 5, reward: 50, completed: false },
-    { id: '2', title: 'Study for 30 minutes', progress: 20, total: 30, reward: 30, completed: false },
-    { id: '3', title: 'Maintain 7-day streak', progress: user.streak, total: 7, reward: 100, completed: user.streak >= 7 },
-  ];
+  // Pet growth missions - includes both foundational and daily tasks
+  const { allTasks, taskProgress, foundationalTasks, loadDailyTasks, loadFoundationalTasks, checkAndAwardTask } = usePetTasks();
+
+  // Refresh on mount to ensure we have latest data
+  React.useEffect(() => {
+    loadDailyTasks();
+    loadFoundationalTasks();
+  }, []);
+
+  // REMOVED: Auto-check for name_pet task
+  // This was causing issues because it ran before pet state was fully loaded from database
+  // The task should only be awarded when user actually changes the name via updatePetName
+  // The server-side validation in award_task_points will handle checking if the name is valid
 
   const handleNameChange = async (newName: string) => {
-    await setPetState({ name: newName });
+    // Use updatePetName instead of setPetState to trigger task completion check
+    await updatePetName(newName);
   };
 
   return (
@@ -81,7 +100,7 @@ export default function PetSheetScreen() {
           ]}
         >
           <LinearGradient
-            colors={stage === 1 ? ['#FFE082', '#FFFFFF'] : ['#FFB74D', '#FFFFFF']}
+            colors={previewStage === 1 ? ['#FFE082', '#FFFFFF'] : ['#FFB74D', '#FFFFFF']}
             style={styles.gradient}
           >
             <View style={styles.safeArea}>
@@ -111,9 +130,9 @@ export default function PetSheetScreen() {
                 <View style={styles.topSection}>
                   <PetDisplay
                     streak={user.streak}
-                    stage={stage}
-                    onNextStage={() => setStage(2)}
-                    onPrevStage={() => setStage(1)}
+                    stage={previewStage}
+                    onNextStage={previewStage === 1 ? () => setPreviewStage(2) : undefined}
+                    onPrevStage={previewStage === 2 ? () => setPreviewStage(1) : undefined}
                   />
                 </View>
 
@@ -121,18 +140,17 @@ export default function PetSheetScreen() {
                 <View style={styles.bottomSection} {...contentPanResponder.panHandlers}>
                   <PetInfo
                     name={petState.name}
-                    xp={petState.xp}
-                    xpToNext={petState.xpToNext}
+                    points={petState.points}
                     onNameChange={handleNameChange}
                   />
 
-                  <MissionsList missions={missions} />
-
-                  <StatsCard
-                    coins={user.coins}
-                    level={petState.level}
-                    streak={user.streak}
+                  <MissionsList
+                    missions={allTasks}
+                    taskProgress={taskProgress}
+                    activeColor={previewStage === 1 ? '#FBBF24' : '#FB923C'} // Gold for Stage 1, Orange for Stage 2
                   />
+
+                  <StreakBadges streak={user.streak} />
                 </View>
               </ScrollView>
               <SafeAreaView style={styles.bottomSafeArea} edges={['bottom']} />

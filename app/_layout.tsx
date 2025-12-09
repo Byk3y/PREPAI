@@ -13,6 +13,8 @@ import { supabase } from '@/lib/supabase';
 import { useStore } from '@/lib/store';
 import '../global.css';
 
+import { useStreakCheck } from '@/hooks/useStreakCheck';
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     'SpaceGrotesk-Regular': SpaceGrotesk_400Regular,
@@ -23,7 +25,10 @@ export default function RootLayout() {
 
   const router = useRouter();
   const segments = useSegments();
-  const { setAuthUser, setHasCreatedNotebook, setIsInitialized, loadNotebooks, loadPetState } = useStore();
+  const { setAuthUser, setHasCreatedNotebook, setIsInitialized, loadNotebooks, loadPetState, hydratePetStateFromCache } = useStore();
+  
+  // Initialize streak check on app open
+  useStreakCheck();
 
   useEffect(() => {
     // Single source of truth for auth state and initialization
@@ -37,14 +42,30 @@ export default function RootLayout() {
 
       if (!mounted) return;
 
+      const currentAuthUser = useStore.getState().authUser;
+      const newUserId = session?.user?.id;
+      const userIdChanged = currentAuthUser?.id !== newUserId;
+
       setAuthUser(session?.user ?? null);
 
       if (session?.user) {
         try {
-          // 1. Load profile data
+          // Only reset pet state if user actually changed or it's a new sign-in
+          // This prevents:
+          // 1. Flash of default name on token refresh (TOKEN_REFRESHED event with same user)
+          // 2. Cross-user contamination when switching accounts
+          // 3. Ensures fresh data on new sign-in
+          const { resetPetState, loadPetState } = useStore.getState();
+          if (userIdChanged || event === 'SIGNED_IN') {
+            resetPetState();
+          }
+          // Hydrate pet state from per-user cache immediately (instant display)
+          hydratePetStateFromCache();
+
+          // 1. Load full profile data (including streak, name, avatar)
           const { data: profile } = await supabase
             .from('profiles')
-            .select('meta')
+            .select('id, name, streak, avatar_url, meta')
             .eq('id', session.user.id)
             .single();
 
@@ -54,17 +75,25 @@ export default function RootLayout() {
             setHasCreatedNotebook(false);
           }
 
-          // 2. Load notebooks
+          // 2. Load user profile (streak, name, avatar) into store
+          const { loadUserProfile } = useStore.getState();
+          await loadUserProfile();
+
+          // 3. Load notebooks
           // Pass userId directly to avoid race condition with store state propagation
           await loadNotebooks(session.user.id);
 
-          // 3. Load pet state (non-critical)
-          loadPetState();
+          // 4. Load pet state from database (will overwrite defaults)
+          // Use await to ensure it completes before continuing
+          await loadPetState();
         } catch (error) {
           console.error('Error loading user data:', error);
         }
       } else {
         // Clear sensitive state on sign out
+        // Reset pet state to defaults
+        const { resetPetState } = useStore.getState();
+        resetPetState();
         // Note: The store might need a clear() method, but for now specific slices handle their own cleanup
         // or we rely on them replacing data when new user logs in. 
         // Ideally we should clear notebooks here but loadNotebooks() handles "no user" check.
@@ -119,12 +148,14 @@ export default function RootLayout() {
   useEffect(() => {
     const preloadAssets = async () => {
       try {
-        const image = require('@/assets/pets/stage-1/full-view.png');
-        const uri = Image.resolveAssetSource(image).uri;
-        await Image.prefetch(uri);
-        console.log('Pet image preloaded successfully');
+        const stage1 = require('@/assets/pets/stage-1/full-view.png');
+        const stage2 = require('@/assets/pets/stage-2/silhouette.png');
+        const uri1 = Image.resolveAssetSource(stage1).uri;
+        const uri2 = Image.resolveAssetSource(stage2).uri;
+        await Promise.all([Image.prefetch(uri1), Image.prefetch(uri2)]);
+        console.log('Pet images preloaded successfully');
       } catch (error) {
-        console.error('Failed to preload pet image:', error);
+        console.error('Failed to preload pet images:', error);
       }
     };
 
@@ -277,17 +308,17 @@ export default function RootLayout() {
       </Stack>
       {/* 
         Hidden render to force texture decoding of the large pet image.
-        Using 1x1 size (not 0x0) to ensure React Native doesn't optimize it away.
-        This ensures the image is in GPU memory before the sheet opens. 
+        Keep at full render size to hold the decoded texture in memory between opens.
+        Opacity 0 and offscreen positioning prevent visual impact.
       */}
       <Image
         source={require('@/assets/pets/stage-1/full-view.png')}
-        style={{ width: 1, height: 1, opacity: 0, position: 'absolute' }}
+        style={{ width: 300, height: 300, opacity: 0, position: 'absolute', top: -9999, left: -9999 }}
         fadeDuration={0}
       />
       <Image
         source={require('@/assets/pets/stage-2/silhouette.png')}
-        style={{ width: 1, height: 1, opacity: 0, position: 'absolute' }}
+        style={{ width: 300, height: 300, opacity: 0, position: 'absolute', top: -9999, left: -9999 }}
         fadeDuration={0}
       />
     </>

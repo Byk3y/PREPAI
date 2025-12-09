@@ -8,7 +8,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  SafeAreaView,
   ActivityIndicator,
   Alert,
   Platform,
@@ -16,6 +15,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore, Notebook, Material } from '@/lib/store';
@@ -140,23 +140,25 @@ export default function NotebookDetailScreen() {
             // to get the updated preview_text from materials table
             if (newStatus === 'preview_ready' && oldStatusFromState === 'extracting') {
               // Prevent multiple simultaneous reloads
-              if (isReloadingRef.current) {
-                console.log('Material reload already in progress, skipping...');
-                return transformNotebook(updated, currentNotebook.materials);
-              }
+          if (isReloadingRef.current) {
+            console.log('Material reload already in progress, skipping...');
+            return transformNotebook(updated, currentNotebook.materials);
+          }
 
-              isReloadingRef.current = true;
+          isReloadingRef.current = true;
 
               // Fetch the notebook with materials from Supabase
-              supabase
-                .from('notebooks')
-                .select(`
+              const reloadNotebook = async () => {
+                try {
+                  const { data: refreshedData, error } = await supabase
+                    .from('notebooks')
+                    .select(`
                   *,
                   materials (*)
                 `)
-                .eq('id', id)
-                .single()
-                .then(({ data: refreshedData, error }) => {
+                    .eq('id', id)
+                    .single();
+
                   isReloadingRef.current = false;
 
                   if (!error && refreshedData) {
@@ -179,14 +181,16 @@ export default function NotebookDetailScreen() {
                     const updatedNotebook = transformNotebook(updated, currentNotebook.materials);
                     setNotebook(updatedNotebook);
                   }
-                })
-                .catch((error) => {
+                } catch (error) {
                   isReloadingRef.current = false;
                   console.error('Error reloading notebook:', error);
                   // Fallback: update with what we have
                   const updatedNotebook = transformNotebook(updated, currentNotebook.materials);
                   setNotebook(updatedNotebook);
-                });
+                }
+              };
+
+              void reloadNotebook();
 
               // Return current state while reloading
               return transformNotebook(updated, currentNotebook.materials);
@@ -374,7 +378,7 @@ export default function NotebookDetailScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-neutral-200">
         <TouchableOpacity

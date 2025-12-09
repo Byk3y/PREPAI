@@ -13,9 +13,8 @@ export interface User {
 }
 
 export interface PetState {
-  level: number;
-  xp: number;
-  xpToNext: number;
+  stage: number;        // Stage 1, 2, 3... (calculated from points)
+  points: number;       // Total points (0-100 for Stage 1, 100-200 for Stage 2, etc.)
   name: string;
   mood: 'happy' | 'neutral' | 'sad';
 }
@@ -160,4 +159,27 @@ export interface Notebook {
   audio_overviews?: AudioOverview[];
 }
 
+
 export type { User as SupabaseUser } from '@supabase/supabase-js';
+
+// Task types
+export interface DailyTask {
+  id: string;
+  task_key: string;
+  title: string;
+  description: string;
+  points: number;
+  task_type: 'foundational' | 'daily';
+  completed: boolean;
+  completed_at: string | null;
+  points_awarded: number | null;
+  display_order?: number;
+}
+
+export interface TaskProgress {
+  current: number;
+  goal: number;
+  unit: string;
+  percentage: number;
+}
+

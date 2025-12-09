@@ -12,6 +12,7 @@ import { createFlashcardSlice, type FlashcardSlice } from './slices/flashcardSli
 import { createExamSlice, type ExamSlice } from './slices/examSlice';
 import { createLessonSlice, type LessonSlice } from './slices/lessonSlice';
 import { createAudioPlaybackSlice, type AudioPlaybackSlice } from './slices/audioPlaybackSlice';
+import { createTaskSlice, type TaskSlice } from './slices/taskSlice';
 
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,7 +25,8 @@ type AppState = AuthSlice &
   FlashcardSlice &
   ExamSlice &
   LessonSlice &
-  AudioPlaybackSlice;
+  AudioPlaybackSlice &
+  TaskSlice;
 
 // Create the combined store
 export const useStore = create<AppState>()(
@@ -38,18 +40,36 @@ export const useStore = create<AppState>()(
       ...createExamSlice(...a),
       ...createLessonSlice(...a),
       ...createAudioPlaybackSlice(...a),
+      ...createTaskSlice(...a),
     }),
     {
       name: 'prep-ai-storage',
+      version: 2, // Incremented to clear old petState from AsyncStorage
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         notebooks: state.notebooks,
-        petState: state.petState,
+        notebooksSyncedAt: state.notebooksSyncedAt,
+        notebooksUserId: state.notebooksUserId,
+        cachedPetState: state.cachedPetState,
+        cachedPetSyncedAt: state.cachedPetSyncedAt,
+        cachedPetUserId: state.cachedPetUserId,
+        // petState removed in v2 - should always load from database per user
         authUser: state.authUser,
         hasCreatedNotebook: state.hasCreatedNotebook,
         playbackPositions: state.playbackPositions,
+        dailyTasks: state.dailyTasks,
+        taskProgress: state.taskProgress,
         // Add other persistent state here as needed
       }),
+      migrate: (persistedState: any, version: number) => {
+        // Clear petState from old persisted data when migrating to v2
+        // Handle both old persisted state (no version) and v1
+        if ((!version || version < 2) && persistedState?.petState) {
+          const { petState, ...rest } = persistedState;
+          return rest;
+        }
+        return persistedState;
+      },
     }
   )
 );

@@ -3,6 +3,7 @@ import { Alert, AppState } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { getAudioOverviewStatus } from '@/lib/api/audio-overview';
+import { useStore } from '@/lib/store';
 
 export const useAudioGeneration = (
     notebookId: string,
@@ -10,6 +11,7 @@ export const useAudioGeneration = (
     onGenerationComplete: () => void
 ) => {
     const router = useRouter();
+    const { checkAndAwardTask } = useStore();
     const [generatingType, setGeneratingType] = useState<'flashcards' | 'quiz' | 'audio' | null>(null);
     const [generatingAudioId, setGeneratingAudioId] = useState<string | null>(null);
     const [audioProgress, setAudioProgress] = useState({ stage: '', percent: 0 });
@@ -38,6 +40,12 @@ export const useAudioGeneration = (
                     setGeneratingAudioId(null);
                     setCompletedAudioId(overviewId);
                     setShowAudioNotification(true);
+
+                    // Trigger "Generate first audio overview" task
+                    if (checkAndAwardTask) {
+                        checkAndAwardTask('generate_audio_overview');
+                    }
+
                     onGenerationComplete();
                 } else if (status.status === 'failed') {
                     stopPolling();
@@ -79,7 +87,7 @@ export const useAudioGeneration = (
                 setGeneratingAudioId(null);
             }
         }, 2000); // Poll every 2 seconds
-    }, [router, onGenerationComplete, stopPolling]);
+    }, [router, onGenerationComplete, stopPolling, checkAndAwardTask]);
 
     const checkForPendingAudio = useCallback(async () => {
         try {

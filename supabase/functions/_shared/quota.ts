@@ -3,7 +3,10 @@
  * Enforces limits: Trial = 5 Studio jobs + 3 audio jobs
  */
 
-import { SupabaseClient } from 'supabase';
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
+
+// Loosen generics so any Supabase client instance is accepted (service role or anon)
+type AnySupabaseClient = SupabaseClient<any, any, any, any, any>;
 
 export interface QuotaCheck {
   allowed: boolean;
@@ -19,7 +22,7 @@ export interface QuotaCheck {
  * Premium users: unlimited
  */
 export async function checkQuota(
-  supabase: SupabaseClient,
+  supabase: AnySupabaseClient,
   userId: string,
   jobType: 'studio' | 'audio'
 ): Promise<QuotaCheck> {
@@ -119,7 +122,7 @@ export async function checkQuota(
  * Uses SQL function for atomic increment
  */
 export async function incrementQuota(
-  supabase: SupabaseClient,
+  supabase: AnySupabaseClient,
   userId: string,
   jobType: 'studio' | 'audio'
 ): Promise<void> {
@@ -145,7 +148,7 @@ export async function incrementQuota(
  * Get user quota info (for frontend display)
  */
 export async function getUserQuota(
-  supabase: SupabaseClient,
+  supabase: AnySupabaseClient,
   userId: string
 ): Promise<{
   tier: 'trial' | 'premium';

@@ -9,12 +9,12 @@ import { Ionicons } from '@expo/vector-icons';
 
 interface PetDisplayProps {
     streak: number;
-    stage?: 1 | 2;
-    onNextStage?: () => void;
-    onPrevStage?: () => void;
+    stage: 1 | 2;  // Required, derived from petState.stage (clamped to 1-2 for now)
+    onNextStage?: () => void;  // Optional: for previewing next stage
+    onPrevStage?: () => void;  // Optional: for previewing previous stage
 }
 
-export function PetDisplay({ streak, stage = 1, onNextStage, onPrevStage }: PetDisplayProps) {
+export function PetDisplay({ streak, stage, onNextStage, onPrevStage }: PetDisplayProps) {
     return (
         <View style={styles.container}>
             {/* Streak Days */}
@@ -63,31 +63,27 @@ export function PetDisplay({ streak, stage = 1, onNextStage, onPrevStage }: PetD
                 </MotiView>
             </View>
 
-            {/* Stage 2 Preview Arrow */}
-            {
-                stage === 1 && (
-                    <TouchableOpacity
-                        style={styles.navigationArrow}
-                        onPress={onNextStage}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                        <Ionicons name="chevron-forward" size={32} color="#000000" />
-                    </TouchableOpacity>
-                )
-            }
+            {/* Stage 2 Preview Arrow - Show if on Stage 1 and next stage handler provided */}
+            {stage === 1 && onNextStage && (
+                <TouchableOpacity
+                    style={styles.navigationArrow}
+                    onPress={onNextStage}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                    <Ionicons name="chevron-forward" size={32} color="#000000" />
+                </TouchableOpacity>
+            )}
 
-            {/* Back to Stage 1 Arrow (Optional, but good for UX) */}
-            {
-                stage === 2 && (
-                    <TouchableOpacity
-                        style={[styles.navigationArrow, { right: undefined, left: 0 }]}
-                        onPress={onPrevStage}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                        <Ionicons name="chevron-back" size={32} color="#000000" />
-                    </TouchableOpacity>
-                )
-            }
+            {/* Back to Stage 1 Arrow - Show if on Stage 2 and prev stage handler provided */}
+            {stage === 2 && onPrevStage && (
+                <TouchableOpacity
+                    style={[styles.navigationArrow, { right: undefined, left: 0 }]}
+                    onPress={onPrevStage}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                    <Ionicons name="chevron-back" size={32} color="#000000" />
+                </TouchableOpacity>
+            )}
         </View >
     );
 }
@@ -97,8 +93,8 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
         paddingHorizontal: 16,
         paddingTop: 8,
-        paddingBottom: 16,
-        marginBottom: 12,
+        paddingBottom: 8,
+        marginBottom: 6,
         position: 'relative',
     },
     streakContainer: {
@@ -134,7 +130,7 @@ const styles = StyleSheet.create({
         height: 250,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 8,
+        marginBottom: 0,
     },
     petImage: {
         width: '100%',

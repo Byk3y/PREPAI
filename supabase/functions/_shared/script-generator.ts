@@ -13,7 +13,7 @@ export interface ScriptGenerationConfig {
   materialContent: string; // Full extracted text from material
   notebookTitle: string; // Title of the notebook
   targetDurationMinutes?: number; // Target audio duration (3-8 minutes)
-  petName?: string; // Optional pet name (default: "Sparky")
+  petName?: string; // Optional pet name (default: "Nova")
 }
 
 export interface GeneratedScript {
@@ -196,7 +196,7 @@ async function generateDialogueScript(
   insights: string[],
   notebookTitle: string,
   targetWordCount: number,
-  petName: string = 'Sparky'
+  petName: string = 'Nova'
 ): Promise<{ script: string; tokens: number; speakerMap: Record<string, string> }> {
   console.log(`[Script Generator] Stage 2: Generating dialogue with pet "${petName}"...`);
 

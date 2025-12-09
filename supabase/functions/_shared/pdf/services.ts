@@ -3,14 +3,14 @@
  * GeminiService (primary) and PdfjsService (fallback)
  */
 
-import type { PDFService } from './types.ts';
+import type { PDFService, ServiceName } from './types.ts';
 
 /**
  * GeminiService - Primary PDF extraction using Gemini 2.0 Flash
  * Multimodal AI with native PDF support (text + images + tables + charts)
  */
 export class GeminiService implements PDFService {
-  name = 'gemini';
+  name: ServiceName = 'gemini';
   private apiKey: string | undefined;
 
   constructor() {
@@ -21,28 +21,101 @@ export class GeminiService implements PDFService {
     return !!this.apiKey;
   }
 
+  /**
+   * Extract text from a specific page range for chunked extraction
+   * NOTE: Currently uses pdfjs for fast text extraction per chunk.
+   * Future enhancement: Convert pages to images and use Gemini OCR for scanned PDFs.
+   * Used for chunked extraction of large PDFs when full PDF extraction might timeout.
+   */
+  async extractPageRange(
+    fileBuffer: Uint8Array,
+    startPage: number,
+    endPage: number,
+    signal: AbortSignal
+  ): Promise<string> {
+    if (!this.apiKey) {
+      throw new Error('GOOGLE_AI_API_KEY not configured');
+    }
+
+    try {
+      // Use pdfjs to render pages as images, then send to Gemini
+      const pdfjsLib = await import('pdfjs-dist');
+
+      // Configure GlobalWorkerOptions
+      if (typeof pdfjsLib.GlobalWorkerOptions !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+      } else {
+        (pdfjsLib as any).GlobalWorkerOptions = { workerSrc: '' };
+      }
+
+      // Load PDF
+      const loadingTask = pdfjsLib.getDocument({
+        data: fileBuffer,
+        useSystemFonts: true,
+        disableFontFace: true,
+        useWorkerFetch: false,
+        isEvalSupported: false,
+        verbosity: 0,
+      });
+
+      const pdf = await loadingTask.promise;
+      return await this.extractPageRangeWithDocument(pdf, startPage, endPage, signal);
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[GeminiService] Page range extraction failed: ${errorMsg}`);
+      throw new Error(`Gemini chunked extraction error: ${errorMsg}`);
+    }
+  }
+
+  async extractPageRangeWithDocument(
+    pdfDocument: any,
+    startPage: number,
+    endPage: number,
+    signal: AbortSignal
+  ): Promise<string> {
+    const actualEndPage = Math.min(endPage, pdfDocument.numPages);
+
+    console.log(
+      `[GeminiService] Extracting pages ${startPage}-${actualEndPage} using shared pdfjs document`
+    );
+
+    const extractedText = await this.extractRangeFromPdfDoc(
+      pdfDocument,
+      startPage,
+      actualEndPage,
+      signal
+    );
+
+    if (extractedText.length < 100 && actualEndPage - startPage + 1 > 0) {
+      console.warn(
+        `[GeminiService] Chunk ${startPage}-${actualEndPage} has very little text, ` +
+          `might be scanned. Consider image-based extraction.`
+      );
+    }
+
+    return extractedText;
+  }
+
   async extract(fileBuffer: Uint8Array, signal: AbortSignal): Promise<string> {
     if (!this.apiKey) {
       throw new Error('GOOGLE_AI_API_KEY not configured');
     }
 
     try {
-      // Convert buffer to base64 using chunked binary string conversion to avoid stack overflow
-      // For large files (>1MB), String.fromCharCode(...fileBuffer) causes "Maximum call stack size exceeded"
-      // First convert to binary string in chunks, then encode the entire string to base64
-      const CHUNK_SIZE = 8192; // Process 8KB chunks at a time
-      let binaryString = '';
-
-      // Step 1: Convert Uint8Array to binary string in chunks
-      for (let i = 0; i < fileBuffer.length; i += CHUNK_SIZE) {
-        const chunk = fileBuffer.slice(i, i + CHUNK_SIZE);
-        binaryString += String.fromCharCode.apply(null, Array.from(chunk));
-      }
-
-      // Step 2: Encode the entire binary string to base64
-      const base64Pdf = btoa(binaryString);
+      const base64Pdf = this.encodeToBase64(fileBuffer);
 
       console.log(`[GeminiService] Processing PDF (${fileBuffer.length} bytes, base64: ${base64Pdf.length} chars)...`);
+
+      // Estimate pages to determine maxOutputTokens (larger PDFs need more tokens)
+      // Rough estimate: ~50KB per page, so estimate pages from size
+      const estimatedPages = Math.max(1, Math.ceil(fileBuffer.length / (50 * 1024)));
+      // Calculate maxOutputTokens: base 8192 + 2048 per 10 pages
+      // Cap at 32768 (Gemini's max for flash model)
+      const maxOutputTokens = Math.min(32768, 8192 + Math.floor(estimatedPages / 10) * 2048);
+
+      console.log(
+        `[GeminiService] Estimated ${estimatedPages} pages, using maxOutputTokens: ${maxOutputTokens}`
+      );
 
       // Call Gemini 2.0 Flash API
       const response = await fetch(
@@ -70,7 +143,7 @@ export class GeminiService implements PDFService {
               temperature: 0.1, // Low temperature for accurate extraction
               topP: 1,
               topK: 32,
-              maxOutputTokens: 8192,
+              maxOutputTokens: maxOutputTokens, // Adaptive based on PDF size
             },
           }),
           signal,
@@ -115,6 +188,118 @@ export class GeminiService implements PDFService {
       throw new Error(`Gemini extraction error: ${errorMsg}`);
     }
   }
+
+  /**
+   * Shared helper to extract text from a preloaded pdfjs document for a range.
+   */
+  private async extractRangeFromPdfDoc(
+    pdf: any,
+    startPage: number,
+    endPage: number,
+    signal: AbortSignal
+  ): Promise<string> {
+    const textParts: string[] = [];
+
+    for (let pageNum = startPage; pageNum <= endPage; pageNum++) {
+      if (signal.aborted) {
+        throw new Error('PDF extraction aborted');
+      }
+
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item: any) => item.str).join(' ');
+      textParts.push(pageText);
+    }
+
+    return textParts.join('\n\n').trim();
+  }
+
+  /**
+   * OCR a page range by asking Gemini to focus on specific pages of the PDF.
+   * This uses the full PDF payload but scopes the instruction to the page range.
+   */
+  async ocrPageRange(
+    fileBuffer: Uint8Array,
+    startPage: number,
+    endPage: number,
+    signal: AbortSignal
+  ): Promise<string> {
+    if (!this.apiKey) {
+      throw new Error('GOOGLE_AI_API_KEY not configured');
+    }
+
+    try {
+      const base64Pdf = this.encodeToBase64(fileBuffer);
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${this.apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    inline_data: {
+                      mime_type: 'application/pdf',
+                      data: base64Pdf,
+                    },
+                  },
+                  {
+                    text: `Extract text only from pages ${startPage}-${endPage} of this PDF. Perform OCR if the pages are scanned. Return only raw extracted text for those pages in order, without commentary.`,
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.1,
+              topP: 1,
+              topK: 32,
+              maxOutputTokens: 8192,
+            },
+          }),
+          signal,
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        const error: any = new Error(
+          `Gemini OCR error: ${response.status} - ${errorText}`
+        );
+        error.statusCode = response.status;
+        throw error;
+      }
+
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text || !text.trim()) {
+        throw new Error('Gemini OCR returned empty text');
+      }
+
+      return text.trim();
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('[GeminiService] OCR extraction failed:', errorMsg);
+      throw new Error(`Gemini OCR extraction error: ${errorMsg}`);
+    }
+  }
+
+  /**
+   * Encode a Uint8Array into base64 using chunked assembly to avoid large call stacks.
+   */
+  private encodeToBase64(fileBuffer: Uint8Array): string {
+    const CHUNK_SIZE = 8192;
+    const binaryChunks: string[] = [];
+
+    for (let i = 0; i < fileBuffer.length; i += CHUNK_SIZE) {
+      const chunk = fileBuffer.slice(i, i + CHUNK_SIZE);
+      binaryChunks.push(String.fromCharCode.apply(null, Array.from(chunk)));
+    }
+
+    return btoa(binaryChunks.join(''));
+  }
 }
 
 /**
@@ -122,7 +307,7 @@ export class GeminiService implements PDFService {
  * Local extraction, always available, basic text-only
  */
 export class PdfjsService implements PDFService {
-  name = 'pdfjs';
+  name: ServiceName = 'pdfjs';
 
   isAvailable(): boolean {
     return true; // Always available (no API key needed)
@@ -135,10 +320,14 @@ export class PdfjsService implements PDFService {
       // Dynamically import pdfjs-dist
       const pdfjsLib = await import('pdfjs-dist');
 
-      // Explicitly disable workers and set GlobalWorkerOptions to prevent worker errors
-      // Deno doesn't support web workers, so we must disable them completely
-      if (pdfjsLib.GlobalWorkerOptions) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = ''; // Empty string disables worker
+      // Configure GlobalWorkerOptions BEFORE any PDF operations
+      // Deno Edge Functions don't support Web Workers, so we disable them
+      if (typeof pdfjsLib.GlobalWorkerOptions !== 'undefined') {
+        // Set to empty string to disable worker (Deno-compatible)
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+      } else {
+        // If GlobalWorkerOptions doesn't exist, create it
+        (pdfjsLib as any).GlobalWorkerOptions = { workerSrc: '' };
       }
 
       // Load PDF document WITHOUT worker (Deno doesn't support workers)
@@ -148,7 +337,6 @@ export class PdfjsService implements PDFService {
         disableFontFace: true,
         useWorkerFetch: false,
         isEvalSupported: false,
-        disableWorker: true,
         verbosity: 0, // Suppress warnings
       });
 
@@ -187,10 +375,13 @@ export class PdfjsService implements PDFService {
 
 /**
  * GoogleVisionPDFService - OCR fallback for scanned PDFs using Google Vision API
- * Handles image-based PDFs that Gemini and pdfjs can't extract
+ * NOTE: Currently disabled for PDFs - the images:annotate endpoint doesn't support PDFs.
+ * PDFs require files:asyncBatchAnnotate with GCS storage, which is complex to implement.
+ * For now, we rely on Gemini (primary) and pdfjs (fallback) for PDF extraction.
+ * Google Vision is still available for image OCR via extractImageText().
  */
 export class GoogleVisionPDFService implements PDFService {
-  name = 'google-vision';
+  name: ServiceName = 'google-vision';
   private apiKey: string | undefined;
 
   constructor() {
@@ -198,85 +389,19 @@ export class GoogleVisionPDFService implements PDFService {
   }
 
   isAvailable(): boolean {
-    return !!this.apiKey;
+    // Disable for PDFs - requires files:asyncBatchAnnotate with GCS (not implemented)
+    // Google Vision is still used for image OCR, but not for PDF extraction
+    return false;
   }
 
   async extract(fileBuffer: Uint8Array, signal: AbortSignal): Promise<string> {
-    if (!this.apiKey) {
-      throw new Error('GOOGLE_VISION_API_KEY not configured');
-    }
-
-    try {
-      // Convert buffer to base64 using chunked conversion to avoid stack overflow
-      const CHUNK_SIZE = 8192;
-      let binaryString = '';
-
-      for (let i = 0; i < fileBuffer.length; i += CHUNK_SIZE) {
-        const chunk = fileBuffer.slice(i, i + CHUNK_SIZE);
-        binaryString += String.fromCharCode.apply(null, Array.from(chunk));
-      }
-
-      const base64Pdf = btoa(binaryString);
-
-      console.log(
-        `[GoogleVisionPDFService] Processing PDF with OCR (${fileBuffer.length} bytes, base64: ${base64Pdf.length} chars)...`
-      );
-
-      // Google Vision API supports PDFs directly using DOCUMENT_TEXT_DETECTION
-      // This is specifically designed for multi-page scanned documents
-      const response = await fetch(
-        `https://vision.googleapis.com/v1/images:annotate?key=${this.apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            requests: [
-              {
-                inputConfig: {
-                  content: base64Pdf,
-                  mimeType: 'application/pdf',
-                },
-                features: [
-                  {
-                    type: 'DOCUMENT_TEXT_DETECTION', // Optimized for documents
-                    maxResults: 1,
-                  },
-                ],
-              },
-            ],
-          }),
-          signal,
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        const error: any = new Error(
-          `Google Vision API error: ${response.status} - ${errorText}`
-        );
-        error.statusCode = response.status;
-        throw error;
-      }
-
-      const data = await response.json();
-
-      // Extract text from response
-      const annotations = data.responses?.[0]?.fullTextAnnotation;
-      if (!annotations || !annotations.text) {
-        throw new Error('Google Vision returned no text annotations');
-      }
-
-      const extractedText = annotations.text.trim();
-
-      console.log(
-        `[GoogleVisionPDFService] Successfully extracted ${extractedText.length} characters via OCR`
-      );
-
-      return extractedText;
-    } catch (error: unknown) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error('[GoogleVisionPDFService] Extraction failed:', errorMsg);
-      throw new Error(`Google Vision OCR error: ${errorMsg}`);
-    }
+    // This service is disabled for PDFs - the images:annotate endpoint doesn't support PDFs.
+    // PDFs require files:asyncBatchAnnotate with GCS storage, which is complex to implement.
+    // This method should never be called since isAvailable() returns false.
+    throw new Error(
+      'Google Vision PDF extraction is not available. ' +
+      'PDFs require files:asyncBatchAnnotate with GCS storage (not implemented). ' +
+      'Use Gemini or pdfjs services instead.'
+    );
   }
 }

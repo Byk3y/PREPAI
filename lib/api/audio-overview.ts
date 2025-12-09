@@ -54,7 +54,15 @@ export async function generateAudioOverview(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      // Safely parse error body (may be truncated)
+      let errorData: any = {};
+      const raw = await response.text();
+      try {
+        errorData = raw ? JSON.parse(raw) : {};
+      } catch {
+        // ignore parse error, use raw as fallback
+        errorData = { error: raw };
+      }
       
       // Create error with quota details preserved
       const error: any = new Error(errorData.error || 'Failed to generate audio overview');
@@ -70,7 +78,18 @@ export async function generateAudioOverview(
       throw error;
     }
 
-    const data: GenerateAudioOverviewResponse = await response.json();
+    // Parse success body defensively to handle truncated responses
+    const raw = await response.text();
+    let data: GenerateAudioOverviewResponse;
+    try {
+      data = JSON.parse(raw);
+    } catch (parseError) {
+      const enhancedError: any = new Error('Malformed response from audio generator');
+      enhancedError.isNetworkError = true; // trigger recovery flow to re-check pending jobs
+      enhancedError.raw = raw;
+      throw enhancedError;
+    }
+
     console.log('[Audio API] Generation started:', data);
 
     return data;
