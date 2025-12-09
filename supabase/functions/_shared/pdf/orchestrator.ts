@@ -14,6 +14,30 @@ import {
   generatePageRanges,
 } from './utils.ts';
 
+/**
+ * Context for tracking extraction state across attempts
+ */
+interface ExtractionContext {
+  startTime: number;
+  attemptLog: string[];
+  timeoutHit: boolean;
+  lastAdaptiveTimeout: number;
+  usedOcrChunks: number;
+  failedChunksCount: number;
+  actualPageCount: number | undefined;
+  estimatedPages: number;
+}
+
+/**
+ * Result from a single extraction attempt
+ */
+interface AttemptResult {
+  text: string;
+  actualPageCount?: number;
+  failedChunks: number;
+  usedOcrChunks: number;
+}
+
 export class SmartPDFExtractor {
   private services: PDFService[];
 
@@ -62,6 +86,96 @@ export class SmartPDFExtractor {
   }
 
   async extract(fileBuffer: Uint8Array): Promise<PDFExtractionResult> {
+    // Validate PDF
+    this.validatePDF(fileBuffer);
+
+    // Estimate page count and determine if chunking is needed
+    const estimatedPages = estimatePageCount(fileBuffer);
+    if (estimatedPages > PDF_LIMITS.MAX_PAGES) {
+      throw new Error(
+        `PDF too long (estimated ${estimatedPages} pages). Maximum allowed: ${PDF_LIMITS.MAX_PAGES} pages`
+      );
+    }
+    const chunkingInfo = shouldChunkPDF(fileBuffer);
+
+    console.log(
+      `[SmartPDFExtractor] PDF info: ${estimatedPages} estimated pages, ` +
+        `${(fileBuffer.length / 1024 / 1024).toFixed(2)}MB, ` +
+        `chunking: ${chunkingInfo.shouldChunk ? `yes (${chunkingInfo.chunkSize} pages/chunk)` : 'no'}`
+    );
+
+    // Initialize extraction context
+    const ctx: ExtractionContext = {
+      startTime: Date.now(),
+      attemptLog: [],
+      timeoutHit: false,
+      lastAdaptiveTimeout: 0,
+      usedOcrChunks: 0,
+      failedChunksCount: 0,
+      actualPageCount: undefined,
+      estimatedPages,
+    };
+
+    for (const service of this.services) {
+      const config = SERVICE_CONFIG[service.name];
+
+      if (!config.enabled) {
+        console.log(`[SmartPDFExtractor] ${service.name} is disabled, skipping`);
+        continue;
+      }
+
+      // Try initial extraction
+      const result = await this.tryServiceExtraction(
+        service,
+        fileBuffer,
+        chunkingInfo,
+        config,
+        ctx,
+        false // not a retry
+      );
+
+      if (result) {
+        return result;
+      }
+
+      // If transient error, retry once
+      const lastError = ctx.attemptLog[ctx.attemptLog.length - 1];
+      const errorType = classifyError({ message: lastError }, undefined);
+
+      if (shouldRetry(errorType) && config.maxRetries > 0) {
+        console.log(
+          `[SmartPDFExtractor] Transient error, retrying after ${config.retryDelay}ms...`
+        );
+        await this.sleep(config.retryDelay);
+
+        const retryResult = await this.tryServiceExtraction(
+          service,
+          fileBuffer,
+          chunkingInfo,
+          config,
+          ctx,
+          true // is a retry
+        );
+
+        if (retryResult) {
+          return retryResult;
+        }
+      }
+
+      // Continue to next service
+      console.log(`[SmartPDFExtractor] Trying next service...`);
+    }
+
+    // All services failed
+    throw new Error(
+      `All PDF extraction services failed. Attempts: ${ctx.attemptLog.join('; ')}`
+    );
+  }
+
+  /**
+   * Validate PDF file (size and signature)
+   */
+  private validatePDF(fileBuffer: Uint8Array): void {
     // Validate PDF size
     if (fileBuffer.length > PDF_LIMITS.MAX_SIZE_BYTES) {
       throw new Error(
@@ -81,258 +195,181 @@ export class SmartPDFExtractor {
         'Invalid PDF file: File header does not match PDF signature (%PDF)'
       );
     }
+  }
 
-    // Estimate page count and determine if chunking is needed
-    const estimatedPages = estimatePageCount(fileBuffer);
-    if (estimatedPages > PDF_LIMITS.MAX_PAGES) {
-      throw new Error(
-        `PDF too long (estimated ${estimatedPages} pages). Maximum allowed: ${PDF_LIMITS.MAX_PAGES} pages`
+  /**
+   * Attempt extraction with a single service
+   * Returns PDFExtractionResult on success, null on failure
+   */
+  private async tryServiceExtraction(
+    service: PDFService,
+    fileBuffer: Uint8Array,
+    chunkingInfo: { shouldChunk: boolean; chunkSize: number },
+    config: { timeout: number; maxRetries: number; retryDelay: number },
+    ctx: ExtractionContext,
+    isRetry: boolean
+  ): Promise<PDFExtractionResult | null> {
+    try {
+      // Calculate adaptive timeout based on PDF size and pages
+      const adaptiveTimeout = calculateAdaptiveTimeout(
+        fileBuffer,
+        config.timeout,
+        ctx.estimatedPages
       );
-    }
-    const chunkingInfo = shouldChunkPDF(fileBuffer);
-    
-    console.log(
-      `[SmartPDFExtractor] PDF info: ${estimatedPages} estimated pages, ` +
-      `${(fileBuffer.length / 1024 / 1024).toFixed(2)}MB, ` +
-      `chunking: ${chunkingInfo.shouldChunk ? `yes (${chunkingInfo.chunkSize} pages/chunk)` : 'no'}`
-    );
+      ctx.lastAdaptiveTimeout = adaptiveTimeout;
 
-    const startTime = Date.now();
-    const attemptLog: string[] = [];
-    let lastError: Error | null = null;
-    let timeoutHit = false;
-    let lastAdaptiveTimeout = 0;
-    let usedOcrChunks = 0;
-    let failedChunksCount = 0;
-    let actualPageCount: number | undefined;
-
-    for (const service of this.services) {
-      const config = SERVICE_CONFIG[service.name];
-
-      if (!config.enabled) {
-        console.log(`[SmartPDFExtractor] ${service.name} is disabled, skipping`);
-        continue;
-      }
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeout = setTimeout(() => {
+        ctx.timeoutHit = true;
+        controller.abort();
+      }, adaptiveTimeout);
 
       try {
-        // Calculate adaptive timeout based on PDF size and pages
-        const adaptiveTimeout = calculateAdaptiveTimeout(
-          fileBuffer,
-          config.timeout,
-          estimatedPages
-        );
-        lastAdaptiveTimeout = adaptiveTimeout;
-
-        // Create AbortController for timeout
-        const controller = new AbortController();
-        const timeout = setTimeout(() => {
-          timeoutHit = true;
-          controller.abort();
-        }, adaptiveTimeout);
-
-        try {
-          console.log(
-            `[SmartPDFExtractor] Trying ${service.name} ` +
+        const attemptType = isRetry ? 'Retrying' : 'Trying';
+        console.log(
+          `[SmartPDFExtractor] ${attemptType} ${service.name} ` +
             `(base timeout: ${config.timeout}ms, adaptive: ${adaptiveTimeout}ms, ` +
-            `estimated pages: ${estimatedPages})`
-          );
+            `estimated pages: ${ctx.estimatedPages})`
+        );
 
-          // Check if we should use chunked extraction for Gemini
-          let text: string;
-          if (
-            service.name === 'gemini' &&
-            chunkingInfo.shouldChunk &&
-            'extractPageRange' in service
-          ) {
-            // Use chunked extraction for large PDFs
-            const chunked = await this.extractChunked(
-              service as any,
-              fileBuffer,
-              chunkingInfo.chunkSize,
-              controller.signal
-            );
-            text = chunked.text;
-            // Replace estimated pages with actual count when available
-            if (chunked.pageCount) {
-              actualPageCount = chunked.pageCount;
-              (service as any).__lastPageCount = chunked.pageCount;
-            }
-            failedChunksCount = chunked.failedChunks;
-            usedOcrChunks = chunked.usedOcrChunks;
-          } else {
-            // Standard extraction
-            text = await service.extract(fileBuffer, controller.signal);
-          }
-          clearTimeout(timeout);
+        // Perform extraction (chunked or standard)
+        const attemptResult = await this.performExtraction(
+          service,
+          fileBuffer,
+          chunkingInfo,
+          controller.signal
+        );
 
-          // Validate extracted text quality
-          if (!this.validateTextQuality(text)) {
-            throw new Error('Low quality extraction - text validation failed');
-          }
+        clearTimeout(timeout);
 
-          // SUCCESS!
-          const processingTime = Date.now() - startTime;
-          console.log(
-            `[SmartPDFExtractor] ✅ Success with ${service.name} in ${processingTime}ms`
-          );
-
-          // Determine quality based on service
-          let quality: 'high' | 'medium' | 'low';
-          if (service.name === 'gemini') {
-            quality = 'high'; // Multimodal AI, best quality
-          } else if (service.name === 'pdfjs') {
-            quality = 'medium'; // Local extraction, good for text PDFs
-          } else {
-            quality = 'low'; // OCR fallback, scanned documents
-          }
-
-          return {
-            text,
-            metadata: {
-              service: service.name as 'gemini' | 'pdfjs' | 'google-vision',
-              processingTime,
-              attemptCount: attemptLog.length + 1,
-              fallbacksUsed: attemptLog,
-              quality,
-              pageCount:
-                (service as any).__lastPageCount ??
-                actualPageCount ??
-                estimatedPages, // Prefer actual when available
-              timeoutHit: timeoutHit || undefined,
-              adaptiveTimeoutMs: lastAdaptiveTimeout || undefined,
-              failedChunks: failedChunksCount || undefined,
-              usedOcrChunks: usedOcrChunks || undefined,
-              actualPageCount: actualPageCount ?? undefined,
-            },
-          };
-        } catch (error) {
-          clearTimeout(timeout);
-          throw error;
+        // Update context with extraction results
+        if (attemptResult.actualPageCount) {
+          ctx.actualPageCount = attemptResult.actualPageCount;
+          (service as any).__lastPageCount = attemptResult.actualPageCount;
         }
-      } catch (error: any) {
-        lastError = error;
-        const errorMsg = error.message || String(error);
-        attemptLog.push(`${service.name}: ${errorMsg}`);
+        ctx.failedChunksCount = attemptResult.failedChunks;
+        ctx.usedOcrChunks = attemptResult.usedOcrChunks;
 
-        console.warn(`[SmartPDFExtractor] ${service.name} failed: ${errorMsg}`);
-
-        // Classify error
-        const errorType = classifyError(error, error.statusCode);
-        console.log(`[SmartPDFExtractor] Error type: ${errorType}`);
-
-        // If PERMANENT or RATE_LIMIT, skip to next service immediately
-        if (shouldFallback(errorType)) {
-          console.log(
-            `[SmartPDFExtractor] ${errorType} error, trying next service...`
-          );
-          continue;
+        // Validate extracted text quality
+        if (!this.validateTextQuality(attemptResult.text)) {
+          throw new Error('Low quality extraction - text validation failed');
         }
 
-        // If TRANSIENT, retry once
-        if (shouldRetry(errorType) && config.maxRetries > 0) {
-          console.log(
-            `[SmartPDFExtractor] Transient error, retrying after ${config.retryDelay}ms...`
-          );
-          await this.sleep(config.retryDelay);
+        // SUCCESS!
+        const processingTime = Date.now() - ctx.startTime;
+        const attemptType2 = isRetry ? 'Retry success' : 'Success';
+        console.log(
+          `[SmartPDFExtractor] ✅ ${attemptType2} with ${service.name} in ${processingTime}ms`
+        );
 
-          try {
-            // Use adaptive timeout for retry as well
-            const adaptiveTimeout = calculateAdaptiveTimeout(
-              fileBuffer,
-              config.timeout
-            );
-          lastAdaptiveTimeout = adaptiveTimeout;
-            
-            const controller = new AbortController();
-          const timeout = setTimeout(() => {
-            timeoutHit = true;
-            controller.abort();
-          }, adaptiveTimeout);
-
-            // Check if we should use chunked extraction for retry as well
-            let text: string;
-            if (
-              service.name === 'gemini' &&
-              chunkingInfo.shouldChunk &&
-              'extractPageRange' in service
-            ) {
-              // Use chunked extraction for large PDFs on retry
-              const chunked = await this.extractChunked(
-                service as any,
-                fileBuffer,
-                chunkingInfo.chunkSize,
-                controller.signal
-              );
-              text = chunked.text;
-              if (chunked.pageCount) {
-                actualPageCount = chunked.pageCount;
-                (service as any).__lastPageCount = chunked.pageCount;
-              }
-              failedChunksCount = chunked.failedChunks;
-              usedOcrChunks = chunked.usedOcrChunks;
-            } else {
-              // Standard extraction
-              text = await service.extract(fileBuffer, controller.signal);
-            }
-            clearTimeout(timeout);
-
-            // Validate quality
-            if (!this.validateTextQuality(text)) {
-              throw new Error('Low quality extraction on retry');
-            }
-
-            // Retry succeeded!
-            const processingTime = Date.now() - startTime;
-            console.log(
-              `[SmartPDFExtractor] ✅ Retry success with ${service.name} in ${processingTime}ms`
-            );
-
-            // Determine quality based on service
-            let quality: 'high' | 'medium' | 'low';
-            if (service.name === 'gemini') {
-              quality = 'high';
-            } else if (service.name === 'pdfjs') {
-              quality = 'medium';
-            } else {
-              quality = 'low';
-            }
-
-            return {
-              text,
-              metadata: {
-                service: service.name as 'gemini' | 'pdfjs' | 'google-vision',
-                processingTime,
-                attemptCount: attemptLog.length + 1,
-                fallbacksUsed: attemptLog,
-                quality,
-                pageCount:
-                  (service as any).__lastPageCount ??
-                  actualPageCount ??
-                  estimatedPages, // Prefer actual when available
-                timeoutHit: timeoutHit || undefined,
-                adaptiveTimeoutMs: lastAdaptiveTimeout || undefined,
-                failedChunks: failedChunksCount || undefined,
-                usedOcrChunks: usedOcrChunks || undefined,
-                actualPageCount: actualPageCount ?? undefined,
-              },
-            };
-          } catch (retryError: any) {
-            console.warn(
-              `[SmartPDFExtractor] ${service.name} retry failed: ${retryError.message}`
-            );
-            attemptLog.push(`${service.name} (retry): ${retryError.message}`);
-          }
-        }
-
-        // Continue to next service
-        console.log(`[SmartPDFExtractor] Trying next service...`);
+        return this.buildSuccessResult(service, attemptResult.text, processingTime, ctx);
+      } catch (error) {
+        clearTimeout(timeout);
+        throw error;
       }
+    } catch (error: any) {
+      const errorMsg = error.message || String(error);
+      const logSuffix = isRetry ? ' (retry)' : '';
+      ctx.attemptLog.push(`${service.name}${logSuffix}: ${errorMsg}`);
+
+      console.warn(`[SmartPDFExtractor] ${service.name}${logSuffix} failed: ${errorMsg}`);
+
+      // Classify error
+      const errorType = classifyError(error, error.statusCode);
+      console.log(`[SmartPDFExtractor] Error type: ${errorType}`);
+
+      // If PERMANENT or RATE_LIMIT, skip to next service immediately
+      if (shouldFallback(errorType)) {
+        console.log(
+          `[SmartPDFExtractor] ${errorType} error, trying next service...`
+        );
+      }
+
+      return null;
+    }
+  }
+
+  /**
+   * Perform the actual extraction (chunked or standard)
+   */
+  private async performExtraction(
+    service: PDFService,
+    fileBuffer: Uint8Array,
+    chunkingInfo: { shouldChunk: boolean; chunkSize: number },
+    signal: AbortSignal
+  ): Promise<AttemptResult> {
+    // Check if we should use chunked extraction for Gemini
+    if (
+      service.name === 'gemini' &&
+      chunkingInfo.shouldChunk &&
+      'extractPageRange' in service
+    ) {
+      // Use chunked extraction for large PDFs
+      const chunked = await this.extractChunked(
+        service as any,
+        fileBuffer,
+        chunkingInfo.chunkSize,
+        signal
+      );
+      return {
+        text: chunked.text,
+        actualPageCount: chunked.pageCount,
+        failedChunks: chunked.failedChunks,
+        usedOcrChunks: chunked.usedOcrChunks,
+      };
     }
 
-    // All services failed
-    throw new Error(
-      `All PDF extraction services failed. Attempts: ${attemptLog.join('; ')}`
-    );
+    // Standard extraction
+    const text = await service.extract(fileBuffer, signal);
+    return {
+      text,
+      actualPageCount: undefined,
+      failedChunks: 0,
+      usedOcrChunks: 0,
+    };
+  }
+
+  /**
+   * Build the success result with metadata
+   */
+  private buildSuccessResult(
+    service: PDFService,
+    text: string,
+    processingTime: number,
+    ctx: ExtractionContext
+  ): PDFExtractionResult {
+    return {
+      text,
+      metadata: {
+        service: service.name as 'gemini' | 'pdfjs' | 'google-vision',
+        processingTime,
+        attemptCount: ctx.attemptLog.length + 1,
+        fallbacksUsed: ctx.attemptLog,
+        quality: this.getServiceQuality(service.name),
+        pageCount:
+          (service as any).__lastPageCount ??
+          ctx.actualPageCount ??
+          ctx.estimatedPages,
+        timeoutHit: ctx.timeoutHit || undefined,
+        adaptiveTimeoutMs: ctx.lastAdaptiveTimeout || undefined,
+        failedChunks: ctx.failedChunksCount || undefined,
+        usedOcrChunks: ctx.usedOcrChunks || undefined,
+        actualPageCount: ctx.actualPageCount ?? undefined,
+      },
+    };
+  }
+
+  /**
+   * Determine quality rating based on service
+   */
+  private getServiceQuality(serviceName: string): 'high' | 'medium' | 'low' {
+    if (serviceName === 'gemini') {
+      return 'high'; // Multimodal AI, best quality
+    } else if (serviceName === 'pdfjs') {
+      return 'medium'; // Local extraction, good for text PDFs
+    }
+    return 'low'; // OCR fallback, scanned documents
   }
 
   private validateTextQuality(text: string): boolean {
@@ -421,14 +458,14 @@ export class SmartPDFExtractor {
     // Process each chunk
     for (let i = 0; i < pageRanges.length; i++) {
       const range = pageRanges[i];
-      
+
       if (signal.aborted) {
         throw new Error('Chunked extraction aborted');
       }
 
       console.log(
         `[SmartPDFExtractor] Processing chunk ${i + 1}/${pageRanges.length} ` +
-        `(pages ${range.start}-${range.end})`
+          `(pages ${range.start}-${range.end})`
       );
 
       try {
@@ -446,7 +483,7 @@ export class SmartPDFExtractor {
           CHUNK_OCR_CONFIG.ENABLED &&
           chunkText.trim().length < CHUNK_OCR_CONFIG.MIN_TEXT_LENGTH &&
           usedOcrChunks < CHUNK_OCR_CONFIG.MAX_CHUNKS &&
-          (range.end - range.start + 1) <= ocrPagesBudget;
+          range.end - range.start + 1 <= ocrPagesBudget;
 
         if (needsOcr) {
           try {
@@ -460,7 +497,7 @@ export class SmartPDFExtractor {
             if (ocrText && ocrText.trim().length >= CHUNK_OCR_CONFIG.MIN_TEXT_LENGTH) {
               chunkText = ocrText;
               usedOcrChunks += 1;
-              ocrPagesBudget -= (range.end - range.start + 1);
+              ocrPagesBudget -= range.end - range.start + 1;
             }
           } catch (ocrErr: any) {
             console.warn(
@@ -475,9 +512,7 @@ export class SmartPDFExtractor {
             `\n\n--- Page ${range.start}-${range.end} ---\n\n${chunkText}`
           );
         } else {
-          console.warn(
-            `[SmartPDFExtractor] Chunk ${i + 1} returned empty text`
-          );
+          console.warn(`[SmartPDFExtractor] Chunk ${i + 1} returned empty text`);
           failedChunks += 1;
         }
       } catch (chunkError: any) {
@@ -503,7 +538,7 @@ export class SmartPDFExtractor {
 
     console.log(
       `[SmartPDFExtractor] Chunked extraction complete: ` +
-      `${mergedText.length} characters from ${pageRanges.length} chunks`
+        `${mergedText.length} characters from ${pageRanges.length} chunks`
     );
 
     // If too many chunks failed, abort
@@ -517,11 +552,11 @@ export class SmartPDFExtractor {
     if (!this.validateTextQuality(mergedText)) {
       throw new Error(
         `Chunked extraction failed quality validation: ` +
-        `merged text too short or low quality (${mergedText.length} chars)`
+          `merged text too short or low quality (${mergedText.length} chars)`
       );
     }
 
-    return { text: mergedText, pageCount: totalPages, failedChunks: failedChunks, usedOcrChunks };
+    return { text: mergedText, pageCount: totalPages, failedChunks, usedOcrChunks };
   }
 
   private sleep(ms: number): Promise<void> {
@@ -543,20 +578,10 @@ export class SmartPDFExtractor {
       try {
         // Prefer shared-document path
         if (typeof geminiService.extractPageRangeWithDocument === 'function') {
-          return await geminiService.extractPageRangeWithDocument(
-            pdf,
-            start,
-            end,
-            signal
-          );
+          return await geminiService.extractPageRangeWithDocument(pdf, start, end, signal);
         }
 
-        return await geminiService.extractPageRange(
-          fileBuffer,
-          start,
-          end,
-          signal
-        );
+        return await geminiService.extractPageRange(fileBuffer, start, end, signal);
       } catch (err: any) {
         lastError = err instanceof Error ? err : new Error(String(err));
         if (attempt < maxAttempts - 1) {
