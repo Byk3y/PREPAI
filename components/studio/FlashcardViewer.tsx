@@ -1,10 +1,12 @@
 /**
  * FlashcardViewer - Modern minimalist flashcard viewer
  * Features: tap to flip, swipe navigation, dark card design
+ * Updated: Dark mode support
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Dimensions, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, Dimensions, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -18,6 +20,7 @@ import type { StudioFlashcard } from '@/lib/store/types';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { upsertFlashcardProgress } from '@/lib/api/studio';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 interface FlashcardViewerProps {
   flashcards: StudioFlashcard[];
@@ -38,6 +41,9 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isFlipped, setIsFlipped] = useState(false);
+  
+  const { isDarkMode } = useTheme();
+  const colors = getThemeColors(isDarkMode);
 
   // Animation values
   const flipRotation = useSharedValue(0);
@@ -198,26 +204,31 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
   // No cleanup needed (progress writes are immediate)
   useEffect(() => undefined, []);
 
+  // Dynamic card color based on theme
+  const cardBgColor = isDarkMode ? '#3f3f46' : '#3f3f46'; // Keep dark cards in both modes for flashcards
+  const stackedCard2Opacity = isDarkMode ? 0.5 : 0.7;
+  const stackedCard3Opacity = isDarkMode ? 0.3 : 0.5;
+
   return (
-    <SafeAreaView className="flex-1 bg-neutral-50">
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header */}
-      <View className="flex-row items-center justify-center px-6 py-4 relative">
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 16, position: 'relative' }}>
         <TouchableOpacity
           onPress={onClose}
-          className="absolute left-6"
+          style={{ position: 'absolute', left: 24 }}
         >
-          <Ionicons name="arrow-back" size={24} color="#171717" />
+          <Ionicons name="arrow-back" size={24} color={colors.icon} />
         </TouchableOpacity>
-        <Text className="text-lg font-medium text-neutral-900" numberOfLines={1}>
+        <Text style={{ fontSize: 18, fontFamily: 'Nunito-Medium', color: colors.text }} numberOfLines={1}>
           {title} Flashcards
         </Text>
       </View>
 
       {/* Card Container */}
-      <View className="flex-1 items-center justify-center px-6">
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
         {/* Stacked cards effect - background cards */}
-        <View style={[styles.card, styles.stackedCard3]} />
-        <View style={[styles.card, styles.stackedCard2]} />
+        <View style={[styles.card, styles.stackedCard3, { backgroundColor: cardBgColor, opacity: stackedCard3Opacity }]} />
+        <View style={[styles.card, styles.stackedCard2, { backgroundColor: cardBgColor, opacity: stackedCard2Opacity }]} />
 
         <GestureDetector gesture={combinedGesture}>
           <TouchableOpacity
@@ -228,16 +239,17 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
             <Animated.View
               style={[
                 styles.card,
+                { backgroundColor: cardBgColor },
                 frontAnimatedStyle,
               ]}
             >
-              <View className="flex-1 items-center justify-center px-10 py-16">
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingVertical: 64 }}>
                 <Text style={styles.questionText}>
                   {currentCard.question}
                 </Text>
               </View>
-              <View className="pb-8 items-center">
-                <Text className="text-sm text-neutral-400">
+              <View style={{ paddingBottom: 32, alignItems: 'center' }}>
+                <Text style={{ fontSize: 14, color: '#a1a1aa' }}>
                   See answer
                 </Text>
               </View>
@@ -247,24 +259,25 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
             <Animated.View
               style={[
                 styles.card,
+                { backgroundColor: cardBgColor },
                 backAnimatedStyle,
               ]}
             >
-              <View className="flex-1 px-10 py-16">
+              <View style={{ flex: 1, paddingHorizontal: 40, paddingVertical: 64 }}>
                 <Text style={styles.answerText}>
                   {currentCard.answer}
                 </Text>
 
                 {currentCard.explanation && (
-                  <View className="mt-6 pt-6 border-t border-neutral-600">
-                    <Text className="text-base text-neutral-300 leading-relaxed">
+                  <View style={{ marginTop: 24, paddingTop: 24, borderTopWidth: 1, borderTopColor: '#525252' }}>
+                    <Text style={{ fontSize: 16, color: '#d4d4d8', lineHeight: 24 }}>
                       {currentCard.explanation}
                     </Text>
                   </View>
                 )}
               </View>
-              <View className="pb-8 items-center">
-                <Text className="text-sm text-neutral-400">
+              <View style={{ paddingBottom: 32, alignItems: 'center' }}>
+                <Text style={{ fontSize: 14, color: '#a1a1aa' }}>
                   Swipe to navigate
                 </Text>
               </View>
@@ -274,38 +287,50 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
       </View>
 
       {/* Navigation */}
-      <View className="flex-row items-center justify-center gap-12 pb-12">
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 48, paddingBottom: 48 }}>
         <TouchableOpacity
           onPress={goToPrevious}
           disabled={currentIndex === 0}
-          className={`w-14 h-14 rounded-full items-center justify-center border ${currentIndex === 0
-            ? 'border-neutral-200 bg-neutral-50'
-            : 'border-blue-500 bg-white'
-            }`}
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: currentIndex === 0 ? colors.border : '#3b82f6',
+            backgroundColor: currentIndex === 0 ? colors.surface : 'transparent',
+          }}
         >
           <Ionicons
             name="arrow-back"
             size={24}
-            color={currentIndex === 0 ? '#d4d4d4' : '#3b82f6'}
+            color={currentIndex === 0 ? colors.textMuted : '#3b82f6'}
           />
         </TouchableOpacity>
 
-        <Text className="text-lg text-neutral-900 font-medium min-w-[80px] text-center">
+        <Text style={{ fontSize: 18, color: colors.text, fontFamily: 'Nunito-Medium', minWidth: 80, textAlign: 'center' }}>
           {currentIndex + 1} / {flashcards.length}
         </Text>
 
         <TouchableOpacity
           onPress={goToNext}
           disabled={currentIndex === flashcards.length - 1}
-          className={`w-14 h-14 rounded-full items-center justify-center border ${currentIndex === flashcards.length - 1
-            ? 'border-neutral-200 bg-neutral-50'
-            : 'border-blue-500 bg-white'
-            }`}
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 1,
+            borderColor: currentIndex === flashcards.length - 1 ? colors.border : '#3b82f6',
+            backgroundColor: currentIndex === flashcards.length - 1 ? colors.surface : 'transparent',
+          }}
         >
           <Ionicons
             name="arrow-forward"
             size={24}
-            color={currentIndex === flashcards.length - 1 ? '#d4d4d4' : '#3b82f6'}
+            color={currentIndex === flashcards.length - 1 ? colors.textMuted : '#3b82f6'}
           />
         </TouchableOpacity>
       </View>
@@ -318,7 +343,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    backgroundColor: '#3f3f46', // Dark gray/zinc-700
     borderRadius: 32,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -330,13 +354,11 @@ const styles = StyleSheet.create({
   },
   stackedCard2: {
     transform: [{ scale: 0.95 }, { translateY: 24 }],
-    opacity: 0.7,
     elevation: 2,
     zIndex: -1,
   },
   stackedCard3: {
     transform: [{ scale: 0.90 }, { translateY: 48 }],
-    opacity: 0.5,
     elevation: 1,
     zIndex: -2,
   },
@@ -345,14 +367,14 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     color: '#ffffff',
     textAlign: 'center',
-    fontWeight: '400',
+    fontFamily: 'Nunito-Regular',
     letterSpacing: 0.2,
   },
   answerText: {
     fontSize: 24,
     lineHeight: 36,
     color: '#ffffff',
-    fontWeight: '500',
+    fontFamily: 'Nunito-Medium',
     letterSpacing: 0.2,
   },
 });

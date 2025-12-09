@@ -1,6 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useTheme } from '@/lib/ThemeContext';
 
 interface HomeActionButtonsProps {
     onCameraPress: () => void;
@@ -11,6 +13,12 @@ export const HomeActionButtons: React.FC<HomeActionButtonsProps> = ({
     onCameraPress,
     onAddPress
 }) => {
+    const { isDarkMode } = useTheme();
+
+    // In light mode, use solid styling with shadow for visibility
+    // In dark mode, use liquid glass effect
+    const useLiquidGlass = isDarkMode && Platform.OS === 'ios';
+
     return (
         <View
             style={{
@@ -28,37 +36,135 @@ export const HomeActionButtons: React.FC<HomeActionButtonsProps> = ({
             {/* Camera Button */}
             <TouchableOpacity
                 onPress={onCameraPress}
-                className="w-14 h-14 rounded-full bg-white items-center justify-center shadow-sm border border-neutral-200"
+                activeOpacity={0.8}
                 style={{
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 3,
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
+                    overflow: 'hidden',
+                    // Light mode shadow
+                    ...(!useLiquidGlass && {
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 12,
+                        elevation: 8,
+                    }),
                 }}
             >
-                <MaterialIcons name="camera-alt" size={24} color="#4B5563" />
+                {useLiquidGlass ? (
+                    <BlurView
+                        intensity={40}
+                        tint="light"
+                        style={{
+                            flex: 1,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                        }}
+                    >
+                        <MaterialIcons 
+                            name="camera-alt" 
+                            size={24} 
+                            color="#FFFFFF"
+                        />
+                    </BlurView>
+                ) : (
+                    <View
+                        style={{
+                            flex: 1,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#FFFFFF',
+                            borderWidth: 1,
+                            borderColor: '#e5e4df',
+                            borderRadius: 28,
+                        }}
+                    >
+                        <MaterialIcons 
+                            name="camera-alt" 
+                            size={24} 
+                            color="#1a1a1a"
+                        />
+                    </View>
+                )}
             </TouchableOpacity>
 
             {/* Add Materials Button */}
             <TouchableOpacity
                 onPress={onAddPress}
-                className="bg-neutral-900 px-8 py-4 rounded-full shadow-lg flex-row items-center gap-2"
+                activeOpacity={0.8}
                 style={{
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 8,
-                    elevation: 8,
+                    borderRadius: 999,
+                    overflow: 'hidden',
+                    // Light mode shadow
+                    ...(!useLiquidGlass && {
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 12,
+                        elevation: 8,
+                    }),
                 }}
             >
-                <MaterialIcons name="add" size={20} color="#FFFFFF" />
-                <Text
-                    style={{ fontFamily: 'SpaceGrotesk-SemiBold' }}
-                    className="text-white text-base"
-                >
-                    Add Materials
-                </Text>
+                {useLiquidGlass ? (
+                    <BlurView
+                        intensity={40}
+                        tint="light"
+                        style={{
+                            paddingHorizontal: 32,
+                            paddingVertical: 16,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 8,
+                            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                        }}
+                    >
+                        <MaterialIcons 
+                            name="add" 
+                            size={20} 
+                            color="#FFFFFF"
+                        />
+                        <Text
+                            style={{ 
+                                fontFamily: 'Nunito-SemiBold', 
+                                fontSize: 16,
+                                color: '#FFFFFF',
+                            }}
+                        >
+                            Add Material
+                        </Text>
+                    </BlurView>
+                ) : (
+                    <View
+                        style={{
+                            paddingHorizontal: 32,
+                            paddingVertical: 16,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 8,
+                            backgroundColor: '#FFFFFF',
+                            borderWidth: 1,
+                            borderColor: '#e5e4df',
+                            borderRadius: 999,
+                        }}
+                    >
+                        <MaterialIcons 
+                            name="add" 
+                            size={20} 
+                            color="#1a1a1a"
+                        />
+                        <Text
+                            style={{ 
+                                fontFamily: 'Nunito-SemiBold', 
+                                fontSize: 16,
+                                color: '#1a1a1a',
+                            }}
+                        >
+                            Add Material
+                        </Text>
+                    </View>
+                )}
             </TouchableOpacity>
         </View>
     );

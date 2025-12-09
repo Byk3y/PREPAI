@@ -1,6 +1,7 @@
 /**
  * NotebookCard - Card component for notebook list
  * Shows notebook info with progress and last studied
+ * Styled to match Studio section cards
  */
 
 import React, { useState } from 'react';
@@ -11,6 +12,7 @@ import { getTopicEmoji } from '@/lib/emoji-matcher';
 import { supabase } from '@/lib/supabase';
 import { useStore } from '@/lib/store';
 import { TikTokLoader } from '@/components/TikTokLoader';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 interface NotebookCardProps {
     notebook: Notebook;
@@ -23,12 +25,25 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
 }) => {
     const [isRetrying, setIsRetrying] = useState(false);
     const { notebooks, setNotebooks } = useStore();
+    const { isDarkMode } = useTheme();
+    const colors = getThemeColors(isDarkMode);
 
     // Generate consistent color based on notebook ID
+    // NotebookLM-style muted, sophisticated colors - brighter to stand out
     const getNotebookColor = () => {
-        const colors = ['#EEF2FF', '#ECFDF5', '#FEF3C7', '#F5F3FF', '#FFF1F2'];
+        const lightColors = ['#dbeafe', '#d1fae5', '#fde68a', '#ede9fe', '#fecdd3', '#ccfbf1'];
+        // Brighter earth tones that stand out from #29292b background
+        const darkColors = [
+            '#3d4a3d', // Olive green
+            '#4a4540', // Bronze/brown
+            '#3d4545', // Teal
+            '#454038', // Earthy brown  
+            '#3d3d4a', // Slate blue
+            '#45453d', // Khaki
+        ];
+        const colorPalette = isDarkMode ? darkColors : lightColors;
         const hash = notebook.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        return colors[hash % colors.length];
+        return colorPalette[hash % colorPalette.length];
     };
 
     const handleRetry = async (e: any) => {
@@ -140,46 +155,64 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
             <TouchableOpacity
                 onPress={onPress}
                 activeOpacity={0.7}
-                className="rounded-2xl p-4 mb-3 flex-row items-center"
-                style={{ backgroundColor: getNotebookColor() }}
+                style={{
+                    backgroundColor: getNotebookColor(),
+                    borderRadius: 16,
+                    padding: 16,
+                    marginBottom: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                }}
             >
                 {/* Emoji on the left */}
-                <View className="mr-3">
-                    <Text className="text-3xl">{getTopicEmoji(notebook.title)}</Text>
+                <View style={{ marginRight: 14 }}>
+                    <Text style={{ fontSize: 28 }}>{getTopicEmoji(notebook.title)}</Text>
                 </View>
 
                 {/* Content */}
-                <View className="flex-1">
-                    <Text className="text-lg font-bold text-neutral-900 mb-0.5" numberOfLines={1} ellipsizeMode="tail">
+                <View style={{ flex: 1 }}>
+                    <Text 
+                        style={{ fontSize: 16, fontFamily: 'Nunito-SemiBold', color: colors.text, marginBottom: 2 }} 
+                        numberOfLines={1} 
+                        ellipsizeMode="tail"
+                    >
                         {notebook.title}
                     </Text>
-                    <Text className="text-xs text-neutral-600">
+                    <Text style={{ fontSize: 13, color: colors.textSecondary, fontFamily: 'Nunito-Regular' }}>
                         {materialCount} source{materialCount !== 1 ? 's' : ''} • {getTimeAgoText()}
                     </Text>
 
                     {/* Failed status with retry button */}
                     {notebook.status === 'failed' && (
-                        <View className="mt-2 flex-row items-center gap-2">
-                            <Text className="text-xs text-red-600 font-medium">Processing failed</Text>
+                        <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={{ fontSize: 12, color: isDarkMode ? '#f87171' : '#dc2626', fontFamily: 'Nunito-Medium' }}>Processing failed</Text>
                             <TouchableOpacity
                                 onPress={handleRetry}
                                 disabled={isRetrying}
-                                className="bg-red-100 px-3 py-1 rounded-full flex-row items-center gap-1"
+                                style={{ 
+                                    backgroundColor: isDarkMode ? 'rgba(127, 29, 29, 0.5)' : '#fee2e2',
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 4,
+                                    borderRadius: 999,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: 4
+                                }}
                                 activeOpacity={0.7}
                             >
                                 {isRetrying ? (
                                     <ActivityIndicator size="small" color="#DC2626" />
                                 ) : (
-                                    <Text className="text-xs text-red-600 font-semibold">Retry</Text>
+                                    <Text style={{ fontSize: 12, color: isDarkMode ? '#f87171' : '#dc2626', fontFamily: 'Nunito-SemiBold' }}>Retry</Text>
                                 )}
                             </TouchableOpacity>
                         </View>
                     )}
                 </View>
 
-                {/* TikTok loader on the right side for extracting status */}
+                {/* Right side - loader only when extracting */}
                 {notebook.status === 'extracting' && (
-                    <View className="ml-3 items-center justify-center">
+                    <View style={{ marginLeft: 12 }}>
                         <TikTokLoader size={10} color="#6366f1" containerWidth={50} />
                     </View>
                 )}

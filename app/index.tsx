@@ -24,6 +24,7 @@ import { TikTokLoader } from '@/components/TikTokLoader';
 import { supabase } from '@/lib/supabase';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { HomeActionButtons } from '@/components/home/HomeActionButtons';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -35,6 +36,10 @@ export default function HomeScreen() {
     notebooksSyncedAt,
     notebooksUserId,
   } = useStore();
+  
+  // Theme
+  const { isDarkMode } = useTheme();
+  const colors = getThemeColors(isDarkMode);
 
   // Custom Hook for creation logic
   const {
@@ -201,7 +206,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView
-      className="flex-1 bg-white"
+      style={{ flex: 1, backgroundColor: colors.background }}
       edges={['top', 'bottom']}
     >
       <HomeHeader />
@@ -209,28 +214,28 @@ export default function HomeScreen() {
       {/* Content */}
       {!canShowContent ? (
         !authUser ? (
-        <View className="flex-1 bg-white items-center justify-center px-6">
-          <Text className="text-2xl font-bold text-neutral-900 mb-4">
+        <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+          <Text style={{ fontSize: 24, fontFamily: 'Nunito-Bold', color: colors.text, marginBottom: 16 }}>
             Not Signed In
           </Text>
-          <Text className="text-neutral-600 mb-8 text-center">
+          <Text style={{ color: colors.textSecondary, marginBottom: 32, textAlign: 'center', fontFamily: 'Nunito-Regular' }}>
             Please sign in to access your study materials
           </Text>
           <TouchableOpacity
             onPress={() => router.push('/auth')}
-            className="bg-primary-500 px-8 py-4 rounded-full"
+            style={{ backgroundColor: '#FFB800', paddingHorizontal: 32, paddingVertical: 16, borderRadius: 999 }}
           >
-            <Text className="text-white font-semibold text-lg">
+            <Text style={{ color: '#FFFFFF', fontFamily: 'Nunito-SemiBold', fontSize: 18 }}>
               Sign In
             </Text>
           </TouchableOpacity>
         </View>
         ) : (
-          <View className="flex-1 bg-white" />
+          <View style={{ flex: 1, backgroundColor: colors.background }} />
         )
       ) : (
         <ScrollView
-          className="flex-1 bg-white"
+          style={{ flex: 1, backgroundColor: colors.background }}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: 24,
@@ -270,10 +275,20 @@ export default function HomeScreen() {
           {/* Add New Button (List Item) */}
           <TouchableOpacity
             onPress={handleCreateNotebook}
-            className="bg-white rounded-2xl p-4 mb-6 border-2 border-dashed border-neutral-300 items-center justify-center"
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: 16,
+              padding: 16,
+              marginBottom: 24,
+              borderWidth: 2,
+              borderStyle: 'dashed',
+              borderColor: colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
             activeOpacity={0.7}
           >
-            <Text className="text-base font-semibold text-neutral-600">
+            <Text style={{ fontSize: 16, fontFamily: 'Nunito-SemiBold', color: colors.textSecondary }}>
               + Add New Notebook
             </Text>
           </TouchableOpacity>
@@ -302,7 +317,7 @@ export default function HomeScreen() {
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'rgba(255, 255, 255, 0.6)',
+              backgroundColor: isDarkMode ? 'rgba(17, 24, 39, 0.6)' : 'rgba(255, 255, 255, 0.6)',
             }}
           />
           <TikTokLoader size={16} color="#6366f1" containerWidth={80} />

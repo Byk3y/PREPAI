@@ -89,7 +89,7 @@ export default function MagicLinkScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-50">
+    <SafeAreaView className="flex-1 bg-neutral-50 dark:bg-neutral-900">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
@@ -99,16 +99,16 @@ export default function MagicLinkScreen() {
             onPress={() => router.back()}
             className="mb-8"
           >
-            <Text className="text-neutral-600 text-lg">← Back</Text>
+            <Text className="text-neutral-600 dark:text-neutral-400 text-lg">← Back</Text>
           </TouchableOpacity>
 
           <Text
-            style={{ fontFamily: 'SpaceGrotesk-Bold' }}
-            className="text-3xl text-neutral-900 mb-4"
+            style={{ fontFamily: 'Nunito-Bold' }}
+            className="text-3xl text-neutral-900 dark:text-neutral-50 mb-4"
           >
             {codeSent ? 'Enter Code' : 'Sign in with Email'}
           </Text>
-          <Text className="text-neutral-600 mb-8">
+          <Text className="text-neutral-600 dark:text-neutral-400 mb-8">
             {codeSent
               ? `Enter the code sent to ${email}`
               : "Enter your email address and we'll send you a code to sign in."}
@@ -123,7 +123,8 @@ export default function MagicLinkScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
-                className="bg-white border-2 border-neutral-200 rounded-2xl px-4 py-4 text-lg mb-6"
+                className="bg-white dark:bg-neutral-800 border-2 border-neutral-200 dark:border-neutral-700 rounded-2xl px-4 py-4 text-lg mb-6 text-neutral-900 dark:text-neutral-50"
+                placeholderTextColor="#9CA3AF"
                 editable={!loading}
               />
 
@@ -142,7 +143,7 @@ export default function MagicLinkScreen() {
                 onPress={() => router.back()}
                 className="mt-4 items-center"
               >
-                <Text className="text-neutral-600">Cancel</Text>
+                <Text className="text-neutral-600 dark:text-neutral-400">Cancel</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -153,7 +154,8 @@ export default function MagicLinkScreen() {
                 placeholder="12345678"
                 keyboardType="number-pad"
                 maxLength={8}
-                className="bg-white border-2 border-neutral-200 rounded-2xl px-4 py-4 text-lg mb-6 text-center text-2xl font-bold tracking-widest"
+                className="bg-white dark:bg-neutral-800 border-2 border-neutral-200 dark:border-neutral-700 rounded-2xl px-4 py-4 text-lg mb-6 text-center text-2xl font-bold tracking-widest text-neutral-900 dark:text-neutral-50"
+                placeholderTextColor="#9CA3AF"
                 editable={!loading}
                 autoFocus
               />
@@ -176,7 +178,7 @@ export default function MagicLinkScreen() {
                 }}
                 className="mt-4 items-center"
               >
-                <Text className="text-neutral-600">Use a different email</Text>
+                <Text className="text-neutral-600 dark:text-neutral-400">Use a different email</Text>
               </TouchableOpacity>
             </>
           )}

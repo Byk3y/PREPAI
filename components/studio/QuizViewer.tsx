@@ -1,14 +1,17 @@
 /**
  * QuizViewer - Interactive quiz interface with multiple choice questions
  * Features: question navigation, answer selection, scoring, results display
+ * Updated: Dark mode support
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { Quiz, QuizQuestion } from '@/lib/store/types';
+import { useStore } from '@/lib/store';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 interface QuizViewerProps {
   quiz: Quiz;
@@ -21,6 +24,13 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
   const [answers, setAnswers] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
   const [showResults, setShowResults] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, boolean>>({});
+  const [showReviewAnswers, setShowReviewAnswers] = useState(false);
+  const [revealedHints, setRevealedHints] = useState<Record<string, boolean>>({});
+  const { petState } = useStore();
+  const petName = petState?.name || 'Maria';
+  
+  const { isDarkMode } = useTheme();
+  const colors = getThemeColors(isDarkMode);
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
   const totalQuestions = quiz.questions.length;
@@ -77,99 +87,179 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
   const selectedAnswer = answers[currentQuestion.id];
   const isSubmitted = submittedAnswers[currentQuestion.id];
   const isCorrect = selectedAnswer === currentQuestion.correct;
+  const hintAvailable = currentQuestion.hint && currentQuestion.hint.trim().length > 0;
+  const hintRevealed = revealedHints[currentQuestion.id];
+
+  // Result metrics (computed every render)
+  const correctCount = quiz.questions.filter((q) => answers[q.id] === q.correct).length;
+  const totalAnswered = Object.keys(answers).length;
+  const wrongCount = Math.max(totalAnswered - correctCount, 0);
+  const skippedCount = Math.max(totalQuestions - totalAnswered, 0);
+  const scorePercent = Math.round((correctCount / totalQuestions) * 100);
+
+  const handleRevealHint = () => {
+    if (!hintAvailable) return;
+    setRevealedHints((prev) => ({ ...prev, [currentQuestion.id]: true }));
+  };
 
   // Results screen
   if (showResults) {
-    const correctCount = quiz.questions.filter(
-      (q) => answers[q.id] === q.correct
-    ).length;
-    const scorePercent = Math.round((correctCount / totalQuestions) * 100);
-
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
-        <View className="flex-row items-center justify-between px-6 py-4 border-b border-neutral-200">
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+        <View style={{ 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          justifyContent: 'space-between', 
+          paddingHorizontal: 24, 
+          paddingVertical: 16,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border
+        }}>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={28} color="#171717" />
+            <Ionicons name="close" size={28} color={colors.icon} />
           </TouchableOpacity>
-          <Text className="text-base font-semibold text-neutral-900">
+          <Text style={{ fontSize: 16, fontFamily: 'Nunito-SemiBold', color: colors.text }}>
             Quiz Complete
           </Text>
           <View style={{ width: 28 }} />
         </View>
 
-        <ScrollView className="flex-1">
-          <View className="items-center px-6 py-12">
-            <View className="w-32 h-32 bg-green-50 rounded-full items-center justify-center mb-6">
-              <Text className="text-5xl font-bold text-green-600">
+        <ScrollView style={{ flex: 1 }}>
+          <View style={{ alignItems: 'center', paddingHorizontal: 24, paddingVertical: 48 }}>
+            <View style={{ 
+              width: 128, 
+              height: 128, 
+              backgroundColor: isDarkMode ? '#064e3b' : '#dcfce7', 
+              borderRadius: 64, 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              marginBottom: 24 
+            }}>
+              <Text style={{ fontSize: 48, fontFamily: 'Nunito-Bold', color: isDarkMode ? '#34d399' : '#16a34a' }}>
                 {scorePercent}%
               </Text>
             </View>
 
-            <Text className="text-2xl font-bold text-neutral-900 mb-2">
+            <Text style={{ fontSize: 24, fontFamily: 'Nunito-Bold', color: colors.text, marginBottom: 8 }}>
               Great job!
             </Text>
-            <Text className="text-base text-neutral-600 text-center mb-8">
+            <Text style={{ fontSize: 16, color: colors.textSecondary, textAlign: 'center', marginBottom: 32, fontFamily: 'Nunito-Regular' }}>
               You got {correctCount} out of {totalQuestions} questions correct
             </Text>
 
-            {/* Question Review */}
-            <View className="w-full">
-              <Text className="text-lg font-semibold text-neutral-900 mb-4">
-                Review Answers
-              </Text>
+            {/* Summary cards */}
+            <View style={{ width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 40 }}>
+              <View style={{ flex: 1, minWidth: 150, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 4, fontFamily: 'Nunito-Regular' }}>Score</Text>
+                <Text style={{ fontSize: 24, fontFamily: 'Nunito-SemiBold', color: colors.text }}>
+                  {correctCount} / {totalQuestions}
+                </Text>
+              </View>
+              <View style={{ flex: 1, minWidth: 150, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 4, fontFamily: 'Nunito-Regular' }}>Accuracy</Text>
+                <Text style={{ fontSize: 24, fontFamily: 'Nunito-SemiBold', color: colors.text }}>
+                  {scorePercent}%
+                </Text>
+              </View>
+              <View style={{ flex: 1, minWidth: 150, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 4, fontFamily: 'Nunito-Regular' }}>Right</Text>
+                <Text style={{ fontSize: 24, fontFamily: 'Nunito-SemiBold', color: '#16a34a' }}>
+                  {correctCount}
+                </Text>
+              </View>
+              <View style={{ flex: 1, minWidth: 150, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 4, fontFamily: 'Nunito-Regular' }}>Wrong</Text>
+                <Text style={{ fontSize: 24, fontFamily: 'Nunito-SemiBold', color: '#dc2626' }}>
+                  {wrongCount}
+                </Text>
+              </View>
+              <View style={{ flex: 1, minWidth: 150, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 4, fontFamily: 'Nunito-Regular' }}>Skipped</Text>
+                <Text style={{ fontSize: 24, fontFamily: 'Nunito-SemiBold', color: colors.text }}>
+                  {skippedCount}
+                </Text>
+              </View>
+            </View>
 
-              {quiz.questions.map((question, index) => {
-                const userAnswer = answers[question.id];
-                const isCorrect = userAnswer === question.correct;
+            {/* Actions */}
+            <View style={{ width: '100%', gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => setShowReviewAnswers(true)}
+                style={{ width: '100%', backgroundColor: isDarkMode ? colors.text : '#171717', borderRadius: 999, paddingVertical: 16 }}
+              >
+                <Text style={{ color: isDarkMode ? colors.background : '#FFFFFF', textAlign: 'center', fontFamily: 'Nunito-SemiBold' }}>
+                  Review Answers
+                </Text>
+              </TouchableOpacity>
 
-                return (
-                  <View
-                    key={question.id}
-                    className="bg-neutral-50 rounded-xl p-4 mb-3"
-                  >
-                    <View className="flex-row items-start mb-3">
-                      <View
-                        className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${isCorrect ? 'bg-green-100' : 'bg-red-100'
-                          }`}
-                      >
-                        <Ionicons
-                          name={isCorrect ? 'checkmark' : 'close'}
-                          size={18}
-                          color={isCorrect ? '#10b981' : '#ef4444'}
-                        />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="text-sm font-medium text-neutral-900 mb-2">
-                          Question {index + 1}
-                        </Text>
-                        <Text className="text-sm text-neutral-700 mb-2">
-                          {question.question}
-                        </Text>
-                        <View className="flex-row gap-2">
-                          <Text className="text-xs text-neutral-500">
-                            Your answer: {userAnswer || 'Not answered'}
+              <TouchableOpacity
+                onPress={onClose}
+                style={{ width: '100%', borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingVertical: 16 }}
+              >
+                <Text style={{ textAlign: 'center', fontFamily: 'Nunito-SemiBold', color: colors.text }}>
+                  Close
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Question Review (on demand) */}
+            {showReviewAnswers && (
+              <View style={{ width: '100%', marginTop: 40 }}>
+                <Text style={{ fontSize: 18, fontFamily: 'Nunito-SemiBold', color: colors.text, marginBottom: 16 }}>
+                  Review Answers
+                </Text>
+
+                {quiz.questions.map((question, index) => {
+                  const userAnswer = answers[question.id];
+                  const isCorrect = userAnswer === question.correct;
+
+                  return (
+                    <View
+                      key={question.id}
+                      style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 12 }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
+                        <View
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 16,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginRight: 12,
+                            backgroundColor: isCorrect ? (isDarkMode ? '#064e3b' : '#dcfce7') : (isDarkMode ? '#7f1d1d' : '#fee2e2')
+                          }}
+                        >
+                          <Ionicons
+                            name={isCorrect ? 'checkmark' : 'close'}
+                            size={18}
+                            color={isCorrect ? '#10b981' : '#ef4444'}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 14, fontFamily: 'Nunito-Medium', color: colors.text, marginBottom: 8 }}>
+                            Question {index + 1}
                           </Text>
-                          {!isCorrect && (
-                            <Text className="text-xs text-green-600">
-                              Correct: {question.correct}
+                          <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 8, fontFamily: 'Nunito-Regular' }}>
+                            {question.question}
+                          </Text>
+                          <View style={{ flexDirection: 'row', gap: 8 }}>
+                            <Text style={{ fontSize: 12, color: colors.textMuted }}>
+                              Your answer: {userAnswer || 'Not answered'}
                             </Text>
-                          )}
+                            {!isCorrect && (
+                              <Text style={{ fontSize: 12, color: '#16a34a' }}>
+                                Correct: {question.correct}
+                              </Text>
+                            )}
+                          </View>
                         </View>
                       </View>
                     </View>
-                  </View>
-                );
-              })}
-            </View>
-
-            <TouchableOpacity
-              onPress={onClose}
-              className="w-full bg-neutral-900 rounded-full py-4 mt-6"
-            >
-              <Text className="text-white text-center font-semibold">
-                Close Quiz
-              </Text>
-            </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -178,38 +268,41 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
 
   // Question screen
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       {/* Header */}
-      <View className="pb-6">
-        <View className="flex-row items-center justify-between px-6 py-4">
+      <View style={{ paddingBottom: 24 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 16 }}>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={28} color="#171717" />
+            <Ionicons name="close" size={28} color={colors.icon} />
           </TouchableOpacity>
-          <Text className="text-base font-semibold text-neutral-900">
-            Question {currentQuestionIndex + 1} of {totalQuestions}
+          <Text
+            numberOfLines={1}
+            style={{ flex: 1, fontSize: 16, fontFamily: 'Nunito-SemiBold', color: colors.text, textAlign: 'center', paddingHorizontal: 12 }}
+          >
+            {quiz.title}
           </Text>
           <View style={{ width: 28 }} />
         </View>
 
-        {/* Custom Gauge Bar */}
-        <View className="px-6 flex-row items-center gap-3">
+        {/* Custom Gauge Bar with question count */}
+        <View style={{ paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Text style={{ fontSize: 14, fontFamily: 'Nunito-Medium', color: colors.textSecondary }}>
+            {currentQuestionIndex + 1} / {totalQuestions}
+          </Text>
           {/* Progress Bar */}
-          <View className="flex-1 h-4 bg-neutral-200 rounded-full overflow-hidden">
+          <View style={{ flex: 1, height: 16, backgroundColor: isDarkMode ? colors.surfaceAlt : '#e5e5e5', borderRadius: 8, overflow: 'hidden' }}>
             <View
-              className="h-full bg-[#4ade80] rounded-r-full"
-              style={{ width: `${Math.max(progress, 5)}%` }}
+              style={{ height: '100%', backgroundColor: '#4ade80', borderTopRightRadius: 8, borderBottomRightRadius: 8, width: `${Math.max(progress, 5)}%` }}
             />
-            {/* Glossy/Highlight effect (optional, simplified for now) */}
-            <View className="absolute top-0 left-2 right-2 h-2 bg-white/20 rounded-full" />
           </View>
 
           {/* Icons */}
-          <View className="flex-row items-center gap-2">
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <LinearGradient
               colors={['#38bdf8', '#a855f7']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              className="w-8 h-8 rounded-lg items-center justify-center"
+              style={{ width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}
             >
               <Ionicons name="flash" size={18} color="white" />
             </LinearGradient>
@@ -219,63 +312,75 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
       </View>
 
       {/* Question Content */}
-      <ScrollView className="flex-1 px-6 py-6">
-        <Text className="text-2xl font-bold text-neutral-900 mb-6 leading-relaxed">
+      <ScrollView style={{ flex: 1, paddingHorizontal: 24, paddingVertical: 24 }}>
+        <Text style={{ fontSize: 24, fontFamily: 'Nunito-Bold', color: colors.text, marginBottom: 24, lineHeight: 34 }}>
           {currentQuestion.question}
         </Text>
 
         {/* Options */}
-        <View className="gap-3">
+        <View style={{ gap: 12 }}>
           {(Object.keys(currentQuestion.options) as Array<'A' | 'B' | 'C' | 'D'>).map((key) => {
             const isSelected = selectedAnswer === key;
             const isCorrectAnswer = currentQuestion.correct === key;
             const showCorrect = isSubmitted && isCorrectAnswer;
             const showIncorrect = isSubmitted && isSelected && !isCorrectAnswer;
 
+            let bgColor = colors.surface;
+            let borderColor = colors.border;
+            let badgeBg = isDarkMode ? colors.surfaceAlt : '#f5f5f5';
+            let badgeText = colors.textSecondary;
+            let optionText = colors.text;
+
+            if (showCorrect) {
+              bgColor = isDarkMode ? '#064e3b' : '#dcfce7';
+              borderColor = '#22c55e';
+              badgeBg = '#22c55e';
+              badgeText = '#FFFFFF';
+              optionText = isDarkMode ? '#86efac' : '#14532d';
+            } else if (showIncorrect) {
+              bgColor = isDarkMode ? '#7f1d1d' : '#fee2e2';
+              borderColor = '#ef4444';
+              badgeBg = '#ef4444';
+              badgeText = '#FFFFFF';
+              optionText = isDarkMode ? '#fca5a5' : '#7f1d1d';
+            } else if (isSelected) {
+              bgColor = isDarkMode ? '#1e3a5f' : '#dbeafe';
+              borderColor = '#3b82f6';
+              badgeBg = '#3b82f6';
+              badgeText = '#FFFFFF';
+              optionText = isDarkMode ? '#93c5fd' : '#1e3a8a';
+            }
+
             return (
               <TouchableOpacity
                 key={key}
                 onPress={() => !isSubmitted && handleSelectAnswer(key)}
                 disabled={isSubmitted}
-                className={`rounded-xl p-4 border-2 ${showCorrect
-                  ? 'border-green-500 bg-green-50'
-                  : showIncorrect
-                    ? 'border-red-500 bg-red-50'
-                    : isSelected
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-neutral-200 bg-white'
-                  }`}
+                style={{
+                  borderRadius: 12,
+                  padding: 16,
+                  borderWidth: 2,
+                  backgroundColor: bgColor,
+                  borderColor: borderColor,
+                }}
               >
-                <View className="flex-row items-center">
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <View
-                    className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${showCorrect
-                      ? 'bg-green-500'
-                      : showIncorrect
-                        ? 'bg-red-500'
-                        : isSelected
-                          ? 'bg-blue-500'
-                          : 'bg-neutral-100'
-                      }`}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 12,
+                      backgroundColor: badgeBg,
+                    }}
                   >
-                    <Text
-                      className={`font-semibold ${showCorrect || showIncorrect || isSelected
-                        ? 'text-white'
-                        : 'text-neutral-600'
-                        }`}
-                    >
+                    <Text style={{ fontFamily: 'Nunito-SemiBold', color: badgeText }}>
                       {key}
                     </Text>
                   </View>
-                  <Text
-                    className={`flex-1 text-base ${showCorrect
-                      ? 'text-green-900'
-                      : showIncorrect
-                        ? 'text-red-900'
-                        : isSelected
-                          ? 'text-blue-900 font-medium'
-                          : 'text-neutral-900'
-                      }`}
-                  >
+                  <Text style={{ flex: 1, fontSize: 16, color: optionText, fontFamily: 'Nunito-Regular' }}>
                     {currentQuestion.options[key]}
                   </Text>
                   {showCorrect && (
@@ -290,44 +395,98 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
           })}
         </View>
 
-        {/* Explanation (shown after submit) */}
-        {isSubmitted && (
-          <View className="mt-6 p-4 bg-neutral-50 rounded-xl border border-neutral-200">
-            <Text className="text-sm font-semibold text-neutral-900 mb-2">
-              Explanation
-            </Text>
-            <Text className="text-sm text-neutral-700 leading-relaxed">
-              {currentQuestion.explanation}
-            </Text>
-          </View>
-        )}
+        {/* Hint CTA and content */}
+        <View style={{ marginTop: 24 }}>
+          <TouchableOpacity
+            onPress={handleRevealHint}
+            disabled={!hintAvailable || hintRevealed}
+            style={{
+              alignSelf: 'flex-start',
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: hintRevealed ? colors.border : '#3b82f6',
+              backgroundColor: hintRevealed ? colors.surface : 'transparent',
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons
+                name="bulb-outline"
+                size={18}
+                color={hintRevealed ? colors.textMuted : '#3b82f6'}
+              />
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'Nunito-SemiBold',
+                  color: hintRevealed ? colors.textMuted : '#3b82f6',
+                }}
+              >
+                {hintAvailable
+                  ? `Ask ${petName} for a hint`
+                  : 'No hint available'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {hintRevealed && hintAvailable && (
+            <View style={{ 
+              marginTop: 12, 
+              padding: 16, 
+              backgroundColor: isDarkMode ? '#1e3a5f' : '#dbeafe', 
+              borderRadius: 12, 
+              borderWidth: 1, 
+              borderColor: isDarkMode ? '#3b82f6' : '#bfdbfe' 
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Ionicons name="sparkles-outline" size={18} color="#2563eb" />
+                <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: isDarkMode ? '#93c5fd' : '#1e40af' }}>
+                  Hint
+                </Text>
+              </View>
+              <Text style={{ fontSize: 14, color: isDarkMode ? '#bfdbfe' : '#1e3a8a', lineHeight: 20, fontFamily: 'Nunito-Regular' }}>
+                {currentQuestion.hint}
+              </Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
 
-      {/* Action Buttons - Only show navigation after answer is submitted */}
-      {isSubmitted && (
-        <View className="px-6 py-6 border-t border-neutral-200">
-          <View className="flex-row gap-3">
-            {currentQuestionIndex > 0 && (
-              <TouchableOpacity
-                onPress={handlePrevious}
-                className="flex-1 border-2 border-neutral-200 rounded-full py-4"
-              >
-                <Text className="text-center font-semibold text-neutral-900">
-                  Previous
-                </Text>
-              </TouchableOpacity>
-            )}
+      {/* Action Buttons - Always available for navigation */}
+      <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 32, marginBottom: 8 }}>
+        {currentQuestionIndex > 0 ? (
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 24 }}>
+            <TouchableOpacity
+              onPress={handlePrevious}
+              style={{ width: 140, borderWidth: 2, borderColor: colors.border, borderRadius: 999, paddingVertical: 10 }}
+            >
+              <Text style={{ textAlign: 'center', fontFamily: 'Nunito-SemiBold', color: colors.text, fontSize: 14 }}>
+                Previous
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={handleNext}
-              className="flex-1 bg-neutral-900 rounded-full py-4"
+              style={{ width: 140, backgroundColor: '#3f5efb', borderRadius: 999, paddingVertical: 10 }}
             >
-              <Text className="text-center font-semibold text-white">
-                {currentQuestionIndex < totalQuestions - 1 ? 'Next Question' : 'Finish Quiz'}
+              <Text style={{ textAlign: 'center', fontFamily: 'Nunito-SemiBold', color: '#FFFFFF', fontSize: 14 }}>
+                {currentQuestionIndex < totalQuestions - 1 ? 'Next' : 'Finish'}
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
-      )}
+        ) : (
+          <View style={{ alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={handleNext}
+              style={{ width: 140, backgroundColor: '#3f5efb', borderRadius: 999, paddingVertical: 10 }}
+            >
+              <Text style={{ textAlign: 'center', fontFamily: 'Nunito-SemiBold', color: '#FFFFFF', fontSize: 14 }}>
+                {currentQuestionIndex < totalQuestions - 1 ? 'Next' : 'Finish'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
     </SafeAreaView>
   );
 };

@@ -11,6 +11,7 @@ import type { Notebook, Material } from '@/lib/store';
 import { PreviewSkeleton } from './PreviewSkeleton';
 import { getTopicEmoji } from '@/lib/emoji-matcher';
 import { getSignedUrl } from '@/lib/upload';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 interface SourcesTabProps {
   notebook: Notebook;
@@ -19,6 +20,10 @@ interface SourcesTabProps {
 export const SourcesTab: React.FC<SourcesTabProps> = ({ notebook }) => {
   const material = notebook.materials?.[0];
   const router = useRouter();
+  
+  // Theme
+  const { isDarkMode } = useTheme();
+  const colors = getThemeColors(isDarkMode);
 
   // Handle viewing image
   const handleViewImage = async (mat: Material) => {
@@ -43,19 +48,16 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({ notebook }) => {
   if (notebook.status === 'extracting') {
     const materialCount = notebook.materials?.length || 0;
     return (
-      <ScrollView className="flex-1 bg-white">
-        <View className="px-6 py-6">
+      <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ paddingHorizontal: 24, paddingVertical: 24 }}>
           {/* Material Icon & Title */}
-          <View className="flex-row items-start mb-6">
-            <Text className="text-5xl mr-3">{getTopicEmoji(notebook.title)}</Text>
-            <View className="flex-1">
-              <Text
-                className="text-2xl text-neutral-900 mb-1"
-                style={{ fontFamily: 'SpaceGrotesk-Bold' }}
-              >
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 }}>
+            <Text style={{ fontSize: 48, marginRight: 12 }}>{getTopicEmoji(notebook.title)}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 24, color: colors.text, marginBottom: 4, fontFamily: 'Nunito-Bold' }}>
                 {notebook.title}
               </Text>
-              <Text className="text-sm text-neutral-500">
+              <Text style={{ fontSize: 14, color: colors.textSecondary, fontFamily: 'Nunito-Regular' }}>
                 {materialCount} source{materialCount !== 1 ? 's' : ''}
               </Text>
             </View>
@@ -70,20 +72,20 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({ notebook }) => {
 
   // Render preview content
   return (
-    <ScrollView className="flex-1 bg-white">
-      <View className="px-6 pt-3 pb-6">
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 }}>
         {/* OCR Quality Warning Banner (for camera photos) */}
         {material?.meta?.ocr_quality?.lowQuality &&
           (material.type === 'photo' || material.type === 'image') && (
-            <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-              <View className="flex-row items-center gap-2">
+            <View style={{ backgroundColor: isDarkMode ? 'rgba(120, 53, 15, 0.3)' : '#fefce8', borderWidth: 1, borderColor: isDarkMode ? '#92400e' : '#fde68a', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Ionicons name="warning-outline" size={20} color="#f59e0b" />
-                <Text className="text-yellow-800 text-sm flex-1">
+                <Text style={{ color: isDarkMode ? '#fde68a' : '#854d0e', fontSize: 14, flex: 1 }}>
                   📸 Photo quality could be better. Try retaking for best results.
                 </Text>
               </View>
               {material.meta.ocr_quality.confidence && (
-                <Text className="text-yellow-600 text-xs mt-1">
+                <Text style={{ color: isDarkMode ? '#fbbf24' : '#ca8a04', fontSize: 12, marginTop: 4 }}>
                   OCR confidence: {Math.round(material.meta.ocr_quality.confidence)}%
                 </Text>
               )}
@@ -91,8 +93,8 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({ notebook }) => {
           )}
 
         {/* Sources List */}
-        <View className="mb-4">
-          <Text className="text-lg font-semibold text-neutral-900 mb-3">Sources</Text>
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ fontSize: 18, fontFamily: 'Nunito-SemiBold', color: colors.text, marginBottom: 12 }}>Sources</Text>
           {notebook.materials && notebook.materials.length > 0 ? (
             <View>
               {notebook.materials.map((mat, index) => {
@@ -120,16 +122,26 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({ notebook }) => {
 
                 const sourceCard = (
                   <View
-                    className={`bg-neutral-50 border border-neutral-200 rounded-xl py-3 px-4 flex-row items-center ${index < notebook.materials.length - 1 ? 'mb-3' : ''}`}
+                    style={{
+                      backgroundColor: colors.surface,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: 12,
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      marginBottom: index < notebook.materials.length - 1 ? 12 : 0
+                    }}
                   >
-                    <View className="w-10 h-10 bg-neutral-200 rounded-lg items-center justify-center mr-3">
-                      <Ionicons name={getMaterialIcon()} size={20} color="#525252" />
+                    <View style={{ width: 40, height: 40, backgroundColor: colors.surfaceAlt, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      <Ionicons name={getMaterialIcon()} size={20} color={colors.iconMuted} />
                     </View>
-                    <View className="flex-1">
-                      <Text className="text-base font-medium text-neutral-900" numberOfLines={1}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 16, fontFamily: 'Nunito-Medium', color: colors.text }} numberOfLines={1}>
                         {mat.filename || mat.title || `Source ${index + 1}`}
                       </Text>
-                      <Text className="text-sm text-neutral-500 mt-0.5">
+                      <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 2, fontFamily: 'Nunito-Regular' }}>
                         {mat.type.charAt(0).toUpperCase() + mat.type.slice(1)}
                       </Text>
                     </View>
@@ -152,7 +164,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({ notebook }) => {
               })}
             </View>
           ) : (
-            <Text className="text-neutral-500">No sources available</Text>
+            <Text style={{ color: colors.textSecondary }}>No sources available</Text>
           )}
         </View>
       </View>

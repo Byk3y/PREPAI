@@ -162,12 +162,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 2,
-    fontFamily: 'SpaceGrotesk-SemiBold',
+    fontFamily: 'Nunito-SemiBold',
   },
   message: {
     fontSize: 14,
     color: '#9CA3AF',
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontFamily: 'Nunito-Regular',
   },
   actions: {
     flexDirection: 'row',
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#D1D5DB',
-    fontFamily: 'SpaceGrotesk-Medium',
+    fontFamily: 'Nunito-Medium',
   },
   listenButton: {
     flex: 1,
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
-    fontFamily: 'SpaceGrotesk-SemiBold',
+    fontFamily: 'Nunito-SemiBold',
   },
 });
 

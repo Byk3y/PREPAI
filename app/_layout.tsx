@@ -6,26 +6,54 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
+import { Nunito_400Regular, Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold } from '@expo-google-fonts/nunito';
 import { useEffect } from 'react';
-import { AppState, Image } from 'react-native';
+import { AppState, Image, useColorScheme, View } from 'react-native';
 import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
 import { useStore } from '@/lib/store';
+import { useColorScheme as useNativeWindColorScheme } from 'nativewind';
+import { ThemeProvider, useTheme, getThemeColors } from '@/lib/ThemeContext';
 import '../global.css';
 
 import { useStreakCheck } from '@/hooks/useStreakCheck';
 
-export default function RootLayout() {
+// Inner layout component that uses the theme context
+function RootLayoutInner() {
   const [fontsLoaded] = useFonts({
     'SpaceGrotesk-Regular': SpaceGrotesk_400Regular,
     'SpaceGrotesk-Medium': SpaceGrotesk_500Medium,
     'SpaceGrotesk-SemiBold': SpaceGrotesk_600SemiBold,
     'SpaceGrotesk-Bold': SpaceGrotesk_700Bold,
+    // Nunito for testing
+    'Nunito-Regular': Nunito_400Regular,
+    'Nunito-Medium': Nunito_500Medium,
+    'Nunito-SemiBold': Nunito_600SemiBold,
+    'Nunito-Bold': Nunito_700Bold,
   });
 
   const router = useRouter();
   const segments = useSegments();
   const { setAuthUser, setHasCreatedNotebook, setIsInitialized, loadNotebooks, loadPetState, hydratePetStateFromCache } = useStore();
+  
+  // Get theme from context
+  const { isDarkMode, effectiveColorScheme } = useTheme();
+  const colors = getThemeColors(isDarkMode);
+  
+  // Also sync with NativeWind (for components that still use dark: classes)
+  const { setColorScheme, colorScheme } = useNativeWindColorScheme();
+  
+  useEffect(() => {
+    console.log('Theme Debug:', { 
+      isDarkMode,
+      effectiveColorScheme,
+      currentNativeWindScheme: colorScheme 
+    });
+    
+    if (colorScheme !== effectiveColorScheme) {
+      setColorScheme(effectiveColorScheme);
+    }
+  }, [effectiveColorScheme, colorScheme, setColorScheme]);
   
   // Initialize streak check on app open
   useStreakCheck();
@@ -282,12 +310,15 @@ export default function RootLayout() {
   }
 
   return (
-    <>
-      <StatusBar style="dark" />
+    <View 
+      key={`theme-${effectiveColorScheme}`}
+      style={{ flex: 1, backgroundColor: colors.background }}
+    >
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#F9FAFB' },
+          contentStyle: { backgroundColor: colors.background },
         }}
       >
         <Stack.Screen name="index" />
@@ -321,7 +352,16 @@ export default function RootLayout() {
         style={{ width: 300, height: 300, opacity: 0, position: 'absolute', top: -9999, left: -9999 }}
         fadeDuration={0}
       />
-    </>
+    </View>
+  );
+}
+
+// Main export - wraps with ThemeProvider
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <RootLayoutInner />
+    </ThemeProvider>
   );
 }
 

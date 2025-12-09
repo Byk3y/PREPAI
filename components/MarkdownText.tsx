@@ -36,9 +36,11 @@ export const MarkdownText: React.FC<MarkdownTextProps> = ({ children, style, ...
 
       // Handle the match
       if (match[1].startsWith('**')) {
-        // Bold text: **text**
+        // Bold text: **text** - use Nunito-Bold if base font is Nunito
+        const baseFont = (style as any)?.fontFamily;
+        const boldFont = baseFont?.includes('Nunito') ? 'Nunito-Bold' : undefined;
         segments.push(
-          <Text key={key++} style={[style, { fontWeight: '700' }]}>
+          <Text key={key++} style={[style, { fontWeight: '700', fontFamily: boldFont }]}>
             {match[2]}
           </Text>
         );

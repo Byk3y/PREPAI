@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     "./app/**/*.{js,jsx,ts,tsx}",
     "./components/**/*.{js,jsx,ts,tsx}",
@@ -7,6 +8,13 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Nunito-Regular'],
+        'nunito': ['Nunito-Regular'],
+        'nunito-medium': ['Nunito-Medium'],
+        'nunito-semibold': ['Nunito-SemiBold'],
+        'nunito-bold': ['Nunito-Bold'],
+      },
       colors: {
         primary: {
           DEFAULT: '#FFCB3C',

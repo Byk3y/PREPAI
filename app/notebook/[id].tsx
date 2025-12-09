@@ -25,6 +25,7 @@ import { StudioTab } from '@/components/notebook/StudioTab';
 import { supabase } from '@/lib/supabase';
 import { getTopicEmoji } from '@/lib/emoji-matcher';
 import { getFilenameFromPath } from '@/lib/utils';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 type TabType = 'sources' | 'chat' | 'studio';
 
@@ -224,12 +225,16 @@ export default function NotebookDetailScreen() {
     };
   }, [id]); // Only re-subscribe when id changes
 
+  // Dark mode support
+  const { isDarkMode } = useTheme();
+  const colors = getThemeColors(isDarkMode);
+
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-white">
-        <View className="flex-1 items-center justify-center">
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color="#6366f1" />
-          <Text className="text-neutral-600 mt-4">Loading notebook...</Text>
+          <Text style={{ color: colors.textSecondary, marginTop: 16, fontFamily: 'Nunito-Regular' }}>Loading notebook...</Text>
         </View>
       </SafeAreaView>
     );
@@ -237,20 +242,20 @@ export default function NotebookDetailScreen() {
 
   if (!notebook) {
     return (
-      <SafeAreaView className="flex-1 bg-white">
-        <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-2xl">📚</Text>
-          <Text className="text-lg font-semibold text-neutral-900 mt-4">
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+          <Text style={{ fontSize: 24 }}>📚</Text>
+          <Text style={{ fontSize: 18, fontFamily: 'Nunito-SemiBold', color: colors.text, marginTop: 16 }}>
             Notebook not found
           </Text>
-          <Text className="text-neutral-600 mt-2 text-center">
+          <Text style={{ color: colors.textSecondary, marginTop: 8, textAlign: 'center', fontFamily: 'Nunito-Regular' }}>
             This notebook may have been deleted or doesn't exist.
           </Text>
           <TouchableOpacity
             onPress={() => router.back()}
-            className="mt-6 bg-primary-500 px-6 py-3 rounded-xl"
+            style={{ marginTop: 24, backgroundColor: '#FFB800', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
           >
-            <Text className="text-white font-semibold">Go Back</Text>
+            <Text style={{ color: '#FFFFFF', fontFamily: 'Nunito-SemiBold' }}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -378,32 +383,32 @@ export default function NotebookDetailScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 border-b border-neutral-200">
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
         <TouchableOpacity
           onPress={() => router.back()}
-          className="w-10 h-10 items-center justify-center"
+          style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Ionicons name="arrow-back" size={24} color="#171717" />
+          <Ionicons name="arrow-back" size={24} color={colors.icon} />
         </TouchableOpacity>
 
-        <View className="flex-1 mx-3">
-          <Text className="text-base font-medium text-neutral-900" numberOfLines={1}>
+        <View style={{ flex: 1, marginHorizontal: 12 }}>
+          <Text style={{ fontSize: 16, fontWeight: '500', color: colors.text }} numberOfLines={1}>
             {notebook.title}
           </Text>
         </View>
 
         <TouchableOpacity
           onPress={handleMenuPress}
-          className="w-10 h-10 items-center justify-center"
+          style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Ionicons name="ellipsis-vertical" size={24} color="#171717" />
+          <Ionicons name="ellipsis-vertical" size={24} color={colors.icon} />
         </TouchableOpacity>
       </View>
 
       {/* Tab Content */}
-      <View className="flex-1">
+      <View style={{ flex: 1 }}>
         {activeTab === 'sources' && <SourcesTab notebook={notebook} />}
         {activeTab === 'chat' && <ChatTab notebook={notebook} onTakeQuiz={handleTakeQuiz} />}
         {activeTab === 'studio' && (
@@ -415,19 +420,19 @@ export default function NotebookDetailScreen() {
       </View>
 
       {/* Tab Bar */}
-      <View className="border-t border-neutral-200 bg-white">
-        <View className="flex-row">
+      <View style={{ borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background }}>
+        <View style={{ flexDirection: 'row' }}>
           {/* Sources Tab */}
           <TouchableOpacity
             onPress={() => setActiveTab('sources')}
-            className="flex-1 items-center py-2.5"
+            style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}
           >
             <Ionicons
               name={activeTab === 'sources' ? 'library' : 'library-outline'}
               size={22}
-              color="#171717"
+              color={colors.icon}
             />
-            <Text className="text-sm mt-1 text-neutral-600">
+            <Text style={{ fontSize: 12, marginTop: 4, color: colors.textSecondary, fontFamily: 'Nunito-Regular' }}>
               Sources
             </Text>
           </TouchableOpacity>
@@ -435,14 +440,14 @@ export default function NotebookDetailScreen() {
           {/* Chat Tab */}
           <TouchableOpacity
             onPress={() => setActiveTab('chat')}
-            className="flex-1 items-center py-2.5"
+            style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}
           >
             <Ionicons
               name={activeTab === 'chat' ? 'chatbubbles' : 'chatbubbles-outline'}
               size={22}
-              color="#171717"
+              color={colors.icon}
             />
-            <Text className="text-sm mt-1 text-neutral-600">
+            <Text style={{ fontSize: 12, marginTop: 4, color: colors.textSecondary, fontFamily: 'Nunito-Regular' }}>
               Chat
             </Text>
           </TouchableOpacity>
@@ -450,14 +455,14 @@ export default function NotebookDetailScreen() {
           {/* Studio Tab */}
           <TouchableOpacity
             onPress={() => setActiveTab('studio')}
-            className="flex-1 items-center py-2.5"
+            style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}
           >
             <Ionicons
               name={activeTab === 'studio' ? 'color-palette' : 'color-palette-outline'}
               size={22}
-              color="#171717"
+              color={colors.icon}
             />
-            <Text className="text-sm mt-1 text-neutral-600">
+            <Text style={{ fontSize: 12, marginTop: 4, color: colors.textSecondary, fontFamily: 'Nunito-Regular' }}>
               Studio
             </Text>
           </TouchableOpacity>
@@ -473,41 +478,53 @@ export default function NotebookDetailScreen() {
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          className="flex-1"
+          style={{ flex: 1 }}
         >
           <TouchableOpacity
             activeOpacity={1}
             onPress={() => setRenameModalVisible(false)}
-            className="flex-1 bg-black/50 justify-center items-center px-6"
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}
           >
-            <TouchableOpacity activeOpacity={1} className="w-full max-w-md">
-              <View className="bg-white rounded-2xl p-6">
-                <Text className="text-xl font-bold text-neutral-900 mb-4">
+            <TouchableOpacity activeOpacity={1} style={{ width: '100%', maxWidth: 400 }}>
+              <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 24 }}>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text, marginBottom: 16 }}>
                   Rename Notebook
                 </Text>
                 <TextInput
                   value={renameValue}
                   onChangeText={setRenameValue}
                   placeholder="Enter notebook name"
-                  className="bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-3 text-base text-neutral-900 mb-4"
+                  placeholderTextColor={colors.textMuted}
+                  style={{ 
+                    backgroundColor: colors.surfaceAlt, 
+                    borderWidth: 1, 
+                    borderColor: colors.border, 
+                    borderRadius: 12, 
+                    paddingHorizontal: 16, 
+                    paddingVertical: 12, 
+                    fontSize: 16, 
+                    color: colors.text, 
+                    marginBottom: 16,
+                    fontFamily: 'Nunito-Regular'
+                  }}
                   autoFocus
                   maxLength={100}
                 />
-                <View className="flex-row gap-3">
+                <View style={{ flexDirection: 'row', gap: 12 }}>
                   <TouchableOpacity
                     onPress={() => setRenameModalVisible(false)}
-                    className="flex-1 bg-neutral-100 rounded-xl py-3 items-center"
+                    style={{ flex: 1, backgroundColor: colors.surfaceAlt, borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
                   >
-                    <Text className="text-base font-semibold text-neutral-700">
+                    <Text style={{ fontSize: 16, fontFamily: 'Nunito-SemiBold', color: colors.textSecondary }}>
                       Cancel
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={handleSaveRename}
-                    className="flex-1 bg-neutral-900 rounded-xl py-3 items-center"
+                    style={{ flex: 1, backgroundColor: isDarkMode ? '#F9FAFB' : '#111827', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
                     disabled={!renameValue.trim()}
                   >
-                    <Text className="text-base font-semibold text-white">
+                    <Text style={{ fontSize: 16, fontFamily: 'Nunito-SemiBold', color: isDarkMode ? '#111827' : '#FFFFFF' }}>
                       Save
                     </Text>
                   </TouchableOpacity>

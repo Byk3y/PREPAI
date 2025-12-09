@@ -18,6 +18,7 @@ import type { Notebook } from '@/lib/store';
 import { MarkdownText } from '@/components/MarkdownText';
 import { PreviewSkeleton } from './PreviewSkeleton';
 import { getTopicEmoji } from '@/lib/emoji-matcher';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 interface ChatTabProps {
   notebook: Notebook;
@@ -28,6 +29,10 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
   const [showStudyPlan, setShowStudyPlan] = useState(false);
   const materialCount = notebook.materials?.length || 0;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  
+  // Theme
+  const { isDarkMode } = useTheme();
+  const colors = getThemeColors(isDarkMode);
 
   // Gentle pulse animation for emoji (breathing effect)
   useEffect(() => {
@@ -88,25 +93,18 @@ Remember to take breaks and space out your study sessions for better retention!`
   // Render loading state with skeleton
   if (notebook.status === 'extracting') {
     return (
-      <ScrollView className="flex-1 bg-white">
-        <View className="px-6 py-6">
+      <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ paddingHorizontal: 24, paddingVertical: 24 }}>
           {/* Material Icon & Title */}
-          <View className="flex-row items-start mb-6">
-            <Animated.View
-              style={{
-                transform: [{ scale: pulseAnim }],
-              }}
-            >
-              <Text className="text-5xl mr-3">{getTopicEmoji(notebook.title)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 }}>
+            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+              <Text style={{ fontSize: 48, marginRight: 12 }}>{getTopicEmoji(notebook.title)}</Text>
             </Animated.View>
-            <View className="flex-1">
-              <Text
-                className="text-2xl text-neutral-900 mb-1"
-                style={{ fontFamily: 'SpaceGrotesk-Bold' }}
-              >
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 24, color: colors.text, marginBottom: 4, fontFamily: 'Nunito-Bold' }}>
                 {notebook.title}
               </Text>
-              <Text className="text-sm text-neutral-500">
+              <Text style={{ fontSize: 14, color: colors.textSecondary, fontFamily: 'Nunito-Regular' }}>
                 {materialCount} source{materialCount !== 1 ? 's' : ''}
               </Text>
             </View>
@@ -121,28 +119,21 @@ Remember to take breaks and space out your study sessions for better retention!`
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-white"
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={100}
     >
-      <ScrollView className="flex-1 px-6 py-6" contentContainerStyle={{ flexGrow: 1 }}>
+      <ScrollView style={{ flex: 1, paddingHorizontal: 24, paddingVertical: 24 }} contentContainerStyle={{ flexGrow: 1 }}>
         {/* Material Icon & Title */}
-        <View className="flex-row items-start mb-6">
-          <Animated.View
-            style={{
-              transform: [{ scale: pulseAnim }],
-            }}
-          >
-            <Text className="text-5xl mr-3">{getTopicEmoji(notebook.title)}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 }}>
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <Text style={{ fontSize: 48, marginRight: 12 }}>{getTopicEmoji(notebook.title)}</Text>
           </Animated.View>
-          <View className="flex-1">
-            <Text
-              className="text-2xl text-neutral-900 mb-1"
-              style={{ fontFamily: 'SpaceGrotesk-Bold' }}
-            >
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 24, color: colors.text, marginBottom: 4, fontFamily: 'Nunito-Bold' }}>
               {notebook.title}
             </Text>
-            <Text className="text-sm text-neutral-500">
+            <Text style={{ fontSize: 14, color: colors.textSecondary, fontFamily: 'Nunito-Regular' }}>
               {materialCount} source{materialCount !== 1 ? 's' : ''}
             </Text>
           </View>
@@ -150,9 +141,9 @@ Remember to take breaks and space out your study sessions for better retention!`
 
         {/* Overview Content (if available) - NotebookLM style narrative */}
         {(notebook.meta?.preview?.overview || notebook.meta?.preview?.tl_dr) && (
-          <View className="mb-6">
-            <Text className="text-lg font-semibold text-neutral-900 mb-3">Overview</Text>
-            <MarkdownText style={{ fontSize: 16, color: '#404040', lineHeight: 24 }}>
+          <View style={{ marginBottom: 24 }}>
+            <Text style={{ fontSize: 18, color: colors.text, marginBottom: 12, fontFamily: 'Nunito-SemiBold' }}>Overview</Text>
+            <MarkdownText style={{ fontSize: 16, color: colors.textSecondary, lineHeight: 24, fontFamily: 'Nunito-Regular' }}>
               {notebook.meta.preview.overview || notebook.meta.preview.tl_dr || ''}
             </MarkdownText>
           </View>
@@ -162,14 +153,14 @@ Remember to take breaks and space out your study sessions for better retention!`
         {!showStudyPlan ? (
           // Empty state with icon (only show if no overview)
           !(notebook.meta?.preview?.overview || notebook.meta?.preview?.tl_dr) && (
-            <View className="flex-1 items-center justify-center">
-              <View className="w-20 h-20 bg-neutral-100 rounded-full items-center justify-center mb-4">
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 80, height: 80, backgroundColor: colors.surfaceAlt, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
                 <Ionicons name="chatbubble-outline" size={32} color="#6366f1" />
               </View>
-              <Text className="text-lg font-semibold text-neutral-900 mb-2">
+              <Text style={{ fontSize: 18, color: colors.text, marginBottom: 8, fontFamily: 'Nunito-SemiBold' }}>
                 Ask questions about your material
               </Text>
-              <Text className="text-sm text-neutral-600 text-center max-w-xs">
+              <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', maxWidth: 280, fontFamily: 'Nunito-Regular' }}>
                 Chat with your {materialCount} source{materialCount !== 1 ? 's' : ''} to get
                 answers and insights.
               </Text>
@@ -177,28 +168,28 @@ Remember to take breaks and space out your study sessions for better retention!`
           )
         ) : (
           // Study plan conversation
-          <View className="flex-1">
+          <View style={{ flex: 1 }}>
             {/* User message */}
-            <View className="flex-row justify-end mb-4">
-              <View className="bg-primary-500 rounded-2xl rounded-tr-sm px-4 py-3 max-w-[80%]">
-                <Text className="text-white text-base">
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 16 }}>
+              <View style={{ backgroundColor: '#FFB800', borderRadius: 16, borderTopRightRadius: 4, paddingHorizontal: 16, paddingVertical: 12, maxWidth: '80%' }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Nunito-Medium' }}>
                   Get study plan
                 </Text>
               </View>
             </View>
 
             {/* AI response */}
-            <View className="flex-row justify-start mb-4">
-              <View className="bg-neutral-100 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
-                <Text className="text-neutral-900 text-base leading-6">
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-start', marginBottom: 16 }}>
+              <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: 16, borderTopLeftRadius: 4, paddingHorizontal: 16, paddingVertical: 12, maxWidth: '85%' }}>
+                <Text style={{ color: colors.text, fontSize: 16, lineHeight: 24, fontFamily: 'Nunito-Regular' }}>
                   {generateStudyPlan()}
                 </Text>
               </View>
             </View>
 
             {/* Info note */}
-            <View className="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-2">
-              <Text className="text-xs text-amber-800">
+            <View style={{ backgroundColor: isDarkMode ? 'rgba(120, 53, 15, 0.3)' : '#fffbeb', borderWidth: 1, borderColor: isDarkMode ? '#92400e' : '#fde68a', borderRadius: 12, padding: 12, marginTop: 8 }}>
+              <Text style={{ fontSize: 12, color: isDarkMode ? '#fcd34d' : '#92400e', fontFamily: 'Nunito-Regular' }}>
                 💡 This is a suggested study plan. Full chat functionality coming soon!
               </Text>
             </View>
@@ -206,17 +197,17 @@ Remember to take breaks and space out your study sessions for better retention!`
         )}
         {/* Suggested Chat Pills - moved inside ScrollView to sit below content */}
         {!showStudyPlan && (
-          <View className="pt-6 pb-2">
-            <Text className="text-xs text-neutral-500 mb-2">Suggested</Text>
-            <View className="flex-row flex-wrap gap-2">
+          <View style={{ paddingTop: 24, paddingBottom: 8 }}>
+            <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 8, fontFamily: 'Nunito-Regular' }}>Suggested</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {/* Get Study Plan Pill */}
               <TouchableOpacity
                 onPress={handleGetStudyPlan}
-                className="bg-neutral-100 rounded-full px-4 py-2.5 flex-row items-center"
+                style={{ backgroundColor: colors.surfaceAlt, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center' }}
                 activeOpacity={0.7}
               >
-                <Ionicons name="bulb-outline" size={16} color="#525252" className="mr-1.5" />
-                <Text className="text-sm text-neutral-700 font-medium ml-1.5">
+                <Ionicons name="bulb-outline" size={16} color={colors.iconMuted} />
+                <Text style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 6, fontFamily: 'Nunito-Medium' }}>
                   Get study plan
                 </Text>
               </TouchableOpacity>
@@ -224,11 +215,11 @@ Remember to take breaks and space out your study sessions for better retention!`
               {/* Take Quiz Pill */}
               <TouchableOpacity
                 onPress={handleTakeQuiz}
-                className="bg-neutral-100 rounded-full px-4 py-2.5 flex-row items-center"
+                style={{ backgroundColor: colors.surfaceAlt, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center' }}
                 activeOpacity={0.7}
               >
-                <Ionicons name="help-circle-outline" size={16} color="#525252" className="mr-1.5" />
-                <Text className="text-sm text-neutral-700 font-medium ml-1.5">
+                <Ionicons name="help-circle-outline" size={16} color={colors.iconMuted} />
+                <Text style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 6, fontFamily: 'Nunito-Medium' }}>
                   Take quiz
                 </Text>
               </TouchableOpacity>

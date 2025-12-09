@@ -1,19 +1,56 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActionSheetIOS, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useStore } from '@/lib/store';
+import type { ThemeMode } from '@/lib/store/slices/themeSlice';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 export const HomeHeader: React.FC = () => {
     const router = useRouter();
-    const { authUser } = useStore();
+    const { authUser, themeMode, setThemeMode } = useStore();
+    const { isDarkMode } = useTheme();
+    const colors = getThemeColors(isDarkMode);
+
+    const handleThemeChange = () => {
+        const options = ['System', 'Light', 'Dark', 'Cancel'];
+        const themeValues: ThemeMode[] = ['system', 'light', 'dark'];
+        
+        if (Platform.OS === 'ios') {
+            ActionSheetIOS.showActionSheetWithOptions(
+                {
+                    options,
+                    cancelButtonIndex: 3,
+                    title: 'Appearance',
+                    message: `Current: ${themeMode.charAt(0).toUpperCase() + themeMode.slice(1)}`,
+                },
+                (buttonIndex) => {
+                    if (buttonIndex < 3) {
+                        setThemeMode(themeValues[buttonIndex]);
+                    }
+                }
+            );
+        } else {
+            // Android fallback using Alert
+            Alert.alert(
+                'Appearance',
+                `Current: ${themeMode.charAt(0).toUpperCase() + themeMode.slice(1)}`,
+                [
+                    { text: 'System', onPress: () => setThemeMode('system') },
+                    { text: 'Light', onPress: () => setThemeMode('light') },
+                    { text: 'Dark', onPress: () => setThemeMode('dark') },
+                    { text: 'Cancel', style: 'cancel' },
+                ]
+            );
+        }
+    };
 
     const handleProfilePress = () => {
         const buttons = authUser
             ? [
                 {
-                    text: 'Cancel' as const,
-                    style: 'cancel' as const,
+                    text: 'Appearance' as const,
+                    onPress: handleThemeChange,
                 },
                 {
                     text: 'Sign Out' as const,
@@ -22,6 +59,10 @@ export const HomeHeader: React.FC = () => {
                         await supabase.auth.signOut();
                         router.replace('/auth');
                     },
+                },
+                {
+                    text: 'Cancel' as const,
+                    style: 'cancel' as const,
                 },
             ]
             : [
@@ -39,18 +80,31 @@ export const HomeHeader: React.FC = () => {
     };
 
     return (
-        <View className="flex-row items-center justify-between px-6 py-4 bg-white">
+        <View style={{ 
+            flexDirection: 'row', 
+            alignItems: 'center', 
+            justifyContent: 'space-between', 
+            paddingHorizontal: 24, 
+            paddingVertical: 16, 
+            backgroundColor: colors.background 
+        }}>
             <Text
-                style={{ fontFamily: 'SpaceGrotesk-Bold' }}
-                className="text-2xl text-neutral-900"
+                style={{ fontFamily: 'Nunito-Bold', fontSize: 24, color: colors.text }}
             >
                 PrepAI
             </Text>
             <TouchableOpacity
-                className="w-10 h-10 rounded-full bg-primary-500 items-center justify-center"
+                style={{ 
+                    width: 40, 
+                    height: 40, 
+                    borderRadius: 20, 
+                    backgroundColor: '#FFB800', 
+                    alignItems: 'center', 
+                    justifyContent: 'center' 
+                }}
                 onPress={handleProfilePress}
             >
-                <Text className="text-xl">👤</Text>
+                <Text style={{ fontSize: 20 }}>👤</Text>
             </TouchableOpacity>
         </View>
     );

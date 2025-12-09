@@ -42,15 +42,15 @@ export default function AuthScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-50">
+    <SafeAreaView className="flex-1 bg-neutral-50 dark:bg-neutral-900">
       <View className="flex-1 items-center justify-center px-6">
         <Text
-          style={{ fontFamily: 'SpaceGrotesk-Bold' }}
-          className="text-4xl text-neutral-900 mb-2"
+          style={{ fontFamily: 'Nunito-Bold' }}
+          className="text-4xl text-neutral-900 dark:text-neutral-50 mb-2"
         >
           PrepAI
         </Text>
-        <Text className="text-lg text-neutral-600 mb-12 text-center">
+        <Text className="text-lg text-neutral-600 dark:text-neutral-400 mb-12 text-center">
           Sign in to continue your learning journey
         </Text>
 
@@ -68,20 +68,20 @@ export default function AuthScreen() {
         {/* Social Login Buttons */}
         <TouchableOpacity
           onPress={() => handleSocialLogin('google')}
-          className="w-full bg-white border-2 border-neutral-200 rounded-2xl py-4 mb-4 items-center"
+          className="w-full bg-white dark:bg-neutral-800 border-2 border-neutral-200 dark:border-neutral-700 rounded-2xl py-4 mb-4 items-center"
           activeOpacity={0.8}
         >
-          <Text className="text-neutral-900 text-lg font-semibold">
+          <Text className="text-neutral-900 dark:text-neutral-50 text-lg font-semibold">
             Continue with Google
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => handleSocialLogin('apple')}
-          className="w-full bg-black rounded-2xl py-4 items-center"
+          className="w-full bg-black dark:bg-white rounded-2xl py-4 items-center"
           activeOpacity={0.8}
         >
-          <Text className="text-white text-lg font-semibold">
+          <Text className="text-white dark:text-black text-lg font-semibold">
             Continue with Apple
           </Text>
         </TouchableOpacity>
