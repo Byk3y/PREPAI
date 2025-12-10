@@ -5,10 +5,16 @@
  */
 
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, PanResponder, Dimensions, Animated, Image } from 'react-native';
+import { View, Text, PanResponder, Dimensions, Animated, Image, ImageSourcePropType } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '@/lib/store';
+
+// Pet bubble images by stage - require() needs static strings
+const PET_BUBBLE_IMAGES: Record<number, ImageSourcePropType> = {
+  1: require('@/assets/pets/stage-1/bubble.png'),
+  2: require('@/assets/pets/stage-2/bubble.png'),
+};
 
 const PET_SIZE = 100;
 const EDGE_PADDING = 0; // Reduced for closer edge snapping
@@ -21,8 +27,13 @@ export const PetBubble: React.FC = () => {
   const {
     authUser,
     petStateReady,
+    petState,
   } = useStore();
   const [screenDimensions, setScreenDimensions] = useState(Dimensions.get('window'));
+  
+  // Get the correct bubble image for current stage (clamp to available stages 1-2)
+  const currentStage = Math.min(Math.max(petState.stage, 1), 2);
+  const bubbleImage = PET_BUBBLE_IMAGES[currentStage] || PET_BUBBLE_IMAGES[1];
 
   // Calculate usable screen area (excluding safe areas)
   // Use the maximum of left/right insets to ensure symmetric padding
@@ -510,9 +521,9 @@ export const PetBubble: React.FC = () => {
         }}
         className="items-center justify-center"
       >
-        {/* Living Pet Bubble */}
+        {/* Living Pet Bubble - changes based on stage */}
         <Image
-          source={require('@/assets/pets/stage-1/bubble.png')}
+          source={bubbleImage}
           style={{ width: 100, height: 100 }}
           resizeMode="contain"
         />

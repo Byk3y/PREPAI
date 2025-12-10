@@ -167,15 +167,21 @@ function RootLayoutInner() {
     };
   }, []);
 
-  // Preload assets
+  // Preload pet assets for all stages
   useEffect(() => {
     const preloadAssets = async () => {
       try {
-        const stage1 = require('@/assets/pets/stage-1/full-view.png');
-        const stage2 = require('@/assets/pets/stage-2/silhouette.png');
-        const uri1 = Image.resolveAssetSource(stage1).uri;
-        const uri2 = Image.resolveAssetSource(stage2).uri;
-        await Promise.all([Image.prefetch(uri1), Image.prefetch(uri2)]);
+        // All pet images to preload
+        const petImages = [
+          require('@/assets/pets/stage-1/bubble.png'),
+          require('@/assets/pets/stage-1/full-view.png'),
+          require('@/assets/pets/stage-2/bubble.png'),
+          require('@/assets/pets/stage-2/full-view.png'),
+        ];
+        
+        const uris = petImages.map(img => Image.resolveAssetSource(img).uri);
+        await Promise.all(uris.map(uri => Image.prefetch(uri)));
+        console.log('Pet images preloaded successfully');
       } catch (error) {
         console.error('Failed to preload pet images:', error);
       }

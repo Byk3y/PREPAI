@@ -97,7 +97,7 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
         });
 
         if (error) {
-          console.error('[QuizViewer] Error recording quiz completion:', error);
+          console.error('[QuizViewer] Error recording completion:', error.message);
           return;
         }
 
@@ -116,7 +116,7 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
           await checkAndAwardTask('complete_quiz');
         }
       } catch (err) {
-        console.error('[QuizViewer] Failed to record completion:', err);
+        // Silent fail - don't block user experience for task tracking
       }
     }
   };

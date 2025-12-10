@@ -3,10 +3,16 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ImageSourcePropType } from 'react-native';
 import { MotiViewCompat as MotiView } from '@/components/MotiViewCompat';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+
+// Pet full-view images by stage - require() needs static strings
+const PET_FULL_VIEW_IMAGES: Record<number, ImageSourcePropType> = {
+    1: require('@/assets/pets/stage-1/full-view.png'),
+    2: require('@/assets/pets/stage-2/full-view.png'),
+};
 
 interface PetDisplayProps {
     streak: number;
@@ -38,7 +44,7 @@ export function PetDisplay({ streak, stage, onNextStage, onPrevStage }: PetDispl
             <View style={styles.petCharacterContainer}>
                 <MotiView
                     from={{ scale: 1 }}
-                    animate={{ scale: stage === 1 ? [1, 1.05, 1] : 1 }}
+                    animate={{ scale: [1, 1.05, 1] }}
                     transition={{
                         type: 'timing',
                         duration: 2000,
@@ -48,26 +54,12 @@ export function PetDisplay({ streak, stage, onNextStage, onPrevStage }: PetDispl
                     }}
                     style={styles.petEmojiContainer}
                 >
-                    {/* Stage 1 Pet */}
+                    {/* Pet full view - dynamically changes based on stage */}
                     <Image
-                        source={require('@/assets/pets/stage-1/full-view.png')}
+                        source={PET_FULL_VIEW_IMAGES[stage]}
                         style={[
                             styles.petImage,
-                            { opacity: stage === 1 ? 1 : 0 },
-                            { position: 'absolute' } // Ensure exact overlay
-                        ]}
-                        resizeMode="contain"
-                        fadeDuration={0}
-                    />
-
-                    {/* Stage 2 Silhouette (Always rendered, just hidden) */}
-                    <Image
-                        source={require('@/assets/pets/stage-2/silhouette.png')}
-                        style={[
-                            styles.petImage,
-                            { opacity: stage === 2 ? 1 : 0 },
-                            { position: 'absolute' }, // Ensure exact overlay
-                            { transform: [{ scale: 1.2 }] } // Scale visually
+                            stage === 2 && { transform: [{ scale: 1.2 }] } // Stage 2 is slightly larger
                         ]}
                         resizeMode="contain"
                         fadeDuration={0}
