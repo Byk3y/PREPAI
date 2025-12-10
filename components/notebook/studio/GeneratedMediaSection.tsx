@@ -6,6 +6,7 @@ import React, { useMemo } from 'react';
 import { View, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import { useFeedback } from '@/lib/feedback';
 import { TikTokLoader } from '@/components/TikTokLoader';
 import { StudioMediaItem } from './StudioMediaItem';
 import { StudioEmptyState } from './StudioEmptyState';
@@ -46,6 +47,7 @@ export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
   const router = useRouter();
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
+  const { play } = useFeedback();
 
   // Combine and sort all media items chronologically (oldest first, newest at bottom)
   const sortedMediaItems = useMemo(() => {
@@ -97,7 +99,10 @@ export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
           iconColor="#dc2626"
           title={`${notebookTitle} Flashcards`}
           subtitle={`${item.data.count} cards • 1 source • ${getTimeAgo(item.createdAt)}`}
-          onPress={() => router.push(`/flashcards/${notebookId}`)}
+          onPress={() => {
+            play('start');
+            router.push(`/flashcards/${notebookId}`);
+          }}
         />
       );
     }
@@ -110,7 +115,10 @@ export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
           iconColor="#0891b2"
           title={item.data.title}
           subtitle={`${item.data.total_questions} questions • 1 source • ${getTimeAgo(item.createdAt)}`}
-          onPress={() => router.push(`/quiz/${item.data.id}`)}
+          onPress={() => {
+            play('start');
+            router.push(`/quiz/${item.data.id}`);
+          }}
         />
       );
     }

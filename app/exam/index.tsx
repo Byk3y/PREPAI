@@ -13,10 +13,12 @@ import {
 import { useRouter } from 'expo-router';
 import { MotiViewCompat as MotiView } from '@/components/MotiViewCompat';
 import { useStore } from '@/lib/store';
+import { useFeedback } from '@/lib/feedback';
 
 export default function ExamHubScreen() {
   const router = useRouter();
   const { exams, startExamPlan } = useStore();
+  const { play } = useFeedback();
 
   const handleStartPlan = (examId: string) => {
     const plan = startExamPlan(examId);
@@ -111,7 +113,10 @@ export default function ExamHubScreen() {
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => router.push(`/quiz/${exam.id}`)}
+                    onPress={() => {
+                      play('start');
+                      router.push(`/quiz/${exam.id}`);
+                    }}
                     className="flex-1 bg-secondary-500 py-3 rounded-lg items-center"
                     activeOpacity={0.8}
                   >

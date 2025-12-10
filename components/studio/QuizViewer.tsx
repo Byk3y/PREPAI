@@ -13,6 +13,7 @@ import type { Quiz, QuizQuestion } from '@/lib/store/types';
 import { useStore } from '@/lib/store';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
+import { useFeedback } from '@/lib/feedback';
 
 interface QuizViewerProps {
   quiz: Quiz;
@@ -35,10 +36,23 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
   
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
+  const { play, haptic, preload } = useFeedback();
+
+  // Preload key sounds used in quiz so they are ready on first play
+  useEffect(() => {
+    preload(['correct', 'incorrect', 'complete', 'hint']);
+  }, [preload]);
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
   const totalQuestions = quiz.questions.length;
   const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
+
+  // Derived state - must be defined before useEffect that depends on them
+  const selectedAnswer = answers[currentQuestion.id];
+  const isSubmitted = submittedAnswers[currentQuestion.id];
+  const isCorrect = selectedAnswer === currentQuestion.correct;
+  const hintAvailable = currentQuestion.hint && currentQuestion.hint.trim().length > 0;
+  const hintRevealed = revealedHints[currentQuestion.id];
 
   // Handle answer selection - auto-submit on selection
   const handleSelectAnswer = (option: 'A' | 'B' | 'C' | 'D') => {
@@ -56,11 +70,28 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
     });
   };
 
+  // Feedback when an answer state changes to submitted
+  useEffect(() => {
+    if (!isSubmitted || !selectedAnswer) return;
+
+    if (isCorrect) {
+      play('correct');
+      haptic('success');
+    } else {
+      play('incorrect');
+      haptic('error');
+    }
+  }, [isSubmitted, selectedAnswer, isCorrect, currentQuestion.correct, play, haptic]);
+
   // Navigate to next question
   const handleNext = () => {
     if (currentQuestionIndex < totalQuestions - 1) {
+      play('tap');
+      haptic('selection');
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
+      play('complete');
+      haptic('success');
       // Show results
       calculateResults();
     }
@@ -128,12 +159,6 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
     }
   };
 
-  const selectedAnswer = answers[currentQuestion.id];
-  const isSubmitted = submittedAnswers[currentQuestion.id];
-  const isCorrect = selectedAnswer === currentQuestion.correct;
-  const hintAvailable = currentQuestion.hint && currentQuestion.hint.trim().length > 0;
-  const hintRevealed = revealedHints[currentQuestion.id];
-
   // Result metrics (computed every render)
   const correctCount = quiz.questions.filter((q) => answers[q.id] === q.correct).length;
   const totalAnswered = Object.keys(answers).length;
@@ -143,6 +168,8 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
 
   const handleRevealHint = () => {
     if (!hintAvailable) return;
+    play('hint');
+    haptic('light');
     setRevealedHints((prev) => ({ ...prev, [currentQuestion.id]: true }));
   };
 

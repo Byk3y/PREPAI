@@ -26,6 +26,7 @@ import { supabase } from '@/lib/supabase';
 import { getTopicEmoji } from '@/lib/emoji-matcher';
 import { getFilenameFromPath } from '@/lib/utils';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import { useFeedback } from '@/lib/feedback';
 
 type TabType = 'sources' | 'chat' | 'studio';
 
@@ -33,6 +34,7 @@ export default function NotebookDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { notebooks, loadNotebooks, setNotebooks, deleteNotebook, updateNotebook } = useStore();
+  const { play } = useFeedback();
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const [notebook, setNotebook] = useState<Notebook | null>(null);
   const [loading, setLoading] = useState(true);
@@ -411,7 +413,10 @@ export default function NotebookDetailScreen() {
         <View style={{ flexDirection: 'row' }}>
           {/* Sources Tab */}
           <TouchableOpacity
-            onPress={() => setActiveTab('sources')}
+            onPress={() => {
+              play('tap');
+              setActiveTab('sources');
+            }}
             style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}
           >
             <Ionicons
@@ -426,7 +431,10 @@ export default function NotebookDetailScreen() {
 
           {/* Chat Tab */}
           <TouchableOpacity
-            onPress={() => setActiveTab('chat')}
+            onPress={() => {
+              play('tap');
+              setActiveTab('chat');
+            }}
             style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}
           >
             <Ionicons
@@ -441,7 +449,10 @@ export default function NotebookDetailScreen() {
 
           {/* Studio Tab */}
           <TouchableOpacity
-            onPress={() => setActiveTab('studio')}
+            onPress={() => {
+              play('tap');
+              setActiveTab('studio');
+            }}
             style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}
           >
             <Ionicons

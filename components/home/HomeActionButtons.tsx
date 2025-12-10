@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/ThemeContext';
+import { useFeedback } from '@/lib/feedback';
 
 interface HomeActionButtonsProps {
     onCameraPress: () => void;
@@ -14,6 +15,7 @@ export const HomeActionButtons: React.FC<HomeActionButtonsProps> = ({
     onAddPress
 }) => {
     const { isDarkMode } = useTheme();
+    const { play } = useFeedback();
 
     // In light mode, use solid styling with shadow for visibility
     // In dark mode, use liquid glass effect
@@ -35,7 +37,10 @@ export const HomeActionButtons: React.FC<HomeActionButtonsProps> = ({
         >
             {/* Camera Button */}
             <TouchableOpacity
-                onPress={onCameraPress}
+                onPress={() => {
+                    play('tap');
+                    onCameraPress();
+                }}
                 activeOpacity={0.8}
                 style={{
                     width: 56,
@@ -92,7 +97,10 @@ export const HomeActionButtons: React.FC<HomeActionButtonsProps> = ({
 
             {/* Add Materials Button */}
             <TouchableOpacity
-                onPress={onAddPress}
+                onPress={() => {
+                    play('tap');
+                    onAddPress();
+                }}
                 activeOpacity={0.8}
                 style={{
                     borderRadius: 999,

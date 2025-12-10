@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase';
 import { useStore } from '@/lib/store';
 import { TikTokLoader } from '@/components/TikTokLoader';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import { useFeedback } from '@/lib/feedback';
 
 interface NotebookCardProps {
     notebook: Notebook;
@@ -27,6 +28,7 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
     const { notebooks, setNotebooks } = useStore();
     const { isDarkMode } = useTheme();
     const colors = getThemeColors(isDarkMode);
+    const { play } = useFeedback();
 
     // Generate consistent color based on notebook ID
     // NotebookLM-style muted, sophisticated colors - brighter to stand out
@@ -151,7 +153,10 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
             transition={{ type: 'timing', duration: 300 }}
         >
             <TouchableOpacity
-                onPress={onPress}
+                onPress={() => {
+                    play('start');
+                    onPress();
+                }}
                 activeOpacity={0.7}
                 style={{
                     backgroundColor: getNotebookColor(),

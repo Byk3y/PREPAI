@@ -9,6 +9,7 @@ import { View, Text, PanResponder, Dimensions, Animated, Image, ImageSourcePropT
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '@/lib/store';
+import { useFeedback } from '@/lib/feedback';
 
 // Pet bubble images by stage - require() needs static strings
 const PET_BUBBLE_IMAGES: Record<number, ImageSourcePropType> = {
@@ -29,6 +30,7 @@ export const PetBubble: React.FC = () => {
     petStateReady,
     petState,
   } = useStore();
+  const { play } = useFeedback();
   const [screenDimensions, setScreenDimensions] = useState(Dimensions.get('window'));
   
   // Get the correct bubble image for current stage (clamp to available stages 1-2)
@@ -237,6 +239,7 @@ export const PetBubble: React.FC = () => {
         if (isTap) {
           const openPetSheet = () => {
             if (!authUser) return;
+            play('tap');
             router.push('/pet-sheet');
           };
 
