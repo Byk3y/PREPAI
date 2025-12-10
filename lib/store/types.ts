@@ -103,6 +103,7 @@ export interface QuizQuestion {
   options: { A: string; B: string; C: string; D: string };
   correct: 'A' | 'B' | 'C' | 'D';
   hint?: string | null;
+  explanations?: { A: string; B: string; C: string; D: string } | null;
   selected?: 'A' | 'B' | 'C' | 'D';
 }
 

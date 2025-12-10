@@ -62,6 +62,7 @@ export default function QuizScreen() {
             options: q.options,
             correct: q.correct_answer,
             hint: q.hint ?? null,
+            explanations: q.explanations ?? null,
           })),
       };
 

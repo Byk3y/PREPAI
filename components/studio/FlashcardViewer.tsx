@@ -119,15 +119,14 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
   // Or when navigating away?
   // Let's do it when revealing answer (flipping).
   const flipCard = () => {
-    play('reveal');
-    haptic('selection');
-    flipRotation.value = withTiming(isFlipped ? 0 : 180, { duration: 400 });
-
-    if (!isFlipped) {
-      // We are revealing the answer -> Mark as completed
+    const goingToAnswer = !isFlipped;
+    if (goingToAnswer) {
+      play('reveal');
+      haptic('selection');
       recordCompletion(flashcards[currentIndex].id);
     }
 
+    flipRotation.value = withTiming(isFlipped ? 0 : 180, { duration: 400 });
     setIsFlipped(!isFlipped);
     persistProgress(currentIndex);
   };
@@ -213,7 +212,8 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
   useEffect(() => undefined, []);
 
   // Dynamic card color based on theme
-  const cardBgColor = isDarkMode ? '#3f3f46' : '#3f3f46'; // Keep dark cards in both modes for flashcards
+  const questionBgColor = isDarkMode ? '#3f3f46' : '#3f3f46'; // Dark slate
+  const answerBgColor = isDarkMode ? '#1f2937' : '#2d2f36'; // Slightly different tone for answers
   const stackedCard2Opacity = isDarkMode ? 0.5 : 0.7;
   const stackedCard3Opacity = isDarkMode ? 0.3 : 0.5;
 
@@ -235,8 +235,8 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
       {/* Card Container */}
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
         {/* Stacked cards effect - background cards */}
-        <View style={[styles.card, styles.stackedCard3, { backgroundColor: cardBgColor, opacity: stackedCard3Opacity }]} />
-        <View style={[styles.card, styles.stackedCard2, { backgroundColor: cardBgColor, opacity: stackedCard2Opacity }]} />
+        <View style={[styles.card, styles.stackedCard3, { backgroundColor: questionBgColor, opacity: stackedCard3Opacity }]} />
+        <View style={[styles.card, styles.stackedCard2, { backgroundColor: questionBgColor, opacity: stackedCard2Opacity }]} />
 
         <GestureDetector gesture={combinedGesture}>
           <TouchableOpacity
@@ -247,10 +247,16 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
             <Animated.View
               style={[
                 styles.card,
-                { backgroundColor: cardBgColor },
+                { backgroundColor: questionBgColor },
                 frontAnimatedStyle,
               ]}
             >
+              <View style={{ position: 'absolute', top: 24, left: 24, backgroundColor: 'rgba(59,130,246,0.16)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(59,130,246,0.35)' }}>
+                <Text style={{ color: '#bfdbfe', fontFamily: 'Nunito-SemiBold', fontSize: 12 }}>
+                  Question
+                </Text>
+              </View>
+
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingVertical: 64 }}>
                 <Text style={styles.questionText}>
                   {currentCard.question}
@@ -267,18 +273,27 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
             <Animated.View
               style={[
                 styles.card,
-                { backgroundColor: cardBgColor },
+                { backgroundColor: answerBgColor },
                 backAnimatedStyle,
               ]}
             >
-              <View style={{ flex: 1, paddingHorizontal: 40, paddingVertical: 64 }}>
-                <Text style={styles.answerText}>
+              <View style={{ position: 'absolute', top: 24, left: 24, backgroundColor: 'rgba(34,197,94,0.18)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(34,197,94,0.35)' }}>
+                <Text style={{ color: '#bbf7d0', fontFamily: 'Nunito-SemiBold', fontSize: 12 }}>
+                  Answer
+                </Text>
+              </View>
+
+              <View style={{ flex: 1, paddingHorizontal: 40, paddingVertical: 64, gap: 20 }}>
+                <Text style={[styles.answerText, { color: '#e5e7eb' }]}>
                   {currentCard.answer}
                 </Text>
 
                 {currentCard.explanation && (
-                  <View style={{ marginTop: 24, paddingTop: 24, borderTopWidth: 1, borderTopColor: '#525252' }}>
-                    <Text style={{ fontSize: 16, color: '#d4d4d8', lineHeight: 24 }}>
+                  <View style={{ padding: 16, borderRadius: 12, backgroundColor: 'rgba(59,130,246,0.12)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.3)' }}>
+                    <Text style={{ fontSize: 14, color: '#dbeafe', fontFamily: 'Nunito-SemiBold', marginBottom: 6 }}>
+                      Why this matters
+                    </Text>
+                    <Text style={{ fontSize: 15, color: '#e5e7eb', lineHeight: 22 }}>
                       {currentCard.explanation}
                     </Text>
                   </View>

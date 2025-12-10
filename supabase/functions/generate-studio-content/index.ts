@@ -217,13 +217,29 @@ Deno.serve(async (req) => {
         throw new Error('Invalid quiz response structure');
       }
 
+      // Validate explanations structure
+      for (const q of parsed.quiz.questions) {
+        if (q.explanations) {
+          const keys = Object.keys(q.explanations);
+          if (!keys.includes('A') || !keys.includes('B') ||
+              !keys.includes('C') || !keys.includes('D')) {
+            console.warn(`Question missing explanation keys: ${q.question.substring(0, 50)}...`);
+            // Set to null if incomplete rather than failing
+            q.explanations = null;
+          }
+        }
+      }
+
+      // Rebalance options to avoid all correct answers on the same letter
+      const balancedQuestions = rebalanceQuizQuestions(parsed.quiz.questions);
+
       // Insert quiz metadata
       const { data: quiz, error: quizError } = await supabase
         .from('studio_quizzes')
         .insert({
           notebook_id,
           title: parsed.quiz.title || `${notebook.title} Quiz`,
-          total_questions: parsed.quiz.questions.length,
+          total_questions: balancedQuestions.length,
         })
         .select()
         .single();
@@ -240,13 +256,14 @@ Deno.serve(async (req) => {
       const { error: questionsError } = await supabase
         .from('studio_quiz_questions')
         .insert(
-          parsed.quiz.questions.map((q: any, idx: number) => ({
+          balancedQuestions.map((q: any, idx: number) => ({
             quiz_id: quiz.id,
             question: q.question,
             options: q.options,
             correct_answer: q.correct,
             hint: q.hint || null,
             explanation: null,
+            explanations: q.explanations || null,
             display_order: idx,
           }))
         );
@@ -357,7 +374,7 @@ QUALITY RULES:
 
 CRITICAL: Generate EXACTLY ${count} flashcards. Do not generate fewer.`;
   } else {
-    return `You are an expert assessment designer creating multiple-choice quizzes.
+    return `You are an expert assessment designer creating multiple-choice quizzes with educational explanations.
 
 Your task: Create exactly ${count} quiz questions from the provided material.
 
@@ -375,7 +392,13 @@ OUTPUT FORMAT (JSON only):
           "D": "Option text"
         },
         "correct": "A",
-        "hint": "Short nudge (1 sentence) that helps without giving the answer"
+        "hint": "Short nudge (1 sentence) that helps without giving the answer",
+        "explanations": {
+          "A": "Why this is correct/incorrect (1-3 sentences, educational tone)",
+          "B": "Why this is correct/incorrect (1-3 sentences, educational tone)",
+          "C": "Why this is correct/incorrect (1-3 sentences, educational tone)",
+          "D": "Why this is correct/incorrect (1-3 sentences, educational tone)"
+        }
       }
     ]
   }
@@ -389,6 +412,17 @@ QUALITY RULES:
 5. Hint should NOT reveal the answer; give a gentle nudge only (≤25 words)
 6. Avoid "All/None of the above" options
 7. Balance correct answers across A/B/C/D (not all A's)
+8. Shuffle options so the correct letter varies; do NOT leave the correct answer on the same letter across questions
+
+EXPLANATION RULES (NEW):
+9. Write explanations in natural, educational tone - NOT formulaic
+10. For CORRECT answers: Explain WHY it's correct and what concept it demonstrates
+11. For WRONG answers: Explain WHY it's incorrect without being condescending
+12. Length: 1-3 sentences each (aim for 2 sentences)
+13. Avoid starting with "This is correct/incorrect because..." - be more natural
+14. Reference the material content when relevant
+15. Example for CORRECT: "This syntax signals to Claude Code that the following instruction should be treated as a permanent rule that applies throughout the session."
+16. Example for WRONG: "The video demonstrates using /plugins to open a management interface, but does not mention a --force-install flag for dependency issues."
 
 CRITICAL: Generate EXACTLY ${count} questions. Do not generate fewer.`;
   }
@@ -422,4 +456,66 @@ ${materialContent}
 
 Generate exactly ${count} quiz questions covering all major topics. Return ONLY the JSON response, no other text.`;
   }
+}
+
+/**
+ * Shuffle options per question and avoid all correct answers sharing the same letter.
+ * Preserves option/explanation pairing and remaps the correct letter accordingly.
+ */
+function rebalanceQuizQuestions(questions: any[]): any[] {
+  const LETTERS = ['A', 'B', 'C', 'D'] as const;
+
+  const shuffle = <T>(arr: T[]): T[] => {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  };
+
+  let attempt = 0;
+  const maxAttempts = 5;
+  let result: any[] = [];
+
+  do {
+    attempt++;
+    result = questions.map((q: any) => {
+      const entries = LETTERS.map((key) => ({
+        key,
+        text: q.options?.[key],
+        explanation: q.explanations ? q.explanations[key] : undefined,
+        isCorrect: q.correct === key,
+      }));
+
+      const shuffled = shuffle(entries);
+      const newOptions: Record<string, string> = {};
+      const newExplanations: Record<string, string> | null = q.explanations ? {} : null;
+      let newCorrect = 'A';
+
+      shuffled.forEach((entry, idx) => {
+        const newKey = LETTERS[idx];
+        newOptions[newKey] = entry.text;
+        if (newExplanations) {
+          newExplanations[newKey] = entry.explanation ?? '';
+        }
+        if (entry.isCorrect) {
+          newCorrect = newKey;
+        }
+      });
+
+      return {
+        ...q,
+        options: newOptions,
+        correct: newCorrect,
+        explanations: q.explanations ? newExplanations : null,
+      };
+    });
+  } while (
+    attempt < maxAttempts &&
+    result.length > 0 &&
+    result.every((q) => q.correct === result[0].correct)
+  );
+
+  return result;
 }

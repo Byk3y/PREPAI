@@ -26,8 +26,11 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
   const [answers, setAnswers] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
   const [showResults, setShowResults] = useState(false);
   const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, boolean>>({});
-  const [showReviewAnswers, setShowReviewAnswers] = useState(false);
   const [revealedHints, setRevealedHints] = useState<Record<string, boolean>>({});
+  const [showExplanations, setShowExplanations] = useState<Record<string, boolean>>({});
+  const [isReviewMode, setIsReviewMode] = useState(false);
+  const [optionLayouts, setOptionLayouts] = useState<Record<string, Record<string, number>>>({});
+  const scrollRef = useRef<ScrollView | null>(null);
   
   // Task completion tracking
   const completionRecordedRef = useRef(false);
@@ -51,11 +54,13 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
   const selectedAnswer = answers[currentQuestion.id];
   const isSubmitted = submittedAnswers[currentQuestion.id];
   const isCorrect = selectedAnswer === currentQuestion.correct;
+  const wasSkipped = isReviewMode && !selectedAnswer;
   const hintAvailable = currentQuestion.hint && currentQuestion.hint.trim().length > 0;
   const hintRevealed = revealedHints[currentQuestion.id];
 
   // Handle answer selection - auto-submit on selection
   const handleSelectAnswer = (option: 'A' | 'B' | 'C' | 'D') => {
+    if (isReviewMode) return;
     // Set the answer
     const newAnswers = {
       ...answers,
@@ -66,6 +71,12 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
     // Auto-submit immediately
     setSubmittedAnswers({
       ...submittedAnswers,
+      [currentQuestion.id]: true,
+    });
+
+    // Show explanations for this question
+    setShowExplanations({
+      ...showExplanations,
       [currentQuestion.id]: true,
     });
   };
@@ -83,6 +94,20 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
     }
   }, [isSubmitted, selectedAnswer, isCorrect, currentQuestion.correct, play, haptic]);
 
+  // Auto-scroll to the highlighted option (selected or correct) in review/submitted state
+  useEffect(() => {
+    const layouts = optionLayouts[currentQuestion.id];
+    if (!layouts) return;
+
+    const targetKey = selectedAnswer && !isCorrect ? selectedAnswer : currentQuestion.correct;
+    const targetY = layouts[targetKey];
+    if (targetY !== undefined && scrollRef.current) {
+      // Offset a bit to show context above
+      const y = Math.max(targetY - 60, 0);
+      scrollRef.current.scrollTo({ y, animated: true });
+    }
+  }, [currentQuestion.id, selectedAnswer, isCorrect, isSubmitted, isReviewMode, optionLayouts]);
+
   // Navigate to next question
   const handleNext = () => {
     if (currentQuestionIndex < totalQuestions - 1) {
@@ -92,8 +117,13 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
     } else {
       play('complete');
       haptic('success');
-      // Show results
-      calculateResults();
+      // In review mode, just return to results without recalculating
+      if (isReviewMode) {
+        setShowResults(true);
+        setIsReviewMode(false);
+      } else {
+        calculateResults();
+      }
     }
   };
 
@@ -167,7 +197,7 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
   const scorePercent = Math.round((correctCount / totalQuestions) * 100);
 
   const handleRevealHint = () => {
-    if (!hintAvailable) return;
+    if (!hintAvailable || isReviewMode) return;
     play('hint');
     haptic('light');
     setRevealedHints((prev) => ({ ...prev, [currentQuestion.id]: true }));
@@ -264,7 +294,8 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
                   setAnswers({});
                   setSubmittedAnswers({});
                   setRevealedHints({});
-                  setShowReviewAnswers(false);
+                  setShowExplanations({});
+                  setIsReviewMode(false);
                 }}
                 style={{ width: 140, borderWidth: 2, borderColor: colors.border, borderRadius: 999, paddingVertical: 10 }}
               >
@@ -276,7 +307,9 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
                 onPress={() => {
                   play('tap');
                   haptic('selection');
-                  setShowReviewAnswers(true);
+                  setShowResults(false);
+                  setCurrentQuestionIndex(0);
+                  setIsReviewMode(true);
                 }}
                 style={{ width: 140, backgroundColor: '#3f5efb', borderRadius: 999, paddingVertical: 10 }}
               >
@@ -286,64 +319,6 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
               </TouchableOpacity>
             </View>
 
-            {/* Question Review (on demand) */}
-            {showReviewAnswers && (
-              <View style={{ width: '100%', marginTop: 40 }}>
-                <Text style={{ fontSize: 18, fontFamily: 'Nunito-SemiBold', color: colors.text, marginBottom: 16 }}>
-                  Review Answers
-                </Text>
-
-                {quiz.questions.map((question, index) => {
-                  const userAnswer = answers[question.id];
-                  const isCorrect = userAnswer === question.correct;
-
-                  return (
-                    <View
-                      key={question.id}
-                      style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 12 }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
-                        <View
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 16,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginRight: 12,
-                            backgroundColor: isCorrect ? (isDarkMode ? '#064e3b' : '#dcfce7') : (isDarkMode ? '#7f1d1d' : '#fee2e2')
-                          }}
-                        >
-                          <Ionicons
-                            name={isCorrect ? 'checkmark' : 'close'}
-                            size={18}
-                            color={isCorrect ? '#10b981' : '#ef4444'}
-                          />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 14, fontFamily: 'Nunito-Medium', color: colors.text, marginBottom: 8 }}>
-                            Question {index + 1}
-                          </Text>
-                          <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 8, fontFamily: 'Nunito-Regular' }}>
-                            {question.question}
-                          </Text>
-                          <View style={{ flexDirection: 'row', gap: 8 }}>
-                            <Text style={{ fontSize: 12, color: colors.textMuted }}>
-                              Your answer: {userAnswer || 'Not answered'}
-                            </Text>
-                            {!isCorrect && (
-                              <Text style={{ fontSize: 12, color: '#16a34a' }}>
-                                Correct: {question.correct}
-                              </Text>
-                            )}
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -359,12 +334,19 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="close" size={28} color={colors.icon} />
           </TouchableOpacity>
-          <Text
-            numberOfLines={1}
-            style={{ flex: 1, fontSize: 16, fontFamily: 'Nunito-SemiBold', color: colors.text, textAlign: 'center', paddingHorizontal: 12 }}
-          >
-            {quiz.title}
-          </Text>
+          <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 12 }}>
+            <Text
+              numberOfLines={1}
+              style={{ fontSize: 16, fontFamily: 'Nunito-SemiBold', color: colors.text, textAlign: 'center' }}
+            >
+              {quiz.title}
+            </Text>
+            {isReviewMode && (
+              <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 4, fontFamily: 'Nunito-Regular' }}>
+                Reviewing answers
+              </Text>
+            )}
+          </View>
           <View style={{ width: 28 }} />
         </View>
 
@@ -396,18 +378,33 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
       </View>
 
       {/* Question Content */}
-      <ScrollView style={{ flex: 1, paddingHorizontal: 24, paddingVertical: 24 }}>
+      <ScrollView
+        ref={scrollRef}
+        style={{ flex: 1, paddingHorizontal: 24, paddingVertical: 24 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
         <Text style={{ fontSize: 24, fontFamily: 'Nunito-Bold', color: colors.text, marginBottom: 24, lineHeight: 34 }}>
           {currentQuestion.question}
         </Text>
+
+        {wasSkipped && (
+          <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: -12, marginBottom: 16, fontFamily: 'Nunito-Regular' }}>
+            You skipped this question. Correct answer is highlighted below.
+          </Text>
+        )}
 
         {/* Options */}
         <View style={{ gap: 12 }}>
           {(Object.keys(currentQuestion.options) as Array<'A' | 'B' | 'C' | 'D'>).map((key) => {
             const isSelected = selectedAnswer === key;
             const isCorrectAnswer = currentQuestion.correct === key;
-            const showCorrect = isSubmitted && isCorrectAnswer;
+            const showCorrect = (isSubmitted && isCorrectAnswer) || (wasSkipped && isCorrectAnswer);
             const showIncorrect = isSubmitted && isSelected && !isCorrectAnswer;
+            const explanationEligible = currentQuestion.explanations && (isSubmitted || isReviewMode);
+            const shouldShowExplanation =
+              explanationEligible &&
+              (isCorrectAnswer || (isSelected && !isCorrectAnswer));
+            const explanationText = currentQuestion.explanations?.[key];
 
             let bgColor = colors.surface;
             let borderColor = colors.border;
@@ -439,7 +436,17 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
               <TouchableOpacity
                 key={key}
                 onPress={() => !isSubmitted && handleSelectAnswer(key)}
-                disabled={isSubmitted}
+                disabled={isSubmitted || isReviewMode}
+                onLayout={(e) => {
+                  const y = e.nativeEvent.layout.y;
+                  setOptionLayouts((prev) => ({
+                    ...prev,
+                    [currentQuestion.id]: {
+                      ...(prev[currentQuestion.id] || {}),
+                      [key]: y,
+                    },
+                  }));
+                }}
                 style={{
                   borderRadius: 12,
                   padding: 16,
@@ -474,67 +481,111 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
                     <Ionicons name="close-circle" size={24} color="#ef4444" />
                   )}
                 </View>
+
+                {shouldShowExplanation && explanationText && (
+                  <View
+                    style={{
+                      marginTop: 12,
+                      padding: 12,
+                      borderRadius: 10,
+                      backgroundColor: showCorrect
+                        ? (isDarkMode ? '#0f2f25' : '#bbf7d0')
+                        : (isDarkMode ? '#4a1f1f' : '#fecdd3'),
+                      borderWidth: 1,
+                      borderColor: showCorrect ? '#16a34a' : '#f87171',
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <Ionicons
+                        name={showCorrect ? 'checkmark-circle' : 'close-circle'}
+                        size={18}
+                        color={showCorrect ? '#16a34a' : '#ef4444'}
+                      />
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontFamily: 'Nunito-SemiBold',
+                          color: showCorrect ? (isDarkMode ? '#bbf7d0' : '#0f172a') : (isDarkMode ? '#fecdd3' : '#7f1d1d'),
+                        }}
+                      >
+                        {showCorrect ? 'Why this is correct' : 'Why this is incorrect'}
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        lineHeight: 20,
+                        color: showCorrect ? (isDarkMode ? '#d1fae5' : '#065f46') : (isDarkMode ? '#fecdd3' : '#7f1d1d'),
+                        fontFamily: 'Nunito-Regular',
+                      }}
+                    >
+                      {explanationText}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* Hint CTA and content */}
-        <View style={{ marginTop: 24 }}>
-          <TouchableOpacity
-            onPress={handleRevealHint}
-            disabled={!hintAvailable || hintRevealed}
-            style={{
-              alignSelf: 'flex-start',
-              paddingHorizontal: 16,
-              paddingVertical: 8,
-              borderRadius: 999,
-              borderWidth: 1,
-              borderColor: hintRevealed ? colors.border : '#3b82f6',
-              backgroundColor: hintRevealed ? colors.surface : 'transparent',
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Ionicons
-                name="bulb-outline"
-                size={18}
-                color={hintRevealed ? colors.textMuted : '#3b82f6'}
-              />
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontFamily: 'Nunito-SemiBold',
-                  color: hintRevealed ? colors.textMuted : '#3b82f6',
-                }}
-              >
-                {hintAvailable
-                  ? `Ask ${petName} for a hint`
-                  : 'No hint available'}
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          {hintRevealed && hintAvailable && (
-            <View style={{ 
-              marginTop: 12, 
-              padding: 16, 
-              backgroundColor: isDarkMode ? '#1e3a5f' : '#dbeafe', 
-              borderRadius: 12, 
-              borderWidth: 1, 
-              borderColor: isDarkMode ? '#3b82f6' : '#bfdbfe' 
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <Ionicons name="sparkles-outline" size={18} color="#2563eb" />
-                <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: isDarkMode ? '#93c5fd' : '#1e40af' }}>
-                  Hint
+        {/* Hint CTA and content (hidden during review) */}
+        {!isReviewMode && (
+          <View style={{ marginTop: 24 }}>
+            <TouchableOpacity
+              onPress={handleRevealHint}
+              disabled={!hintAvailable || hintRevealed}
+              style={{
+                alignSelf: 'flex-start',
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: hintRevealed ? colors.border : '#3b82f6',
+                backgroundColor: hintRevealed ? colors.surface : 'transparent',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons
+                  name="bulb-outline"
+                  size={18}
+                  color={hintRevealed ? colors.textMuted : '#3b82f6'}
+                />
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'Nunito-SemiBold',
+                    color: hintRevealed ? colors.textMuted : '#3b82f6',
+                  }}
+                >
+                  {hintAvailable
+                    ? `Ask ${petName} for a hint`
+                    : 'No hint available'}
                 </Text>
               </View>
-              <Text style={{ fontSize: 14, color: isDarkMode ? '#bfdbfe' : '#1e3a8a', lineHeight: 20, fontFamily: 'Nunito-Regular' }}>
-                {currentQuestion.hint}
-              </Text>
-            </View>
-          )}
-        </View>
+            </TouchableOpacity>
+
+            {hintRevealed && hintAvailable && (
+              <View style={{ 
+                marginTop: 12, 
+                padding: 16, 
+                backgroundColor: isDarkMode ? '#1e3a5f' : '#dbeafe', 
+                borderRadius: 12, 
+                borderWidth: 1, 
+                borderColor: isDarkMode ? '#3b82f6' : '#bfdbfe' 
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <Ionicons name="sparkles-outline" size={18} color="#2563eb" />
+                  <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: isDarkMode ? '#93c5fd' : '#1e40af' }}>
+                    Hint
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 14, color: isDarkMode ? '#bfdbfe' : '#1e3a8a', lineHeight: 20, fontFamily: 'Nunito-Regular' }}>
+                  {currentQuestion.hint}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
 
       {/* Action Buttons - Always available for navigation */}
