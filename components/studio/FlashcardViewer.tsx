@@ -21,6 +21,7 @@ import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { upsertFlashcardProgress } from '@/lib/api/studio';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import { useFeedback } from '@/lib/feedback';
 
 interface FlashcardViewerProps {
   flashcards: StudioFlashcard[];
@@ -44,6 +45,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
   
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
+  const { play, haptic } = useFeedback();
 
   // Animation values
   const flipRotation = useSharedValue(0);
@@ -117,6 +119,8 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
   // Or when navigating away?
   // Let's do it when revealing answer (flipping).
   const flipCard = () => {
+    play('reveal');
+    haptic('selection');
     flipRotation.value = withTiming(isFlipped ? 0 : 180, { duration: 400 });
 
     if (!isFlipped) {
@@ -131,6 +135,8 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
   // Navigation
   const goToNext = () => {
     if (currentIndex < flashcards.length - 1) {
+      play('flip');
+      haptic('light');
       setCurrentIndex(currentIndex + 1);
       setIsFlipped(false);
       flipRotation.value = 0;
@@ -139,6 +145,8 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
 
   const goToPrevious = () => {
     if (currentIndex > 0) {
+      play('flip');
+      haptic('light');
       setCurrentIndex(currentIndex - 1);
       setIsFlipped(false);
       flipRotation.value = 0;
