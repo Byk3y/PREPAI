@@ -253,22 +253,34 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
             </View>
 
             {/* Actions */}
-            <View style={{ width: '100%', gap: 12 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 24, marginBottom: 20 }}>
               <TouchableOpacity
-                onPress={() => setShowReviewAnswers(true)}
-                style={{ width: '100%', backgroundColor: isDarkMode ? colors.text : '#171717', borderRadius: 999, paddingVertical: 16 }}
+                onPress={() => {
+                  play('start');
+                  haptic('selection');
+                  // Reset all quiz state to retake
+                  setCurrentQuestionIndex(0);
+                  setAnswers({});
+                  setSubmittedAnswers({});
+                  setRevealedHints({});
+                  setShowReviewAnswers(false);
+                }}
+                style={{ width: 140, borderWidth: 2, borderColor: colors.border, borderRadius: 999, paddingVertical: 10 }}
               >
-                <Text style={{ color: isDarkMode ? colors.background : '#FFFFFF', textAlign: 'center', fontFamily: 'Nunito-SemiBold' }}>
-                  Review Answers
+                <Text style={{ textAlign: 'center', fontFamily: 'Nunito-SemiBold', color: colors.text, fontSize: 14 }}>
+                  Retake Quiz
                 </Text>
               </TouchableOpacity>
-
               <TouchableOpacity
-                onPress={onClose}
-                style={{ width: '100%', borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingVertical: 16 }}
+                onPress={() => {
+                  play('tap');
+                  haptic('selection');
+                  setShowReviewAnswers(true);
+                }}
+                style={{ width: 140, backgroundColor: '#3f5efb', borderRadius: 999, paddingVertical: 10 }}
               >
-                <Text style={{ textAlign: 'center', fontFamily: 'Nunito-SemiBold', color: colors.text }}>
-                  Close
+                <Text style={{ textAlign: 'center', fontFamily: 'Nunito-SemiBold', color: '#FFFFFF', fontSize: 14 }}>
+                  Review Answers
                 </Text>
               </TouchableOpacity>
             </View>
