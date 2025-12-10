@@ -259,6 +259,7 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
                   play('start');
                   haptic('selection');
                   // Reset all quiz state to retake
+                  setShowResults(false);
                   setCurrentQuestionIndex(0);
                   setAnswers({});
                   setSubmittedAnswers({});
