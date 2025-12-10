@@ -14,20 +14,32 @@ const PET_FULL_VIEW_IMAGES: Record<number, ImageSourcePropType> = {
     2: require('@/assets/pets/stage-2/full-view.png'),
 };
 
+// Pet silhouette images for locked stages
+const PET_SILHOUETTE_IMAGES: Record<number, ImageSourcePropType> = {
+    2: require('@/assets/pets/stage-2/silhouette.png'),
+};
+
 interface PetDisplayProps {
     streak: number;
-    stage: 1 | 2;  // Required, derived from petState.stage (clamped to 1-2 for now)
+    stage: 1 | 2;  // Required, the stage being displayed (may be preview)
+    currentStage: 1 | 2;  // Required, the actual unlocked stage
     onNextStage?: () => void;  // Optional: for previewing next stage
     onPrevStage?: () => void;  // Optional: for previewing previous stage
 }
 
-export function PetDisplay({ streak, stage, onNextStage, onPrevStage }: PetDisplayProps) {
+export function PetDisplay({ streak, stage, currentStage, onNextStage, onPrevStage }: PetDisplayProps) {
     const { isDarkMode } = useTheme();
     const colors = getThemeColors(isDarkMode);
 
     // On golden gradient - dark text in light mode, white in dark mode
     const textOnGradient = isDarkMode ? '#FFFFFF' : '#000000';
     const textSecondaryOnGradient = isDarkMode ? '#FFFFFF' : '#333333';
+
+    // Determine if this stage is unlocked
+    const isUnlocked = stage <= currentStage;
+
+    // Get the appropriate image - silhouette for locked stages, full-view for unlocked
+    const petImage = isUnlocked ? PET_FULL_VIEW_IMAGES[stage] : PET_SILHOUETTE_IMAGES[stage];
 
     return (
         <View style={styles.container}>
@@ -54,9 +66,9 @@ export function PetDisplay({ streak, stage, onNextStage, onPrevStage }: PetDispl
                     }}
                     style={styles.petEmojiContainer}
                 >
-                    {/* Pet full view - dynamically changes based on stage */}
+                    {/* Pet image - full view for unlocked stages, silhouette for locked */}
                     <Image
-                        source={PET_FULL_VIEW_IMAGES[stage]}
+                        source={petImage}
                         style={[
                             styles.petImage,
                             stage === 2 && { transform: [{ scale: 1.2 }] } // Stage 2 is slightly larger
