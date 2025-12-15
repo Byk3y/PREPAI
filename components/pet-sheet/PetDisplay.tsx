@@ -68,6 +68,7 @@ export function PetDisplay({ streak, stage, currentStage, onNextStage, onPrevSta
                 >
                     {/* Pet image - full view for unlocked stages, silhouette for locked */}
                     <Image
+                        key={`pet-${stage}-${isUnlocked ? 'unlocked' : 'locked'}`}
                         source={petImage}
                         style={[
                             styles.petImage,
