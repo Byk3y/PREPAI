@@ -1,0 +1,26 @@
+# EAS Build Ignore File
+# Exclude large files and build artifacts to speed up uploads
+
+# iOS
+ios/Pods/
+ios/build/
+ios/*.xcworkspace/xcuserdata/
+ios/*.xcodeproj/xcuserdata/
+ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+ios/DerivedData/
+
+# Android
+android/build/
+android/app/build/
+android/.gradle/
+android/gradle/
+
+# Node modules (already excluded by default, but be explicit)
+node_modules/
+
+# Git
+.git/
+
+# Misc
+.DS_Store
+*.log
