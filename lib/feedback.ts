@@ -180,3 +180,15 @@ export function useFeedback(options: FeedbackOptions = {}) {
 
   return { play, haptic, preload };
 }
+
+
+
+
+
+
+
+
+
+
+
+
