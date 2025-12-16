@@ -17,3 +17,15 @@ export const createThemeSlice: StateCreator<ThemeSlice> = (set) => ({
   setThemeMode: (mode) => set({ themeMode: mode }),
 });
 
+
+
+
+
+
+
+
+
+
+
+
+

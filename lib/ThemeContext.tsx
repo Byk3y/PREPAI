@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
 import { useStore } from '@/lib/store';
+import { theme } from '@/lib/theme';
 
 interface ThemeContextValue {
   isDarkMode: boolean;
@@ -79,4 +80,32 @@ export const getThemeColors = (isDark: boolean) => ({
   // Generated media card
   mediaCard: isDark ? '#2f2f31' : '#FFFFFF',
   mediaCardBorder: isDark ? '#3a3a3c' : '#e5e4df',
+  
+  // Brand colors (from theme.ts)
+  primary: theme.colors.primary.DEFAULT,
+  primaryLight: theme.colors.primary[400],
+  primaryDark: theme.colors.primary[600],
+  accent: theme.colors.accent.DEFAULT,
+  success: theme.colors.success,
+  neutral: {
+    light: theme.colors.neutral[300],
+    DEFAULT: theme.colors.neutral.DEFAULT,
+    dark: theme.colors.neutral[800],
+  },
+  // Common UI colors
+  white: '#FFFFFF',
+  black: '#000000',
+  shadowColor: '#000',
 });
+
+
+
+
+
+
+
+
+
+
+
+
