@@ -2,8 +2,9 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Alert, AppState } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { getAudioOverviewStatus } from '@/lib/api/audio-overview';
+import { audioService } from '@/lib/services/audioService';
 import { useStore } from '@/lib/store';
+import { useErrorHandler } from './useErrorHandler';
 
 export const useAudioGeneration = (
     notebookId: string,
@@ -12,6 +13,7 @@ export const useAudioGeneration = (
 ) => {
     const router = useRouter();
     const { checkAndAwardTask } = useStore();
+    const { handleError } = useErrorHandler();
     const [generatingType, setGeneratingType] = useState<'flashcards' | 'quiz' | 'audio' | null>(null);
     const [generatingAudioId, setGeneratingAudioId] = useState<string | null>(null);
     const [audioProgress, setAudioProgress] = useState({ stage: '', percent: 0 });
@@ -32,7 +34,7 @@ export const useAudioGeneration = (
 
         pollIntervalRef.current = setInterval(async () => {
             try {
-                const status = await getAudioOverviewStatus(overviewId);
+                const status = await audioService.getStatus(overviewId);
 
                 if (status.status === 'completed') {
                     stopPolling();
@@ -52,11 +54,13 @@ export const useAudioGeneration = (
                     setGeneratingType(null);
                     setGeneratingAudioId(null);
 
-                    Alert.alert(
-                        'Generation Failed',
-                        status.error_message || 'Failed to generate audio overview. Please try again.',
-                        [{ text: 'OK' }]
-                    );
+                    // Show error via centralized system
+                    const error = new Error(status.error_message || 'Failed to generate audio overview');
+                    await handleError(error, {
+                        operation: 'audio_generation_failed',
+                        component: 'audio-generation',
+                        metadata: { overviewId, status: status.status }
+                    });
                 } else {
                     // Update progress
                     const stageText = {
@@ -80,7 +84,13 @@ export const useAudioGeneration = (
                     return; // Transient network error, will retry on next poll
                 }
 
-                console.error('Error polling status:', error);
+                // Use centralized error handling
+                await handleError(error, {
+                    operation: 'poll_audio_status',
+                    component: 'audio-generation',
+                    metadata: { overviewId, notebookId }
+                });
+
                 stopPolling();
                 setGeneratingType(null);
                 setGeneratingAudioId(null);
@@ -90,24 +100,39 @@ export const useAudioGeneration = (
 
     const checkForPendingAudio = useCallback(async () => {
         try {
-            const { data: pendingAudio } = await supabase
-                .from('audio_overviews')
-                .select('id, status')
-                .eq('notebook_id', notebookId)
-                .in('status', ['pending', 'generating_script', 'generating_audio'])
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single();
+            // Check for pending/generating audio first
+            const pendingAudio = await audioService.findPending(notebookId);
 
             if (pendingAudio) {
                 setGeneratingType('audio');
                 setGeneratingAudioId(pendingAudio.id);
                 startAudioPolling(pendingAudio.id);
+            } else {
+                // Recovery: Check for completed audio overviews that might have missed task award
+                // This handles cases where the app was backgrounded or component unmounted
+                // before the polling detected completion.
+                // Note: We check for ANY completed audio overview for the user (not just this notebook)
+                // since the task is awarded once per user for their first completed audio overview.
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user && checkAndAwardTask) {
+                    const hasCompleted = await audioService.hasCompleted(user.id);
+
+                    if (hasCompleted) {
+                        // Attempt to award the task retroactively
+                        // This is idempotent - if already awarded, it will return success with already_completed: true
+                        await checkAndAwardTask('generate_audio_overview');
+                    }
+                }
             }
-        } catch {
-            // No pending audio generation found
+        } catch (error) {
+            // Non-critical error, just log
+            await handleError(error, {
+                operation: 'check_pending_audio',
+                component: 'audio-generation',
+                metadata: { notebookId }
+            });
         }
-    }, [notebookId, startAudioPolling]);
+    }, [notebookId, startAudioPolling, checkAndAwardTask]);
 
     // Restart polling when app comes to foreground (if we have a pending audio)
     useEffect(() => {

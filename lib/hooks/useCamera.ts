@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Alert } from 'react-native';
+import { useErrorHandler } from './useErrorHandler';
 
 export interface CameraResult {
   uri: string;
@@ -16,6 +17,7 @@ export interface CameraResult {
 
 export const useCamera = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const { handleError } = useErrorHandler();
 
   const requestCameraPermission = async (): Promise<boolean> => {
     try {
@@ -30,8 +32,11 @@ export const useCamera = () => {
       }
       return true;
     } catch (error) {
-      console.error('Error requesting camera permission:', error);
-      Alert.alert('Error', 'Failed to request camera permission.');
+      await handleError(error, {
+        operation: 'request_camera_permission',
+        component: 'camera-hook',
+        metadata: {}
+      });
       return false;
     }
   };
@@ -80,8 +85,11 @@ export const useCamera = () => {
       };
     } catch (error) {
       setIsLoading(false);
-      console.error('Error taking photo:', error);
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
+      await handleError(error, {
+        operation: 'take_photo',
+        component: 'camera-hook',
+        metadata: {}
+      });
       return null;
     }
   };

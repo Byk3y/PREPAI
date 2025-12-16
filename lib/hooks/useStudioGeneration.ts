@@ -1,20 +1,12 @@
-/**
- * useStudioGeneration Hook
- * Handles all studio content generation logic (flashcards, quizzes, audio overviews)
- */
-
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
-import { supabase } from '@/lib/supabase';
-import { generateStudioContent } from '@/lib/api/studio';
-import { generateAudioOverview } from '@/lib/api/audio-overview';
+import { generateStudioContent } from '@/lib/api/studioApi';
+import { generateAudioOverview } from '@/lib/api/audioOverviewApi';
+import { audioService } from '@/lib/services/audioService';
+import { storageService } from '@/lib/storage/storageService';
 import { useStore } from '@/lib/store';
 import type { AudioOverview } from '@/lib/store/types';
-import {
-  confirmRepeatGeneration,
-  formatStudioError,
-  isNetworkError,
-} from '@/lib/utils/studio';
+import { useErrorHandler } from './useErrorHandler';
 
 interface UseStudioGenerationParams {
   notebookId: string;
@@ -41,13 +33,27 @@ export const useStudioGeneration = ({
   startAudioPolling,
 }: UseStudioGenerationParams) => {
   const { checkAndAwardTask } = useStore();
+  const { handleError, withErrorHandling } = useErrorHandler();
 
   /**
    * Generate flashcards for the notebook
    */
   const handleGenerateFlashcards = useCallback(async () => {
     try {
-      const ok = await confirmRepeatGeneration('Flashcards', flashcardsCount);
+      // TODO: Implement confirmation dialog with centralized error handling
+      const ok = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Generate Flashcards',
+          flashcardsCount > 0
+            ? `You already have ${flashcardsCount} flashcards. Generate more?`
+            : 'Generate flashcards for this notebook?',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Generate', onPress: () => resolve(true) }
+          ]
+        );
+      });
+
       if (!ok) return;
 
       setGeneratingType('flashcards');
@@ -71,9 +77,8 @@ export const useStudioGeneration = ({
         [{ text: 'OK' }]
       );
     } catch (error: any) {
-      console.error('Error generating flashcards:', error);
-      const { title, message } = formatStudioError(error, 'flashcards');
-      Alert.alert(title, message, [{ text: 'OK' }]);
+      // Error already handled by API layer and displayed via ErrorNotificationContext
+      // No need for Alert.alert - error UI will show automatically
     } finally {
       setGeneratingType(null);
     }
@@ -84,7 +89,20 @@ export const useStudioGeneration = ({
    */
   const handleGenerateQuiz = useCallback(async () => {
     try {
-      const ok = await confirmRepeatGeneration('Quiz', quizzesCount);
+      // TODO: Implement confirmation dialog with centralized error handling
+      const ok = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Generate Quiz',
+          quizzesCount > 0
+            ? `You already have ${quizzesCount} quizzes. Generate another?`
+            : 'Generate a quiz for this notebook?',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Generate', onPress: () => resolve(true) }
+          ]
+        );
+      });
+
       if (!ok) return;
 
       setGeneratingType('quiz');
@@ -108,9 +126,8 @@ export const useStudioGeneration = ({
         [{ text: 'OK' }]
       );
     } catch (error: any) {
-      console.error('Error generating quiz:', error);
-      const { title, message } = formatStudioError(error, 'quiz');
-      Alert.alert(title, message, [{ text: 'OK' }]);
+      // Error already handled by API layer and displayed via ErrorNotificationContext
+      // No need for Alert.alert - error UI will show automatically
     } finally {
       setGeneratingType(null);
     }
@@ -121,7 +138,20 @@ export const useStudioGeneration = ({
    */
   const handleGenerateAudioOverview = useCallback(async () => {
     try {
-      const ok = await confirmRepeatGeneration('Audio Overview', audioOverviewsCount);
+      // TODO: Implement confirmation dialog with centralized error handling
+      const ok = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Generate Audio Overview',
+          audioOverviewsCount > 0
+            ? `You already have ${audioOverviewsCount} audio overviews. Generate another?`
+            : 'Generate an audio overview for this notebook?',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Generate', onPress: () => resolve(true) }
+          ]
+        );
+      });
+
       if (!ok) return;
 
       setGeneratingType('audio');
@@ -134,18 +164,12 @@ export const useStudioGeneration = ({
     } catch (error: any) {
       console.error('Error generating audio overview:', error);
 
-      // For network errors, check if generation actually started on the server
-      if (isNetworkError(error)) {
+      // Check if generation actually started on the server despite the error
+      // This handles network errors that occur after generation starts
+      if (error?.isNetworkError) {
         try {
           // Check for pending audio generation for this notebook
-          const { data: pendingAudio } = await supabase
-            .from('audio_overviews')
-            .select('id, status')
-            .eq('notebook_id', notebookId)
-            .in('status', ['pending', 'generating_script', 'generating_audio'])
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
+          const pendingAudio = await audioService.findPending(notebookId);
 
           if (pendingAudio) {
             // Generation actually started! Restore state and continue polling
@@ -163,8 +187,8 @@ export const useStudioGeneration = ({
       setGeneratingType(null);
       setGeneratingAudioId(null);
 
-      const { title, message } = formatStudioError(error, 'audio');
-      Alert.alert(title, message, [{ text: 'OK' }]);
+      // Error already handled by API layer and displayed via ErrorNotificationContext
+      // No need for Alert.alert - error UI will show automatically
     }
   }, [
     notebookId,
@@ -191,39 +215,26 @@ export const useStudioGeneration = ({
               try {
                 // Delete from storage if path exists
                 if (overview.storage_path) {
-                  const { error: storageError } = await supabase.storage
-                    .from('uploads')
-                    .remove([overview.storage_path]);
-
-                  if (storageError) {
-                    console.warn('Storage delete warning:', storageError);
-                  }
+                  await storageService.deleteFile(overview.storage_path);
                 }
 
                 // Delete from database
-                const { error: dbError } = await supabase
-                  .from('audio_overviews')
-                  .delete()
-                  .eq('id', overview.id);
-
-                if (dbError) {
-                  throw dbError;
-                }
+                await audioService.delete(overview.id);
 
                 // Update local state without refetching everything
                 setAudioOverviews((prev) => prev.filter((a) => a.id !== overview.id));
 
                 Alert.alert('Deleted', 'Audio overview has been deleted.');
               } catch (error: any) {
-                console.error('Error deleting audio overview:', error);
-                Alert.alert('Error', 'Failed to delete audio overview.');
+                // Error already handled by services and displayed via ErrorNotificationContext
+                // No need for Alert.alert - error UI will show automatically
               }
             },
           },
         ]
       );
     },
-    [setAudioOverviews]
+    [setAudioOverviews, handleError]
   );
 
   return {

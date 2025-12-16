@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import { Alert } from 'react-native';
+import { useErrorHandler } from './useErrorHandler';
 
 interface DocumentResult {
   uri: string;
@@ -17,6 +18,7 @@ interface DocumentResult {
 export const useDocumentPicker = () => {
   const [loading, setLoading] = useState(false);
   const [isPickerActive, setIsPickerActive] = useState(false);
+  const { handleError } = useErrorHandler();
 
   const pickDocument = async (): Promise<DocumentResult | null> => {
     // Prevent multiple simultaneous picker calls
@@ -52,12 +54,15 @@ export const useDocumentPicker = () => {
       setLoading(false);
       setIsPickerActive(false);
 
-      // Only show alert if it's not the "already in progress" error
+      // Only show error if it's not the "already in progress" error
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (!errorMessage.includes('in progress')) {
-        Alert.alert('Error', 'Failed to pick document. Please try again.');
+        await handleError(error, {
+          operation: 'pick_document',
+          component: 'document-picker-hook',
+          metadata: {}
+        });
       }
-      console.error('Document picker error:', error);
       return null;
     }
   };

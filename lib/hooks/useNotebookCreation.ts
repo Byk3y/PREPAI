@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useStore } from '@/lib/store';
 import { useCamera } from '@/lib/hooks/useCamera';
 import { useDocumentPicker } from '@/lib/hooks/useDocumentPicker';
+import { useErrorHandler } from './useErrorHandler';
 
 export const useNotebookCreation = () => {
     const router = useRouter();
@@ -12,21 +13,22 @@ export const useNotebookCreation = () => {
     const { takePhoto } = useCamera();
     const { pickDocument } = useDocumentPicker();
     const [isAddingNotebook, setIsAddingNotebook] = useState(false);
+    const { handleError, withErrorHandling } = useErrorHandler();
 
     const navigateToNotebook = (notebookId: string) => {
-        // We handle navigation in the component or return ID to component? 
+        // We handle navigation in the component or return ID to component?
         // Component has specific navigation logic to prevent flash.
-        // Let's keep it simple here and just route push, assuming the component logic for flashing 
-        // was specific to the list reloading. If we reload then navigate, we might need a small delay or 
+        // Let's keep it simple here and just route push, assuming the component logic for flashing
+        // was specific to the list reloading. If we reload then navigate, we might need a small delay or
         // the list reloading logic in the component needs to be aware.
         // The original code passed `isNavigating` state to prevent reload flashes.
-        // Here we just return the ID and let the component handle navigation if needed, 
+        // Here we just return the ID and let the component handle navigation if needed,
         // or we handle basic navigation here.
         router.push(`/notebook/${notebookId}`);
     };
 
-    const handleAudioUpload = async () => {
-        try {
+    const handleAudioUpload = useCallback(async () => {
+        return withErrorHandling(async () => {
             const result = await pickDocument();
             if (!result || result.cancelled) {
                 return;
@@ -55,16 +57,15 @@ export const useNotebookCreation = () => {
             }
             setIsAddingNotebook(false);
             return notebookId;
-        } catch (error) {
-            setIsAddingNotebook(false);
-            console.error('Error uploading audio:', error);
-            Alert.alert('Error', 'Failed to upload audio. Please try again.');
-            return null;
-        }
-    };
+        }, {
+            operation: 'upload_audio',
+            component: 'notebook-creation',
+            metadata: {}
+        });
+    }, [pickDocument, addNotebook, loadNotebooks, withErrorHandling]);
 
-    const handlePDFUpload = async () => {
-        try {
+    const handlePDFUpload = useCallback(async () => {
+        return withErrorHandling(async () => {
             const result = await pickDocument();
 
             if (!result || result.cancelled) {
@@ -95,16 +96,15 @@ export const useNotebookCreation = () => {
             }
             setIsAddingNotebook(false);
             return notebookId;
-        } catch (error) {
-            setIsAddingNotebook(false);
-            console.error('Error uploading PDF:', error);
-            Alert.alert('Error', 'Failed to upload PDF. Please try again.');
-            return null;
-        }
-    };
+        }, {
+            operation: 'upload_pdf',
+            component: 'notebook-creation',
+            metadata: {}
+        });
+    }, [pickDocument, addNotebook, loadNotebooks, withErrorHandling]);
 
-    const handlePhotoUpload = async () => {
-        try {
+    const handlePhotoUpload = useCallback(async () => {
+        return withErrorHandling(async () => {
             // Request media library permission
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') {
@@ -159,16 +159,15 @@ export const useNotebookCreation = () => {
 
             setIsAddingNotebook(false);
             return notebookId;
-        } catch (error) {
-            setIsAddingNotebook(false);
-            console.error('Error uploading image:', error);
-            Alert.alert('Error', 'Failed to select image. Please try again.');
-            return null;
-        }
-    };
+        }, {
+            operation: 'upload_photo',
+            component: 'notebook-creation',
+            metadata: {}
+        });
+    }, [addNotebook, loadNotebooks, withErrorHandling]);
 
-    const handleCameraUpload = async () => {
-        try {
+    const handleCameraUpload = useCallback(async () => {
+        return withErrorHandling(async () => {
             // Use camera hook to take photo
             const result = await takePhoto();
 
@@ -202,16 +201,15 @@ export const useNotebookCreation = () => {
 
             setIsAddingNotebook(false);
             return notebookId;
-        } catch (error) {
-            setIsAddingNotebook(false);
-            console.error('Error taking photo:', error);
-            Alert.alert('Error', 'Failed to take photo. Please try again.');
-            return null;
-        }
-    };
+        }, {
+            operation: 'upload_camera',
+            component: 'notebook-creation',
+            metadata: {}
+        });
+    }, [takePhoto, addNotebook, loadNotebooks, withErrorHandling]);
 
-    const handleTextSave = async (title: string, content: string, type: 'note' | 'text') => {
-        try {
+    const handleTextSave = useCallback(async (title: string, content: string, type: 'note' | 'text') => {
+        return withErrorHandling(async () => {
             setIsAddingNotebook(true);
             // Zero-friction: auto-create notebook with text/note material (processed=true, status=preview_ready)
             const notebookId = await addNotebook({
@@ -233,17 +231,14 @@ export const useNotebookCreation = () => {
                 checkAndAwardTask('add_material');
             }
 
-
-
             setIsAddingNotebook(false);
             return notebookId;
-        } catch (error) {
-            setIsAddingNotebook(false);
-            console.error('Error saving text:', error);
-            Alert.alert('Error', 'Failed to save text. Please try again.');
-            return null;
-        }
-    };
+        }, {
+            operation: 'save_text',
+            component: 'notebook-creation',
+            metadata: { type }
+        });
+    }, [addNotebook, withErrorHandling]);
 
     return {
         isAddingNotebook,

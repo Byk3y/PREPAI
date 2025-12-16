@@ -79,20 +79,12 @@ export function useRoutingLogic(fontsLoaded: boolean) {
           // Logged in - CHECK DATABASE FIRST to avoid race condition with persisted store
           // This ensures we use the source of truth (database) not stale persisted state
           try {
-            const { data: profile, error: profileError } = await supabase
-              .from('profiles')
-              .select('meta')
-              .eq('id', user.id)
-              .single();
+            const { userService } = await import('@/lib/services/userService');
+            const meta = await userService.getProfileMeta(user.id);
 
-            if (profileError && profileError.code !== 'PGRST116') {
-              if (__DEV__) {
-                console.error('Error loading profile for routing:', profileError);
-              }
-              // On error, use persisted store state as fallback
-            } else if (profile) {
+            if (meta !== null) {
               // Update store with database value to keep it in sync
-              const dbHasCompletedOnboarding = profile.meta?.has_completed_onboarding === true;
+              const dbHasCompletedOnboarding = meta.has_completed_onboarding === true;
               if (dbHasCompletedOnboarding !== hasCompletedOnboarding) {
                 setHasCompletedOnboarding(dbHasCompletedOnboarding);
                 if (__DEV__) {
@@ -170,3 +162,5 @@ export function useRoutingLogic(fontsLoaded: boolean) {
 
   return isRoutingReady;
 }
+
+

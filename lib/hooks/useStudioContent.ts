@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
-import { fetchAudioOverviews } from '@/lib/api/audio-overview';
+import { studioService } from '@/lib/services/studioService';
+import { audioService } from '@/lib/services/audioService';
 import type { StudioFlashcard, Quiz, AudioOverview } from '@/lib/store/types';
 
 export const useStudioContent = (notebookId: string) => {
@@ -27,36 +27,15 @@ export const useStudioContent = (notebookId: string) => {
             // Safety timeout so we never stay stuck loading
             timeoutId = setTimeout(() => controller.abort(), 10000);
 
-            const [flashcardResult, quizResult, audioOverviewsData] = await Promise.all([
-                supabase
-                    .from('studio_flashcards')
-                    .select('*')
-                    .eq('notebook_id', notebookId)
-                    .order('created_at', { ascending: false })
-                    .abortSignal(controller.signal),
-                supabase
-                    .from('studio_quizzes')
-                    .select('*')
-                    .eq('notebook_id', notebookId)
-                    .order('created_at', { ascending: false })
-                    .abortSignal(controller.signal),
-                fetchAudioOverviews(notebookId),
+            const [studioContent, audioOverviewsData] = await Promise.all([
+                studioService.fetchAll(notebookId),
+                audioService.fetchByNotebook(notebookId),
             ]);
 
             clearTimeout(timeoutId);
 
-            if (flashcardResult.error) {
-                console.error('Error fetching flashcards:', flashcardResult.error);
-            } else if (flashcardResult.data) {
-                setFlashcards(flashcardResult.data);
-            }
-
-            if (quizResult.error) {
-                console.error('Error fetching quizzes:', quizResult.error);
-            } else if (quizResult.data) {
-                setQuizzes(quizResult.data);
-            }
-
+            setFlashcards(studioContent.flashcards);
+            setQuizzes(studioContent.quizzes);
             setAudioOverviews(audioOverviewsData);
         } catch (error) {
             // Ignore intentional aborts (timeout or new fetch)
