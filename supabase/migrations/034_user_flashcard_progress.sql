@@ -22,3 +22,15 @@ create policy "Users can manage their own flashcard progress"
 create index if not exists user_flashcard_progress_user_notebook_idx
   on public.user_flashcard_progress (user_id, notebook_id);
 
+
+
+
+
+
+
+
+
+
+
+
+

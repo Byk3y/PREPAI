@@ -3,7 +3,7 @@
  *
  * Processes uploaded materials by:
  * 1. Extracting content (PDF→text, image→OCR, audio→transcript)
- * 2. Generating AI title and comprehensive narrative overview (like NotebookLM style)
+ * 2. Generating AI title and concise overview (60-85 words - quick, scannable summary)
  * 3. Updating material and notebook records
  * 4. Logging usage for cost tracking
  *
@@ -138,22 +138,23 @@ async function generateTitleAndPreview(
   model: string;
   latency: number;
 }> {
-  const systemPrompt = `You are an expert writing coach and academic summarizer. Generate a descriptive title and comprehensive narrative overview for uploaded study material, similar to Google's NotebookLM.
+  const systemPrompt = `You are an expert writing coach and academic summarizer. Generate a descriptive title and concise overview for uploaded study material (60-85 words - a quick, scannable summary).
 
 Output ONLY valid JSON in this exact format:
 {
   "title": "Concise, scannable title (max 60 characters)",
-  "overview": "A clear, structured 1-2 paragraph overview (130-150 words, target length similar to NotebookLM) that explains what the document is about, the central themes, the author's perspective or background (if present), the purpose and context of the writing, how the ideas develop, and why the material matters. Write in a neutral, polished, professional tone. Do not write a TL;DR or bullet list. Produce a coherent narrative summary."
+  "overview": "A clear, concise overview (60-85 words) in a SINGLE continuous paragraph with NO paragraph breaks. It should explain what the document is about, the central themes, the author's perspective or background (if present), the purpose and context of the writing, and why the material matters. Write in a neutral, polished, professional tone. Do not write a TL;DR or bullet list. Produce a coherent narrative summary in one flowing paragraph."
 }
 
 CRITICAL RULES FOR OVERVIEW:
-- The overview MUST be 130-150 words (target length, similar to NotebookLM's style). This is NOT optional.
-- Write 1-2 coherent narrative paragraphs (not a brief 1-2 sentence summary).
-- Explain: what the document is about, central themes, author's perspective/background, purpose and context, how ideas develop, why it matters.
+- The overview MUST be 60-85 words. This is NOT optional.
+- Write exactly 1 paragraph with NO paragraph breaks, line breaks, or blank lines within it. The entire overview must be a single continuous paragraph.
+- Explain: what the document is about, central themes, author's perspective/background, purpose and context, why it matters.
 - Write in a neutral, polished, professional tone.
 - Do NOT write a TL;DR or bullet list.
-- Produce a coherent narrative summary.
-- Aim for concise but comprehensive - similar length to NotebookLM (around 130-150 words).
+- Do NOT split into multiple paragraphs - use a single continuous paragraph only.
+- Produce a coherent narrative summary in one flowing paragraph.
+- Aim for concise but informative - a quick, scannable overview (60-85 words).
 
 FORMATTING RULES (IMPORTANT - Follow NotebookLM's style):
 - Use **bold markdown** (double asterisks) to emphasize important concepts, key themes, significant actions, and critical phrases. Examples: **dopamine acts as a hidden driver**, **managing cultural campaigns**, **formalize this literary trajectory**.
@@ -172,14 +173,14 @@ Rules for title:
 
   // Use more content for better context (7000 chars instead of 3000)
   const contentWindow = Math.min(7000, extractedContent.length);
-  const userPrompt = `Read the provided document and produce a clear, structured 1-2 paragraph overview similar to Google's NotebookLM.
+  const userPrompt = `Read the provided document and produce a clear, concise overview (60-85 words).
 
 Current title (may be auto-generated, improve it): ${currentTitle || 'Untitled'}
 
 Document content (first ${contentWindow} characters):
 ${extractedContent.substring(0, contentWindow)}
 
-Generate title and overview JSON. The overview should explain what the document is about, the central themes, the author's perspective or background (if present), the purpose and context of the writing, how the ideas develop, and why the material matters. Write in a neutral, polished, professional tone. Do not write a TL;DR or bullet list. Produce a coherent narrative summary of 130-150 words (target length similar to NotebookLM).
+Generate title and overview JSON. The overview should explain what the document is about, the central themes, the author's perspective or background (if present), the purpose and context of the writing, and why the material matters. Write in a neutral, polished, professional tone. Do not write a TL;DR or bullet list. Produce a coherent narrative summary of 60-85 words in a SINGLE continuous paragraph with NO paragraph breaks or line breaks (a quick, scannable overview).
 
 CRITICAL FOR TITLE: Keep it under 60 characters. Focus on the main topic only - think like a headline. Avoid including secondary details. The overview contains all the details; the title should be instantly scannable.
 
@@ -221,30 +222,40 @@ IMPORTANT: Use markdown formatting for emphasis IN THE OVERVIEW ONLY:
       throw new Error(`Title too long: ${cleanedTitle.length} characters (max 60)`);
     }
 
-    // Validate overview length (130-150 words target, similar to NotebookLM)
-    const trimmedOverview = response.overview.trim();
+    // Validate overview length (60-85 words target - quick, scannable overview)
+    // Remove any paragraph breaks/newlines and convert to single paragraph
+    let trimmedOverview = response.overview.trim();
+    // Replace multiple newlines/paragraph breaks with a single space
+    trimmedOverview = trimmedOverview.replace(/\n\s*\n/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    
     if (trimmedOverview.length === 0) {
       throw new Error('Overview cannot be empty');
     }
     const wordCount = trimmedOverview.split(/\s+/).length;
 
-    // STRICT VALIDATION: Reject if less than 120 words (allowing small margin for 130 word minimum)
-    if (wordCount < 120) {
+    // STRICT VALIDATION: Reject if less than 55 words (allowing small margin for 60 word minimum)
+    if (wordCount < 55) {
       // Throw error to force retry - the model must generate a proper overview
       throw new Error(
-        `Overview too short: ${wordCount} words (minimum 130 words required). ` +
-        `The overview must be a clear, structured 1-2 paragraph narrative (130-150 words, target length similar to NotebookLM), not a brief summary. ` +
-        `It should explain what the document is about, central themes, author's perspective, purpose and context, how ideas develop, and why it matters. ` +
-        `Write in a neutral, polished, professional tone. Do not write a TL;DR or bullet list. Aim for concise but comprehensive.`
+        `Overview too short: ${wordCount} words (minimum 60 words required). ` +
+        `The overview must be a clear, concise narrative (60-85 words), not a brief summary. ` +
+        `It should explain what the document is about, central themes, author's perspective, purpose and context, and why it matters. ` +
+        `Write in a neutral, polished, professional tone. Do not write a TL;DR or bullet list. Aim for concise but informative.`
       );
     }
-    // Warn if too long (over 170 words) but still accept it
-    if (wordCount > 170) {
-      console.warn(`Overview is longer than recommended: ${wordCount} words (target: 130-150, similar to NotebookLM)`);
+    // STRICT VALIDATION: Reject if too long (over 90 words - allowing small margin for 85 word maximum)
+    if (wordCount > 90) {
+      // Throw error to force retry - the model must generate a concise overview
+      throw new Error(
+        `Overview too long: ${wordCount} words (maximum 85 words required). ` +
+        `The overview must be a quick, scannable summary (60-85 words), not a lengthy description. ` +
+        `Focus on the most important information: what the document is about, central themes, and why it matters. ` +
+        `Write in a neutral, polished, professional tone. Be concise and informative.`
+      );
     }
     // Warn if slightly outside ideal range but still acceptable
-    if (wordCount < 130 || wordCount > 150) {
-      console.log(`Overview word count: ${wordCount} (target: 130-150 words, similar to NotebookLM)`);
+    if (wordCount < 60 || wordCount > 85) {
+      console.log(`Overview word count: ${wordCount} (target: 60-85 words for quick, scannable overview)`);
     }
 
     // Extract preview (only overview, no who_for or next_step)

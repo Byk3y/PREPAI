@@ -124,3 +124,15 @@ CREATE INDEX IF NOT EXISTS idx_task_completions_completed_at
 -- Note: This will delete all completion records. Consider backing up data first.
 
 
+
+
+
+
+
+
+
+
+
+
+
+

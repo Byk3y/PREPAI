@@ -96,3 +96,15 @@ ALTER TABLE pet_states
 -- The xp_to_next calculation handles edge cases where points are exactly at stage boundaries
 
 
+
+
+
+
+
+
+
+
+
+
+
+
