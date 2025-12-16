@@ -8,7 +8,8 @@
  */
 
 import type { StateCreator } from 'zustand';
-import { supabase } from '@/lib/supabase';
+import { taskService } from '@/lib/services/taskService';
+import { userService } from '@/lib/services/userService';
 import type { SupabaseUser, DailyTask, TaskProgress } from '../types';
 
 // Type definition for award_task_points RPC response
@@ -72,15 +73,11 @@ export const createTaskSlice: StateCreator<
 
         try {
             // Try to get timezone from profiles table
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('timezone')
-                .eq('id', authUser.id)
-                .single();
+            const timezone = await userService.getUserTimezone(authUser.id);
 
-            if (!error && data?.timezone) {
-                set({ userTimezone: data.timezone });
-                return data.timezone;
+            if (timezone) {
+                set({ userTimezone: timezone });
+                return timezone;
             }
         } catch (e) {
             console.log('[TaskSlice] Could not fetch profile timezone, using device timezone');
@@ -101,20 +98,11 @@ export const createTaskSlice: StateCreator<
             // Get timezone (from profile or device fallback)
             const timezone = await getUserTimezone();
 
-            const { data, error } = await supabase.rpc('get_daily_tasks', {
-                p_user_id: authUser.id,
-                p_timezone: timezone
-            });
+            const tasks = await taskService.getDailyTasks(authUser.id, timezone);
 
-            if (error) {
-                console.error('Error loading daily tasks:', error);
-                return;
-            }
-
-            set({ dailyTasks: data || [] });
+            set({ dailyTasks: tasks });
 
             // After loading tasks, fetch progress for any incomplete progressive tasks
-            const tasks = data || [];
             const progressiveTasks = tasks.filter(
                 (t: DailyTask) =>
                     !t.completed &&
@@ -141,16 +129,7 @@ export const createTaskSlice: StateCreator<
         if (!authUser) return;
 
         try {
-            const { data, error } = await supabase.rpc('get_foundational_tasks', {
-                p_user_id: authUser.id
-            });
-
-            if (error) {
-                console.error('Error loading foundational tasks:', error);
-                return;
-            }
-
-            const tasks = data || [];
+            const tasks = await taskService.getFoundationalTasks(authUser.id);
             set({ foundationalTasks: tasks });
 
             // Recovery: if add_material remains incomplete but user already has material,
@@ -158,6 +137,15 @@ export const createTaskSlice: StateCreator<
             const addMaterialTask = tasks.find((t: any) => t.task_key === 'add_material');
             if (addMaterialTask && !addMaterialTask.completed) {
                 get().checkAndAwardTask('add_material');
+            }
+
+            // Recovery: if generate_audio_overview remains incomplete but user already has completed audio,
+            // attempt awarding once. Idempotent and quick no-op if criteria not met.
+            // This handles cases where the app was backgrounded or component unmounted
+            // before the polling detected completion.
+            const generateAudioTask = tasks.find((t: any) => t.task_key === 'generate_audio_overview');
+            if (generateAudioTask && !generateAudioTask.completed) {
+                get().checkAndAwardTask('generate_audio_overview');
             }
         } catch (error) {
             console.error('Failed to load foundational tasks:', error);
@@ -170,22 +158,12 @@ export const createTaskSlice: StateCreator<
 
         try {
             const timezone = await getUserTimezone();
-
-            const { data, error } = await supabase.rpc('get_task_progress', {
-                p_user_id: authUser.id,
-                p_task_key: taskKey,
-                p_timezone: timezone
-            });
-
-            if (error) {
-                console.error(`Error fetching progress for ${taskKey}:`, error);
-                return;
-            }
+            const progress = await taskService.getTaskProgress(authUser.id, taskKey, timezone);
 
             set((state) => ({
                 taskProgress: {
                     ...state.taskProgress,
-                    [taskKey]: data
+                    [taskKey]: progress
                 }
             }));
         } catch (error) {
@@ -208,24 +186,13 @@ export const createTaskSlice: StateCreator<
             const day = String(now.getDate()).padStart(2, '0');
             const completionDate = `${year}-${month}-${day}`;
 
-            // Call award_task_points with timezone for server-side validation
-            const { data, error } = await supabase.rpc('award_task_points', {
-                p_user_id: authUser.id,
-                p_task_key: taskKey,
-                p_completion_date: completionDate,
-                p_timezone: timezone
-            });
-
-            if (error) {
-                console.error(`Error awarding points for ${taskKey}:`, error);
-                return { success: false, error: error.message };
-            }
-
-            // P3 Fix: Validate response shape before accessing properties
-            if (!isValidAwardResponse(data)) {
-                console.error(`Invalid RPC response shape for ${taskKey}:`, data);
-                return { success: false, error: 'Invalid server response' };
-            }
+            // Call award_task_points via service
+            const data = await taskService.awardTaskPoints(
+                authUser.id,
+                taskKey,
+                completionDate,
+                timezone
+            );
 
             // Handle response from server-side validated RPC
             if (data.success) {

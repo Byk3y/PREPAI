@@ -3,7 +3,7 @@
  */
 
 import type { StateCreator } from 'zustand';
-import { supabase } from '@/lib/supabase';
+import { userService } from '@/lib/services/userService';
 import type { User, SupabaseUser } from '../types';
 
 export interface UserSlice {
@@ -25,6 +25,8 @@ export const createUserSlice: StateCreator<
   user: {
     id: '',
     name: '',
+    first_name: '',
+    last_name: '',
     streak: 0,
     coins: 0,
   },
@@ -39,26 +41,13 @@ export const createUserSlice: StateCreator<
     if (!authUser) return;
 
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, name, streak, avatar_url')
-        .eq('id', authUser.id)
-        .single();
+      const profile = await userService.loadUserProfile(authUser.id);
 
-      if (error && error.code !== 'PGRST116') {
-        // PGRST116 = no rows returned
-        console.error('Error loading user profile:', error);
-        return;
-      }
-
-      if (data) {
+      if (profile) {
         set({
           user: {
-            id: data.id,
-            name: data.name || authUser.email || 'User',
-            streak: data.streak || 0,
-            coins: 0, // Not used in current system
-            avatar: data.avatar_url || undefined,
+            ...profile,
+            name: profile.name || authUser.email || 'User',
           },
           userProfileSyncedAt: Date.now(),
           userProfileUserId: authUser.id,
@@ -70,6 +59,8 @@ export const createUserSlice: StateCreator<
           user: {
             id: authUser.id,
             name: authUser.email || 'User',
+            first_name: '',
+            last_name: '',
             streak: 0,
             coins: 0,
             avatar: undefined,

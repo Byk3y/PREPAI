@@ -4,12 +4,34 @@
 
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
+/**
+ * Profile metadata structure
+ * Stored in profiles.meta JSONB field
+ */
+export interface ProfileMeta {
+  // Existing onboarding fields
+  has_created_notebook?: boolean;
+  has_completed_onboarding?: boolean;
+  onboarding_completed_at?: string; // ISO timestamp
+
+  // Assessment fields (new - from onboarding assessment)
+  learning_style?: 'visual' | 'auditory' | 'reading' | 'practice';
+  study_goal?: 'exam_prep' | 'retention' | 'quick_review' | 'all';
+  daily_commitment_minutes?: number; // 5, 15, 30, 60, etc.
+  commitment_made_at?: string; // ISO timestamp
+  assessment_completed_at?: string; // ISO timestamp
+  assessment_version?: string; // e.g., '1.0' for versioning
+}
+
 export interface User {
   id: string;
-  name: string;
+  name: string;          // Full display name (auto-synced from first_name + last_name)
+  first_name: string;    // First name for personalization
+  last_name: string;     // Last name for personalization
   streak: number;
   coins: number;
   avatar?: string;
+  meta?: ProfileMeta;    // Profile metadata from database
 }
 
 export interface PetState {

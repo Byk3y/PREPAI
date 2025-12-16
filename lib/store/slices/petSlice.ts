@@ -3,7 +3,7 @@
  */
 
 import type { StateCreator } from 'zustand';
-import { supabase } from '@/lib/supabase';
+import { petService } from '@/lib/services/petService';
 import type { PetState, SupabaseUser } from '../types';
 
 // Type for cross-slice access to TaskSlice's checkAndAwardTask
@@ -69,24 +69,7 @@ export const createPetSlice: StateCreator<
     }));
 
     try {
-      // Calculate stage from points (always authoratative)
-      const calculatedStage = Math.floor(mergedPetState.points / 100) + 1;
-
-      const { error } = await supabase
-        .from('pet_states')
-        .upsert({
-          user_id: authUser.id,
-          current_stage: calculatedStage,
-          current_points: mergedPetState.points,
-          name: mergedPetState.name,
-          mood: mergedPetState.mood,
-        }, {
-          onConflict: 'user_id'
-        });
-
-      if (error) {
-        console.error('Error saving pet state:', error);
-      }
+      await petService.savePetState(authUser.id, mergedPetState);
     } catch (error) {
       console.error('Error persisting pet state:', error);
     }
@@ -133,20 +116,7 @@ export const createPetSlice: StateCreator<
     // Persist to database
     if (authUser) {
       try {
-        const { error } = await supabase
-          .from('pet_states')
-          .upsert({
-            user_id: authUser.id,
-            current_stage: newStage,
-            current_points: newPoints,
-            mood: newPetState.mood,
-          }, {
-            onConflict: 'user_id'
-          });
-
-        if (error) {
-          console.error('Error saving pet points:', error);
-        }
+        await petService.savePetState(authUser.id, newPetState);
       } catch (error) {
         console.error('Error persisting pet points:', error);
       }
@@ -158,45 +128,20 @@ export const createPetSlice: StateCreator<
     if (!authUser) return;
 
     try {
-      const { data, error } = await supabase
-        .from('pet_states')
-        .select('*')
-        .eq('user_id', authUser.id)
-        .single();
+      const petState = await petService.loadPetState(authUser.id);
 
-      if (error && error.code !== 'PGRST116') {
-        // PGRST116 = no rows returned
-        console.error('Error loading pet state:', error);
-        return;
-      }
-
-      if (data) {
-        // Calculate stage from points (fixed 100 points per stage)
-        const points = data.current_points || 0;
-        const stage = Math.floor(points / 100) + 1;
-
+      if (petState) {
         set({
-          petState: {
-            stage: stage,
-            points: points,
-            name: data.name || 'Nova',
-            mood: data.mood || 'happy',
-          },
+          petState,
           petStateReady: true,
           petStateSyncedAt: Date.now(),
           petStateUserId: authUser.id,
-          cachedPetState: {
-            stage: stage,
-            points: points,
-            name: data.name || 'Nova',
-            mood: data.mood || 'happy',
-          },
+          cachedPetState: petState,
           cachedPetSyncedAt: Date.now(),
           cachedPetUserId: authUser.id,
         });
       } else {
-        // No pet state exists, create default one using upsert to handle race conditions
-        // Use hardcoded defaults instead of persisted state to prevent cross-user contamination
+        // No pet state exists, create default one
         const defaultPetState = {
           stage: 1,
           points: 0,
@@ -204,48 +149,20 @@ export const createPetSlice: StateCreator<
           mood: 'happy' as const,
         };
         
-        const { data: upsertedData, error: insertError } = await supabase
-          .from('pet_states')
-          .upsert({
-            user_id: authUser.id,
-            current_stage: defaultPetState.stage,
-            current_points: defaultPetState.points,
-            name: defaultPetState.name,
-            mood: defaultPetState.mood,
-          }, {
-            onConflict: 'user_id'
-          })
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error('Error creating initial pet state:', insertError);
-        } else if (upsertedData) {
-          // Update local state with the upserted data
-          const points = upsertedData.current_points || 0;
-          const stage = Math.floor(points / 100) + 1;
-
+        try {
+          await petService.savePetState(authUser.id, defaultPetState);
           set({
-            petState: {
-              stage: stage,
-              points: points,
-              name: upsertedData.name || 'Nova',
-              mood: upsertedData.mood || 'happy',
-            },
+            petState: defaultPetState,
             petStateReady: true,
             petStateSyncedAt: Date.now(),
             petStateUserId: authUser.id,
-            cachedPetState: {
-              stage: stage,
-              points: points,
-              name: upsertedData.name || 'Nova',
-              mood: upsertedData.mood || 'happy',
-            },
+            cachedPetState: defaultPetState,
             cachedPetSyncedAt: Date.now(),
             cachedPetUserId: authUser.id,
           });
-        } else {
-          // Fallback: set default state if upsert didn't return data
+        } catch (error) {
+          console.error('Error creating initial pet state:', error);
+          // Fallback: set default state even if save failed
           set({
             petState: defaultPetState,
             petStateReady: true,

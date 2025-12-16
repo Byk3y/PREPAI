@@ -13,6 +13,8 @@ import { createExamSlice, type ExamSlice } from './slices/examSlice';
 import { createLessonSlice, type LessonSlice } from './slices/lessonSlice';
 import { createAudioPlaybackSlice, type AudioPlaybackSlice } from './slices/audioPlaybackSlice';
 import { createTaskSlice, type TaskSlice } from './slices/taskSlice';
+import { createOnboardingSlice, type OnboardingSlice } from './slices/onboardingSlice';
+import { createAssessmentSlice, type AssessmentSlice } from './slices/assessmentSlice';
 import { createThemeSlice, type ThemeSlice } from './slices/themeSlice';
 
 import { persist, createJSONStorage } from 'zustand/middleware';
@@ -28,10 +30,18 @@ type AppState = AuthSlice &
   LessonSlice &
   AudioPlaybackSlice &
   TaskSlice &
+  OnboardingSlice &
+  AssessmentSlice &
   ThemeSlice;
 
+// Add hydration state (not persisted)
+type StoreWithHydration = AppState & {
+  _hasHydrated: boolean;
+  _setHasHydrated: (hydrated: boolean) => void;
+};
+
 // Create the combined store
-export const useStore = create<AppState>()(
+export const useStore = create<StoreWithHydration>()(
   persist(
     (...a) => ({
       ...createAuthSlice(...a),
@@ -43,7 +53,13 @@ export const useStore = create<AppState>()(
       ...createLessonSlice(...a),
       ...createAudioPlaybackSlice(...a),
       ...createTaskSlice(...a),
+      ...createOnboardingSlice(...a),
+      ...createAssessmentSlice(...a),
       ...createThemeSlice(...a),
+      _hasHydrated: false,
+      _setHasHydrated: (hydrated: boolean) => {
+        a[0]({ _hasHydrated: hydrated });
+      },
     }),
     {
       name: 'prep-ai-storage',
@@ -59,10 +75,13 @@ export const useStore = create<AppState>()(
         // petState removed in v2 - should always load from database per user
         authUser: state.authUser,
         hasCreatedNotebook: state.hasCreatedNotebook,
+        hasCompletedOnboarding: state.hasCompletedOnboarding,
+        currentOnboardingScreen: state.currentOnboardingScreen,
+        pendingPetName: state.pendingPetName,
         playbackPositions: state.playbackPositions,
         dailyTasks: state.dailyTasks,
         taskProgress: state.taskProgress,
-        themeMode: state.themeMode, // Persist theme preference
+        themeMode: state.themeMode,
         // Add other persistent state here as needed
       }),
       migrate: (persistedState: any, version: number) => {
@@ -73,6 +92,18 @@ export const useStore = create<AppState>()(
           return rest;
         }
         return persistedState;
+      },
+      onRehydrateStorage: () => {
+        // Return a callback that will be called when hydration is complete
+        return (state, error) => {
+          if (error) {
+            console.error('Failed to hydrate store:', error);
+          } else {
+            console.log('Store hydrated successfully');
+          }
+          // Mark hydration as complete
+          state?._setHasHydrated(true);
+        };
       },
     }
   )
