@@ -8,16 +8,17 @@ import {
     View,
     Text,
     TouchableOpacity,
-    SafeAreaView,
     Alert,
     ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
 import type { AVPlaybackStatus } from 'expo-av';
 import { useAudioPlaybackPosition } from '@/lib/hooks/useAudioPlaybackPosition';
+import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 import { AudioVisualizer } from './AudioVisualizer';
 import { useStore } from '@/lib/store';
 import {
@@ -49,6 +50,7 @@ export function AudioPlayer({
     onClose,
     onDownload,
 }: AudioPlayerProps) {
+    const { handleError } = useErrorHandler();
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [audioDuration, setAudioDuration] = useState(duration);
@@ -123,9 +125,12 @@ export function AudioPlayer({
 
             setLoading(false);
         } catch (error: any) {
-            console.error('Failed to load audio:', error);
             setLoading(false);
-            Alert.alert('Error', 'Failed to load audio file');
+            await handleError(error, {
+                operation: 'load_audio_file',
+                component: 'audio-player',
+                metadata: { audioUrl }
+            });
         }
     };
 
