@@ -1,0 +1,177 @@
+/**
+ * Task Service
+ * Handles task-related database operations and RPC calls
+ */
+
+import { supabase } from '@/lib/supabase';
+import { handleError } from '@/lib/errors';
+import type { DailyTask } from '@/lib/store/types';
+
+// Type definition for award_task_points RPC response
+interface AwardTaskPointsResponse {
+  success: boolean;
+  already_completed?: boolean;
+  points_awarded?: number;
+  new_total_points?: number;
+  new_stage?: number;
+  error?: string;
+  error_code?: string;
+  task_key?: string;
+}
+
+// Type guard for validating RPC response shape
+function isValidAwardResponse(data: unknown): data is AwardTaskPointsResponse {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'success' in data &&
+    typeof (data as AwardTaskPointsResponse).success === 'boolean'
+  );
+}
+
+export const taskService = {
+  /**
+   * Get daily tasks for a user
+   */
+  getDailyTasks: async (userId: string, timezone: string): Promise<DailyTask[]> => {
+    try {
+      const { data, error } = await supabase.rpc('get_daily_tasks', {
+        p_user_id: userId,
+        p_timezone: timezone,
+      });
+
+      if (error) {
+        await handleError(error, {
+          operation: 'get_daily_tasks',
+          component: 'task-service',
+          metadata: { userId, timezone },
+        });
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      await handleError(error, {
+        operation: 'get_daily_tasks',
+        component: 'task-service',
+        metadata: { userId, timezone },
+      });
+      return [];
+    }
+  },
+
+  /**
+   * Get foundational tasks for a user
+   */
+  getFoundationalTasks: async (userId: string): Promise<DailyTask[]> => {
+    try {
+      const { data, error } = await supabase.rpc('get_foundational_tasks', {
+        p_user_id: userId,
+      });
+
+      if (error) {
+        await handleError(error, {
+          operation: 'get_foundational_tasks',
+          component: 'task-service',
+          metadata: { userId },
+        });
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      await handleError(error, {
+        operation: 'get_foundational_tasks',
+        component: 'task-service',
+        metadata: { userId },
+      });
+      return [];
+    }
+  },
+
+  /**
+   * Get task progress for a specific task
+   * Uses RPC function for timezone-aware daily progress calculation
+   * @param userId - The user's ID
+   * @param taskKey - The task key (e.g. 'study_flashcards', 'complete_quiz')
+   * @param timezone - The user's timezone (default: 'UTC')
+   * @returns Current progress value (number)
+   */
+  getTaskProgress: async (userId: string, taskKey: string, timezone: string = 'UTC'): Promise<number> => {
+    try {
+      const { data, error } = await supabase.rpc('get_task_progress', {
+        p_user_id: userId,
+        p_task_key: taskKey,
+        p_timezone: timezone,
+      });
+
+      if (error) {
+        await handleError(error, {
+          operation: 'get_task_progress',
+          component: 'task-service',
+          metadata: { userId, taskKey, timezone },
+        });
+        return 0;
+      }
+
+      // RPC returns JSONB with { current, goal, unit, percentage }
+      return (data?.current as number) || 0;
+    } catch (error) {
+      await handleError(error, {
+        operation: 'get_task_progress',
+        component: 'task-service',
+        metadata: { userId, taskKey, timezone },
+      });
+      return 0;
+    }
+  },
+
+  /**
+   * Award task points via RPC
+   */
+  awardTaskPoints: async (
+    userId: string,
+    taskKey: string,
+    completionDate: string,
+    timezone?: string
+  ): Promise<AwardTaskPointsResponse> => {
+    try {
+      const { data, error } = await supabase.rpc('award_task_points', {
+        p_user_id: userId,
+        p_task_key: taskKey,
+        p_completion_date: completionDate,
+        p_timezone: timezone || 'UTC',
+      });
+
+      if (error) {
+        await handleError(error, {
+          operation: 'award_task_points',
+          component: 'task-service',
+          metadata: { userId, taskKey, completionDate, timezone },
+        });
+        throw error;
+      }
+
+      if (!isValidAwardResponse(data)) {
+        const invalidError = new Error('Invalid response from award_task_points RPC');
+        await handleError(invalidError, {
+          operation: 'award_task_points',
+          component: 'task-service',
+          metadata: { userId, taskKey, completionDate, timezone },
+        });
+        throw invalidError;
+      }
+
+      return data;
+    } catch (error) {
+      const appError = await handleError(error, {
+        operation: 'award_task_points',
+        component: 'task-service',
+        metadata: { userId, taskKey, completionDate, timezone },
+      });
+      throw appError;
+    }
+  },
+};
+
+

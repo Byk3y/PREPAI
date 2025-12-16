@@ -1,0 +1,101 @@
+/**
+ * Audio Overview API Client
+ * Handles communication with the generate-audio-overview Edge Function
+ * 
+ * Note: Database operations are handled by audioService
+ */
+
+import { supabase } from '@/lib/supabase';
+import { handleError } from '@/lib/errors';
+
+const EDGE_FUNCTION_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/generate-audio-overview`;
+
+export interface GenerateAudioOverviewRequest {
+  notebook_id: string;
+}
+
+export interface GenerateAudioOverviewResponse {
+  success: boolean;
+  overview_id: string;
+  status: string;
+  estimated_completion_seconds?: number;
+  message: string;
+}
+
+/**
+ * Trigger audio overview generation for a notebook
+ * Returns immediately with overview_id for status polling
+ */
+export async function generateAudioOverview(
+  notebookId: string
+): Promise<GenerateAudioOverviewResponse> {
+  try {
+    // Get current session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('Not authenticated');
+    }
+
+    const response = await fetch(EDGE_FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        notebook_id: notebookId,
+      } as GenerateAudioOverviewRequest),
+    });
+
+    if (!response.ok) {
+      // Safely parse error body (may be truncated)
+      let errorData: any = {};
+      const raw = await response.text();
+      try {
+        errorData = raw ? JSON.parse(raw) : {};
+      } catch {
+        // ignore parse error, use raw as fallback
+        errorData = { error: raw };
+      }
+
+      // Create error with quota details preserved
+      const error: any = new Error(errorData.error || 'Failed to generate audio overview');
+
+      // Preserve quota information for better error handling
+      if (errorData.remaining !== undefined) {
+        error.remaining = errorData.remaining;
+      }
+      if (errorData.limit !== undefined) {
+        error.limit = errorData.limit;
+      }
+
+      throw error;
+    }
+
+    // Parse success body defensively to handle truncated responses
+    const raw = await response.text();
+    let data: GenerateAudioOverviewResponse;
+    try {
+      data = JSON.parse(raw);
+    } catch (parseError) {
+      const enhancedError: any = new Error('Malformed response from audio generator');
+      enhancedError.isNetworkError = true; // trigger recovery flow to re-check pending jobs
+      enhancedError.raw = raw;
+      throw enhancedError;
+    }
+
+    return data;
+  } catch (error) {
+    // Use centralized error handling
+    const appError = await handleError(error, {
+      operation: 'generate_audio_overview',
+      component: 'audio-overview-api',
+      metadata: { notebookId },
+    });
+
+    // Re-throw the classified error
+    throw appError;
+  }
+}
+
+

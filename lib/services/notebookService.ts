@@ -1,7 +1,8 @@
 import { supabase } from '@/lib/supabase';
-import { uploadMaterialFile } from '@/lib/upload';
+import { storageService } from '@/lib/storage/storageService';
 import { getFilenameFromPath } from '@/lib/utils';
 import type { Notebook, Material } from '@/lib/store/types';
+import { handleError } from '@/lib/errors';
 
 export const notebookService = {
     fetchNotebooks: async (userId: string) => {
@@ -15,7 +16,14 @@ export const notebookService = {
             .order('created_at', { ascending: false });
 
         if (error) {
-            throw new Error(`Supabase error: ${error.message}`);
+            // Use centralized error handling
+            const appError = await handleError(error, {
+                operation: 'fetch_notebooks',
+                component: 'notebook-service',
+                userId,
+                metadata: { userId }
+            });
+            throw appError;
         }
 
         // Transform Supabase data to Notebook format
@@ -61,19 +69,18 @@ export const notebookService = {
             let storagePath: string | undefined;
             if (notebook.material?.fileUri && notebook.material?.filename) {
                 const materialId = `temp-${Date.now()}`;
-                const uploadResult = await uploadMaterialFile(
+                const uploadResult = await storageService.uploadMaterialFile(
                     userId,
                     materialId,
                     notebook.material.fileUri,
                     notebook.material.filename
                 );
-                if (uploadResult.error) {
-                    console.error('Upload error:', uploadResult.error);
-                    // Continue with local URI in dev mode or as fallback
-                    storagePath = notebook.material.fileUri;
-                } else {
-                    storagePath = uploadResult.storagePath;
-                }
+            if (uploadResult.error) {
+                // Continue with local URI in dev mode or as fallback
+                storagePath = notebook.material.fileUri;
+            } else {
+                storagePath = uploadResult.storagePath;
+            }
             }
 
             // Step 2: Determine upload type
@@ -103,7 +110,13 @@ export const notebookService = {
                 .single();
 
             if (materialError) {
-                throw materialError;
+                const appError = await handleError(materialError, {
+                    operation: 'create_notebook',
+                    component: 'notebook-service',
+                    userId,
+                    metadata: { userId, notebookTitle: notebook.title }
+                });
+                throw appError;
             }
 
             // Step 4: Create notebook record
@@ -128,34 +141,40 @@ export const notebookService = {
                 .single();
 
             if (notebookError) {
-                throw notebookError;
+                const appError = await handleError(notebookError, {
+                    operation: 'create_notebook',
+                    component: 'notebook-service',
+                    userId,
+                    metadata: { userId, notebookTitle: notebook.title }
+                });
+                throw appError;
             }
 
             // Update user profile - set has_created_notebook flag (non-blocking)
             try {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('meta')
-                    .eq('id', userId)
-                    .single();
-
-                const updatedMeta = {
-                    ...(profile?.meta || {}),
-                    has_created_notebook: true
-                };
-
-                await supabase
-                    .from('profiles')
-                    .update({ meta: updatedMeta })
-                    .eq('id', userId);
+                await supabase.rpc('merge_profile_meta', {
+                    p_user_id: userId,
+                    p_new_meta: { has_created_notebook: true },
+                });
             } catch (err) {
-                console.error('Failed to update has_created_notebook flag:', err);
+                // Non-critical error - log but don't fail the operation
+                await handleError(err, {
+                    operation: 'update_user_profile_flag',
+                    component: 'notebook-service',
+                    userId,
+                    metadata: { userId }
+                });
             }
 
             return { newNotebook, material, isFileUpload, storagePath };
         } catch (error) {
-            console.error('Error creating notebook in service:', error);
-            throw error;
+            const appError = await handleError(error, {
+                operation: 'create_notebook',
+                component: 'notebook-service',
+                userId,
+                metadata: { notebookTitle: notebook.title, userId }
+            });
+            throw appError;
         }
     },
 
@@ -195,7 +214,12 @@ export const notebookService = {
 
                 const { data, error } = result;
                 if (error) {
-                    console.error('Failed to trigger Edge Function:', error);
+                    await handleError(error, {
+                        operation: 'trigger_processing',
+                        component: 'notebook-service',
+                        userId,
+                        metadata: { notebookId, materialId }
+                    });
                     await supabase
                         .from('notebooks')
                         .update({ status: 'failed' })
@@ -212,13 +236,28 @@ export const notebookService = {
                 const isNetworkError = err.message?.includes('fetch') || err.message?.includes('network');
 
                 if (isTimeout) {
-                    console.error('Edge Function request timed out (will retry on app foreground):', err);
+                    await handleError(err, {
+                        operation: 'trigger_processing_timeout',
+                        component: 'notebook-service',
+                        userId,
+                        metadata: { notebookId, materialId, errorType: 'timeout' }
+                    });
                     // Don't mark as failed
                 } else if (isNetworkError) {
-                    console.error('Network error invoking Edge Function (will retry on app foreground):', err);
+                    await handleError(err, {
+                        operation: 'trigger_processing_network',
+                        component: 'notebook-service',
+                        userId,
+                        metadata: { notebookId, materialId, errorType: 'network' }
+                    });
                     // Don't mark as failed
                 } else {
-                    console.error('Error invoking Edge Function:', err);
+                    await handleError(err, {
+                        operation: 'trigger_processing_error',
+                        component: 'notebook-service',
+                        userId,
+                        metadata: { notebookId, materialId, errorType: 'permanent' }
+                    });
                     // Permanent error, mark as failed
                     await supabase
                         .from('notebooks')
@@ -245,7 +284,12 @@ export const notebookService = {
                 .single();
 
             if (fetchError || !notebook) {
-                console.error('Error fetching notebook for deletion:', fetchError);
+                await handleError(fetchError || new Error('Notebook not found'), {
+                    operation: 'delete_notebook_fetch',
+                    component: 'notebook-service',
+                    userId,
+                    metadata: { notebookId, userId }
+                });
                 return;
             }
 
@@ -253,12 +297,9 @@ export const notebookService = {
 
             // Step 2: Delete storage file if it exists
             if (material?.storage_path) {
-                const { error: storageError } = await supabase.storage
-                    .from('uploads')
-                    .remove([material.storage_path]);
-
-                if (storageError) {
-                    console.error('Error deleting storage file:', storageError);
+                const { error } = await storageService.deleteFile(material.storage_path);
+                if (error) {
+                    // Error already handled by storageService
                 }
             }
 
@@ -271,13 +312,23 @@ export const notebookService = {
                     .eq('user_id', userId);
 
                 if (deleteError) {
-                    console.error('Error deleting material:', deleteError);
+                    await handleError(deleteError, {
+                        operation: 'delete_notebook_material',
+                        component: 'notebook-service',
+                        userId,
+                        metadata: { notebookId, materialId: material?.id }
+                    });
                     return;
                 }
             }
         } catch (error) {
-            console.error('Error deleting notebook:', error);
-            throw error;
+            const appError = await handleError(error, {
+                operation: 'delete_notebook',
+                component: 'notebook-service',
+                userId,
+                metadata: { notebookId, userId }
+            });
+            throw appError;
         }
     },
 
@@ -301,11 +352,55 @@ export const notebookService = {
                 .eq('user_id', userId);
 
             if (error) {
-                throw error;
+                const appError = await handleError(error, {
+                    operation: 'update_notebook',
+                    component: 'notebook-service',
+                    userId,
+                    metadata: { notebookId, updates }
+                });
+                throw appError;
             }
         } catch (error) {
-            console.error('Error updating notebook:', error);
-            throw error;
+            const appError = await handleError(error, {
+                operation: 'update_notebook',
+                component: 'notebook-service',
+                userId,
+                metadata: { notebookId, updates }
+            });
+            throw appError;
         }
-    }
+    },
+
+    /**
+     * Get a single notebook by ID
+     * @param notebookId - The notebook's ID
+     * @returns Notebook title or null if not found
+     */
+    getNotebookTitle: async (notebookId: string): Promise<string | null> => {
+        try {
+            const { data, error } = await supabase
+                .from('notebooks')
+                .select('title')
+                .eq('id', notebookId)
+                .single();
+
+            if (error) {
+                await handleError(error, {
+                    operation: 'get_notebook_title',
+                    component: 'notebook-service',
+                    metadata: { notebookId },
+                });
+                return null;
+            }
+
+            return data?.title || null;
+        } catch (error) {
+            await handleError(error, {
+                operation: 'get_notebook_title',
+                component: 'notebook-service',
+                metadata: { notebookId },
+            });
+            return null;
+        }
+    },
 };
