@@ -16,13 +16,17 @@ export const HomeHeader: React.FC = () => {
         const options = ['System', 'Light', 'Dark', 'Cancel'];
         const themeValues: ThemeMode[] = ['system', 'light', 'dark'];
         
+        // Safely get the current theme mode with fallback to 'system'
+        const currentTheme = themeMode || 'system';
+        const currentThemeDisplay = currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
+        
         if (Platform.OS === 'ios') {
             ActionSheetIOS.showActionSheetWithOptions(
                 {
                     options,
                     cancelButtonIndex: 3,
                     title: 'Appearance',
-                    message: `Current: ${themeMode.charAt(0).toUpperCase() + themeMode.slice(1)}`,
+                    message: `Current: ${currentThemeDisplay}`,
                 },
                 (buttonIndex) => {
                     if (buttonIndex < 3) {
@@ -34,7 +38,7 @@ export const HomeHeader: React.FC = () => {
             // Android fallback using Alert
             Alert.alert(
                 'Appearance',
-                `Current: ${themeMode.charAt(0).toUpperCase() + themeMode.slice(1)}`,
+                `Current: ${currentThemeDisplay}`,
                 [
                     { text: 'System', onPress: () => setThemeMode('system') },
                     { text: 'Light', onPress: () => setThemeMode('light') },
@@ -94,13 +98,13 @@ export const HomeHeader: React.FC = () => {
                 PrepAI
             </Text>
             <TouchableOpacity
-                style={{ 
-                    width: 40, 
-                    height: 40, 
-                    borderRadius: 20, 
-                    backgroundColor: '#FFB800', 
-                    alignItems: 'center', 
-                    justifyContent: 'center' 
+                style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: '#3B82F6',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                 }}
                 onPress={handleProfilePress}
             >

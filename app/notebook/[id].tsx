@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore, Notebook, Material } from '@/lib/store';
 import { SourcesTab } from '@/components/notebook/SourcesTab';
@@ -33,6 +34,7 @@ type TabType = 'sources' | 'chat' | 'studio';
 export default function NotebookDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { handleError } = useErrorHandler();
   const { notebooks, loadNotebooks, setNotebooks, deleteNotebook, updateNotebook } = useStore();
   const { play } = useFeedback();
   const [activeTab, setActiveTab] = useState<TabType>('chat');
@@ -242,7 +244,7 @@ export default function NotebookDetailScreen() {
           </Text>
           <TouchableOpacity
             onPress={() => router.back()}
-            style={{ marginTop: 24, backgroundColor: '#FFB800', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+            style={{ marginTop: 24, backgroundColor: '#3B82F6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
           >
             <Text style={{ color: '#FFFFFF', fontFamily: 'Nunito-SemiBold' }}>Go Back</Text>
           </TouchableOpacity>
@@ -335,8 +337,11 @@ export default function NotebookDetailScreen() {
       setNotebook({ ...notebook, title: renameValue.trim() });
       setRenameModalVisible(false);
     } catch (error) {
-      console.error('Error renaming notebook:', error);
-      Alert.alert('Error', 'Failed to rename notebook. Please try again.');
+      await handleError(error, {
+        operation: 'rename_notebook',
+        component: 'notebook-detail',
+        metadata: { notebookId: id }
+      });
     }
   };
 
@@ -361,8 +366,11 @@ export default function NotebookDetailScreen() {
               // Navigate back after successful deletion
               router.back();
             } catch (error) {
-              console.error('Error deleting notebook:', error);
-              Alert.alert('Error', 'Failed to delete notebook. Please try again.');
+              await handleError(error, {
+                operation: 'delete_notebook',
+                component: 'notebook-detail',
+                metadata: { notebookId: id }
+              });
             }
           },
         },

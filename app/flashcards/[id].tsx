@@ -10,13 +10,15 @@ import { FlashcardViewer } from '@/components/studio/FlashcardViewer';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { TikTokLoader } from '@/components/TikTokLoader';
 import type { StudioFlashcard } from '@/lib/store/types';
-import { fetchFlashcardProgress } from '@/lib/api/studio';
-import { supabase } from '@/lib/supabase';
+import { studioService } from '@/lib/services/studioService';
+import { notebookService } from '@/lib/services/notebookService';
+import { useStore } from '@/lib/store';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 export default function FlashcardsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>(); // notebook_id
   const router = useRouter();
+  const authUser = useStore((state) => state.authUser);
   const [flashcards, setFlashcards] = useState<StudioFlashcard[]>([]);
   const [notebookTitle, setNotebookTitle] = useState<string>('Flashcards');
   const [initialIndex, setInitialIndex] = useState(0);
@@ -36,37 +38,25 @@ export default function FlashcardsScreen() {
       setError(null);
 
       // Fetch notebook title and flashcards in parallel
-      const [notebookResult, flashcardsResult, progressResult] = await Promise.all([
-        supabase
-          .from('notebooks')
-          .select('title')
-          .eq('id', id)
-          .single(),
-        supabase
-          .from('studio_flashcards')
-          .select('*')
-          .eq('notebook_id', id)
-          .order('created_at', { ascending: true }),
-        fetchFlashcardProgress(id),
+      const [notebookTitleResult, flashcardsResult, progressResult] = await Promise.all([
+        notebookService.getNotebookTitle(id),
+        studioService.fetchFlashcards(id),
+        authUser ? studioService.fetchFlashcardProgress(id, authUser.id) : Promise.resolve(null),
       ]);
 
-      if (notebookResult.data) {
-        setNotebookTitle(notebookResult.data.title || 'Flashcards');
+      if (notebookTitleResult) {
+        setNotebookTitle(notebookTitleResult);
       }
 
-      if (flashcardsResult.error) {
-        throw flashcardsResult.error;
-      }
-
-      if (!flashcardsResult.data || flashcardsResult.data.length === 0) {
+      if (!flashcardsResult || flashcardsResult.length === 0) {
         setError('No flashcards found for this notebook');
         return;
       }
 
-      setFlashcards(flashcardsResult.data);
+      setFlashcards(flashcardsResult);
 
       // Determine starting card using progress (by id first, then index)
-      const cards = flashcardsResult.data;
+      const cards = flashcardsResult;
       let startIndex = 0;
       if (progressResult && cards.length > 0) {
         if (progressResult.last_flashcard_id) {

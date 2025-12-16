@@ -58,3 +58,15 @@ export const StudioExtractingState: React.FC = () => {
     </ScrollView>
   );
 };
+
+
+
+
+
+
+
+
+
+
+
+

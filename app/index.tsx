@@ -223,7 +223,7 @@ export default function HomeScreen() {
           </Text>
           <TouchableOpacity
             onPress={() => router.push('/auth')}
-            style={{ backgroundColor: '#FFB800', paddingHorizontal: 32, paddingVertical: 16, borderRadius: 999 }}
+            style={{ backgroundColor: '#3B82F6', paddingHorizontal: 32, paddingVertical: 16, borderRadius: 999 }}
           >
             <Text style={{ color: '#FFFFFF', fontFamily: 'Nunito-SemiBold', fontSize: 18 }}>
               Sign In

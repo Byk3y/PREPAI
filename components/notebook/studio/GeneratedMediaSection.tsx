@@ -201,3 +201,15 @@ export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
     </View>
   );
 };
+
+
+
+
+
+
+
+
+
+
+
+

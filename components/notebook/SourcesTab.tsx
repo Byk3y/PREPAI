@@ -10,7 +10,7 @@ import { useRouter } from 'expo-router';
 import type { Notebook, Material } from '@/lib/store';
 import { PreviewSkeleton } from './PreviewSkeleton';
 import { getTopicEmoji } from '@/lib/emoji-matcher';
-import { getSignedUrl } from '@/lib/upload';
+import { storageService } from '@/lib/storage/storageService';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 interface SourcesTabProps {
@@ -29,7 +29,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({ notebook }) => {
   const handleViewImage = async (mat: Material) => {
     if (!mat.uri) return;
 
-    const { url, error } = await getSignedUrl(mat.uri, 3600);
+    const { url, error } = await storageService.getSignedUrl(mat.uri, 3600);
     if (!error && url) {
       // Navigate to image viewer screen
       router.push({

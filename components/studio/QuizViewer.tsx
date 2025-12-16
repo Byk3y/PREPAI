@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { Quiz, QuizQuestion } from '@/lib/store/types';
 import { useStore } from '@/lib/store';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
-import { supabase } from '@/lib/supabase';
+import { completionService } from '@/lib/services/completionService';
 import { useFeedback } from '@/lib/feedback';
 
 interface QuizViewerProps {
@@ -148,36 +148,30 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
       completionRecordedRef.current = true;
       
       try {
-        // Insert quiz completion record
-        const { error } = await supabase.from('quiz_completions').insert({
-          user_id: authUser.id,
-          quiz_id: quiz.id,
-          score: correctCount,
-          total_questions: totalQuestions,
-          score_percentage: scorePercent
-        });
-
-        if (error) {
-          console.error('[QuizViewer] Error recording completion:', error.message);
-          return;
-        }
+        // Record quiz completion via service
+        await completionService.recordQuizCompletion(
+          authUser.id,
+          quiz.id,
+          scorePercent,
+          totalQuestions,
+          correctCount
+        );
 
         // Refresh progress and check for task completion
         await refreshTaskProgress('complete_quiz');
         
+        // Check if threshold is met and award task
         const timezone = await getUserTimezone();
-        const { data: progress } = await supabase.rpc('get_task_progress', {
-          p_user_id: authUser.id,
-          p_task_key: 'complete_quiz',
-          p_timezone: timezone
-        });
-
-        // If user has completed at least 1 quiz today, award the task
-        if (progress && progress.current >= 1) {
-          await checkAndAwardTask('complete_quiz');
-        }
+        await completionService.checkAndAwardTaskIfThresholdMet(
+          authUser.id,
+          'complete_quiz',
+          timezone,
+          1, // Threshold: 1 quiz
+          () => checkAndAwardTask('complete_quiz')
+        );
       } catch (err) {
         // Silent fail - don't block user experience for task tracking
+        console.log('[QuizViewer] Completion record failed:', err);
       }
     }
   };

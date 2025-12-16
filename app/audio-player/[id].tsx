@@ -8,7 +8,7 @@ import { View, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { Alert } from 'react-native';
-import { getAudioOverview } from '@/lib/api/audio-overview';
+import { audioService } from '@/lib/services/audioService';
 import type { AudioOverview } from '@/lib/store/types';
 import { TikTokLoader } from '@/components/TikTokLoader';
 
@@ -28,7 +28,7 @@ export default function AudioPlayerScreen() {
     const loadAudioOverview = async () => {
         try {
             setLoading(true);
-            const overview = await getAudioOverview(id);
+            const overview = await audioService.getById(id);
 
             if (!overview) {
                 setError('Audio overview not found');

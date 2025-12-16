@@ -171,7 +171,7 @@ Remember to take breaks and space out your study sessions for better retention!`
           <View style={{ flex: 1 }}>
             {/* User message */}
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 16 }}>
-              <View style={{ backgroundColor: '#FFB800', borderRadius: 16, borderTopRightRadius: 4, paddingHorizontal: 16, paddingVertical: 12, maxWidth: '80%' }}>
+              <View style={{ backgroundColor: '#3B82F6', borderRadius: 16, borderTopRightRadius: 4, paddingHorizontal: 16, paddingVertical: 12, maxWidth: '80%' }}>
                 <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Nunito-Medium' }}>
                   Get study plan
                 </Text>
