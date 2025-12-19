@@ -16,6 +16,7 @@ import { createTaskSlice, type TaskSlice } from './slices/taskSlice';
 import { createOnboardingSlice, type OnboardingSlice } from './slices/onboardingSlice';
 import { createAssessmentSlice, type AssessmentSlice } from './slices/assessmentSlice';
 import { createThemeSlice, type ThemeSlice } from './slices/themeSlice';
+import { createSubscriptionSlice, type SubscriptionSlice } from './slices/subscriptionSlice';
 
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -32,7 +33,8 @@ type AppState = AuthSlice &
   TaskSlice &
   OnboardingSlice &
   AssessmentSlice &
-  ThemeSlice;
+  ThemeSlice &
+  SubscriptionSlice;
 
 // Add hydration state (not persisted)
 type StoreWithHydration = AppState & {
@@ -56,6 +58,7 @@ export const useStore = create<StoreWithHydration>()(
       ...createOnboardingSlice(...a),
       ...createAssessmentSlice(...a),
       ...createThemeSlice(...a),
+      ...createSubscriptionSlice(...a),
       _hasHydrated: false,
       _setHasHydrated: (hydrated: boolean) => {
         a[0]({ _hasHydrated: hydrated });

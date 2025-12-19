@@ -6,14 +6,20 @@ import { useStore } from '@/lib/store';
 import { useCamera } from '@/lib/hooks/useCamera';
 import { useDocumentPicker } from '@/lib/hooks/useDocumentPicker';
 import { useErrorHandler } from './useErrorHandler';
+import { checkCanCreateContent } from '@/lib/services/subscriptionService';
+import type { LimitReason } from '@/lib/services/subscriptionService';
+import { useUpgrade } from '@/lib/hooks/useUpgrade';
 
 export const useNotebookCreation = () => {
     const router = useRouter();
-    const { addNotebook, loadNotebooks } = useStore();
+    const { addNotebook, loadNotebooks, user, notebooks, cachedPetState, flashcardsStudied } = useStore();
     const { takePhoto } = useCamera();
     const { pickDocument } = useDocumentPicker();
     const [isAddingNotebook, setIsAddingNotebook] = useState(false);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+    const [limitReason, setLimitReason] = useState<LimitReason>(null);
     const { handleError, withErrorHandling } = useErrorHandler();
+    const { trackCreateAttemptBlocked, trackUpgradeModalShown, trackUpgradeModalDismissed, trackUpgradeButtonClicked } = useUpgrade();
 
     const navigateToNotebook = (notebookId: string) => {
         // We handle navigation in the component or return ID to component?
@@ -27,11 +33,35 @@ export const useNotebookCreation = () => {
         router.push(`/notebook/${notebookId}`);
     };
 
+    // Check if user can create content (based on subscription status)
+    const checkCanCreate = useCallback(() => {
+        const { tier, status, isExpired, trialEndsAt } = useStore.getState();
+
+        // Check if user can create content with detailed reason
+        const check = checkCanCreateContent(tier, status, isExpired, trialEndsAt);
+        if (!check.canCreate) {
+            // Track blocked attempt
+            trackCreateAttemptBlocked('notebook');
+            // Show upgrade modal with specific limit reason
+            trackUpgradeModalShown('create_attempt');
+            setLimitReason(check.reason);
+            setShowUpgradeModal(true);
+            return false;
+        }
+
+        return true;
+    }, [trackCreateAttemptBlocked, trackUpgradeModalShown, setShowUpgradeModal]);
+
     const handleAudioUpload = useCallback(async () => {
-        return withErrorHandling(async () => {
+        // Check if user can create content
+        if (!checkCanCreate()) {
+            return null;
+        }
+
+        const wrappedFn = withErrorHandling(async () => {
             const result = await pickDocument();
             if (!result || result.cancelled) {
-                return;
+                return null;
             }
             setIsAddingNotebook(true);
             // Zero-friction: auto-create notebook with audio material
@@ -62,14 +92,20 @@ export const useNotebookCreation = () => {
             component: 'notebook-creation',
             metadata: {}
         });
-    }, [pickDocument, addNotebook, loadNotebooks, withErrorHandling]);
+        return await wrappedFn();
+    }, [pickDocument, addNotebook, loadNotebooks, withErrorHandling, checkCanCreate]);
 
     const handlePDFUpload = useCallback(async () => {
-        return withErrorHandling(async () => {
+        // Check if user can create content
+        if (!checkCanCreate()) {
+            return null;
+        }
+
+        const wrappedFn = withErrorHandling(async () => {
             const result = await pickDocument();
 
             if (!result || result.cancelled) {
-                return;
+                return null;
             }
 
             setIsAddingNotebook(true);
@@ -101,10 +137,16 @@ export const useNotebookCreation = () => {
             component: 'notebook-creation',
             metadata: {}
         });
-    }, [pickDocument, addNotebook, loadNotebooks, withErrorHandling]);
+        return await wrappedFn();
+    }, [pickDocument, addNotebook, loadNotebooks, withErrorHandling, checkCanCreate]);
 
     const handlePhotoUpload = useCallback(async () => {
-        return withErrorHandling(async () => {
+        // Check if user can create content
+        if (!checkCanCreate()) {
+            return null;
+        }
+
+        const wrappedFn = withErrorHandling(async () => {
             // Request media library permission
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') {
@@ -113,7 +155,7 @@ export const useNotebookCreation = () => {
                     'Please enable photo library access in your device settings to select images.',
                     [{ text: 'OK' }]
                 );
-                return;
+                return null;
             }
 
             // Launch image picker
@@ -125,12 +167,12 @@ export const useNotebookCreation = () => {
             });
 
             if (result.canceled) {
-                return;
+                return null;
             }
 
             const image = result.assets?.[0];
             if (!image) {
-                return;
+                return null;
             }
 
             setIsAddingNotebook(true);
@@ -164,15 +206,21 @@ export const useNotebookCreation = () => {
             component: 'notebook-creation',
             metadata: {}
         });
-    }, [addNotebook, loadNotebooks, withErrorHandling]);
+        return await wrappedFn();
+    }, [addNotebook, loadNotebooks, withErrorHandling, checkCanCreate]);
 
     const handleCameraUpload = useCallback(async () => {
-        return withErrorHandling(async () => {
+        // Check if user can create content
+        if (!checkCanCreate()) {
+            return null;
+        }
+
+        const wrappedFn = withErrorHandling(async () => {
             // Use camera hook to take photo
             const result = await takePhoto();
 
             if (!result || result.cancelled) {
-                return;
+                return null;
             }
 
             setIsAddingNotebook(true);
@@ -206,10 +254,16 @@ export const useNotebookCreation = () => {
             component: 'notebook-creation',
             metadata: {}
         });
-    }, [takePhoto, addNotebook, loadNotebooks, withErrorHandling]);
+        return await wrappedFn();
+    }, [takePhoto, addNotebook, loadNotebooks, withErrorHandling, checkCanCreate]);
 
     const handleTextSave = useCallback(async (title: string, content: string, type: 'note' | 'text') => {
-        return withErrorHandling(async () => {
+        // Check if user can create content
+        if (!checkCanCreate()) {
+            return null;
+        }
+
+        const wrappedFn = withErrorHandling(async () => {
             setIsAddingNotebook(true);
             // Zero-friction: auto-create notebook with text/note material (processed=true, status=preview_ready)
             const notebookId = await addNotebook({
@@ -238,7 +292,12 @@ export const useNotebookCreation = () => {
             component: 'notebook-creation',
             metadata: { type }
         });
-    }, [addNotebook, withErrorHandling]);
+        return await wrappedFn();
+    }, [addNotebook, withErrorHandling, checkCanCreate]);
+
+    // Calculate pet level
+    const petLevel = Math.floor((cachedPetState?.points || 0) / 50) + 1;
+    const petName = cachedPetState?.name || 'Sparky';
 
     return {
         isAddingNotebook,
@@ -247,5 +306,15 @@ export const useNotebookCreation = () => {
         handlePhotoUpload,
         handleCameraUpload,
         handleTextSave,
+        showUpgradeModal,
+        setShowUpgradeModal,
+        upgradeModalProps: {
+            notebooksCount: notebooks.length,
+            flashcardsStudied: flashcardsStudied,
+            streakDays: user.streak || 0,
+            petName,
+            petLevel,
+            limitReason,
+        },
     };
 };

@@ -119,6 +119,41 @@ export const userService = {
       return null;
     }
   },
+
+  /**
+   * Get total flashcard completions count for a user
+   * @param userId - The user's ID
+   * @returns Total number of flashcards studied
+   */
+  getFlashcardsStudiedCount: async (userId: string): Promise<number> => {
+    try {
+      const { count, error } = await supabase
+        .from('flashcard_completions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      if (error) {
+        await handleError(error, {
+          operation: 'get_flashcards_studied_count',
+          component: 'user-service',
+          metadata: { userId },
+        });
+        return 0;
+      }
+
+      return count || 0;
+    } catch (error) {
+      await handleError(error, {
+        operation: 'get_flashcards_studied_count',
+        component: 'user-service',
+        metadata: { userId },
+      });
+      return 0;
+    }
+  },
 };
+
+
+
 
 

@@ -10,6 +10,7 @@ export interface UserSlice {
   user: User;
   userProfileSyncedAt: number | null;
   userProfileUserId: string | null;
+  flashcardsStudied: number;
   setUser: (user: Partial<User>) => void;
   loadUserProfile: () => Promise<void>;
   hasCreatedNotebook: boolean;
@@ -32,6 +33,7 @@ export const createUserSlice: StateCreator<
   },
   userProfileSyncedAt: null,
   userProfileUserId: null,
+  flashcardsStudied: 0,
   setUser: (updates) =>
     set((state) => ({
       user: { ...state.user, ...updates },
@@ -42,6 +44,9 @@ export const createUserSlice: StateCreator<
 
     try {
       const profile = await userService.loadUserProfile(authUser.id);
+      
+      // Calculate flashcard completions count
+      const flashcardsStudied = await userService.getFlashcardsStudiedCount(authUser.id);
 
       if (profile) {
         set({
@@ -51,6 +56,7 @@ export const createUserSlice: StateCreator<
           },
           userProfileSyncedAt: Date.now(),
           userProfileUserId: authUser.id,
+          flashcardsStudied,
         });
       } else {
         // No profile exists, use auth user data as fallback
@@ -67,6 +73,7 @@ export const createUserSlice: StateCreator<
           },
           userProfileSyncedAt: Date.now(),
           userProfileUserId: authUser.id,
+          flashcardsStudied,
         });
       }
     } catch (error) {

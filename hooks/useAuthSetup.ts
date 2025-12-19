@@ -6,6 +6,7 @@
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useStore } from '@/lib/store';
+import { identify, clearUser } from '@/lib/services/analyticsService';
 
 export function useAuthSetup() {
   const {
@@ -17,6 +18,7 @@ export function useAuthSetup() {
     hydratePetStateFromCache,
     setHasCompletedOnboarding,
     loadUserProfile,
+    loadSubscription,
   } = useStore();
 
   useEffect(() => {
@@ -39,6 +41,11 @@ export function useAuthSetup() {
 
       if (session?.user) {
         try {
+          // Identify user in Mixpanel (only on new sign-in or user change)
+          if (userIdChanged || event === 'SIGNED_IN') {
+            identify(session.user.id);
+          }
+          
           // Only reset pet state if user actually changed or it's a new sign-in
           // This prevents:
           // 1. Flash of default name on token refresh (TOKEN_REFRESHED event with same user)
@@ -73,11 +80,14 @@ export function useAuthSetup() {
           // 2. Load user profile (streak, name, avatar) into store
           await loadUserProfile();
 
-          // 3. Load notebooks
+          // 3. Load subscription/trial data
+          await loadSubscription(session.user.id);
+
+          // 4. Load notebooks
           // Pass userId directly to avoid race condition with store state propagation
           await loadNotebooks(session.user.id);
 
-          // 4. Load pet state from database (will overwrite defaults)
+          // 5. Load pet state from database (will overwrite defaults)
           // Use await to ensure it completes before continuing
           await loadPetState();
         } catch (error) {
@@ -88,6 +98,10 @@ export function useAuthSetup() {
         // Reset pet state to defaults
         const { resetPetState } = useStore.getState();
         resetPetState();
+        
+        // Clear Mixpanel user data on logout
+        clearUser();
+        
         // Note: The store might need a clear() method, but for now specific slices handle their own cleanup
         // or we rely on them replacing data when new user logs in. 
         // Ideally we should clear notebooks here but loadNotebooks() handles "no user" check.
@@ -112,7 +126,11 @@ export function useAuthSetup() {
     hydratePetStateFromCache,
     setHasCompletedOnboarding,
     loadUserProfile,
+    loadSubscription,
   ]);
 }
+
+
+
 
 

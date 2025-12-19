@@ -258,8 +258,10 @@ export class ErrorClassifier {
       message.includes('limit') ||
       message.includes('quota') ||
       message.includes('trial expired') ||
+      message.includes('trial has expired') ||
       message.includes('exceeded') ||
-      message.includes('upgrade required')
+      message.includes('upgrade required') ||
+      message.includes('upgrade to continue')
     );
   }
 
@@ -359,5 +361,8 @@ export class ErrorClassifier {
     });
   }
 }
+
+
+
 
 

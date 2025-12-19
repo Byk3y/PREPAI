@@ -372,6 +372,72 @@ export const notebookService = {
     },
 
     /**
+     * Get a single notebook by ID with materials
+     * @param notebookId - The notebook's ID
+     * @returns Notebook with materials or null if not found
+     */
+    getNotebookById: async (notebookId: string): Promise<Notebook | null> => {
+        try {
+            const { data, error } = await supabase
+                .from('notebooks')
+                .select(`
+          *,
+          materials (*)
+        `)
+                .eq('id', notebookId)
+                .single();
+
+            if (error) {
+                await handleError(error, {
+                    operation: 'get_notebook_by_id',
+                    component: 'notebook-service',
+                    metadata: { notebookId },
+                });
+                return null;
+            }
+
+            if (!data) {
+                return null;
+            }
+
+            // Transform Supabase data to Notebook format
+            return {
+                id: data.id,
+                title: data.title,
+                flashcardCount: data.flashcard_count || 0,
+                lastStudied: data.last_studied,
+                progress: data.progress || 0,
+                createdAt: data.created_at,
+                color: data.color,
+                status: data.status as Notebook['status'],
+                meta: data.meta || {},
+                materials: data.materials
+                    ? [
+                        {
+                            id: data.materials.id,
+                            type: data.materials.kind as Material['type'],
+                            uri: data.materials.storage_path || data.materials.external_url,
+                            filename: getFilenameFromPath(data.materials.storage_path),
+                            content: data.materials.content,
+                            preview_text: data.materials.preview_text,
+                            title: data.title,
+                            createdAt: data.materials.created_at,
+                            thumbnail: data.materials.thumbnail,
+                        },
+                    ]
+                    : [],
+            };
+        } catch (error) {
+            await handleError(error, {
+                operation: 'get_notebook_by_id',
+                component: 'notebook-service',
+                metadata: { notebookId },
+            });
+            return null;
+        }
+    },
+
+    /**
      * Get a single notebook by ID
      * @param notebookId - The notebook's ID
      * @returns Notebook title or null if not found

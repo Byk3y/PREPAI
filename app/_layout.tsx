@@ -7,6 +7,11 @@ import { initSentry } from '@/lib/sentry';
 
 initSentry();
 
+// Initialize Mixpanel as early as possible (before React renders)
+import { initMixpanel } from '@/lib/services/analyticsService';
+
+initMixpanel();
+
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Image, View } from 'react-native';

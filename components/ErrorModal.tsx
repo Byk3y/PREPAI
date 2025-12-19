@@ -36,9 +36,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({ error, onDismiss, onRetr
         break;
       case RecoveryAction.UPGRADE:
         onDismiss();
-        // Note: Upgrade/subscription screen not yet implemented
-        // For now, show a message - can be updated when upgrade screen is added
-        // router.push('/upgrade');
+        router.push('/upgrade');
         break;
       case RecoveryAction.REFRESH:
         onDismiss();
@@ -248,4 +246,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito-Medium',
   },
 });
+
+
 
