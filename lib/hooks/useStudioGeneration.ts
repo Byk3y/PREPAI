@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { generateStudioContent } from '@/lib/api/studioApi';
 import { generateAudioOverview } from '@/lib/api/audioOverviewApi';
@@ -7,6 +7,9 @@ import { storageService } from '@/lib/storage/storageService';
 import { useStore } from '@/lib/store';
 import type { AudioOverview } from '@/lib/store/types';
 import { useErrorHandler } from './useErrorHandler';
+import { checkQuotaRemaining } from '@/lib/services/subscriptionService';
+import type { LimitReason } from '@/lib/services/subscriptionService';
+import { useUpgrade } from '@/lib/hooks/useUpgrade';
 
 interface UseStudioGenerationParams {
   notebookId: string;
@@ -32,14 +35,43 @@ export const useStudioGeneration = ({
   setGeneratingAudioId,
   startAudioPolling,
 }: UseStudioGenerationParams) => {
-  const { checkAndAwardTask } = useStore();
+  const { checkAndAwardTask, tier, status, isExpired, studioJobsUsed, studioJobsLimit, audioJobsUsed, audioJobsLimit, trialEndsAt, trialStartedAt, subscriptionSyncedAt, user, notebooks, cachedPetState, flashcardsStudied } = useStore();
   const { handleError, withErrorHandling } = useErrorHandler();
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeModalSource, setUpgradeModalSource] = useState<'create_attempt' | null>(null);
+  const [limitReason, setLimitReason] = useState<LimitReason>(null);
+  const { trackCreateAttemptBlocked, trackUpgradeModalShown, trackUpgradeModalDismissed, trackUpgradeButtonClicked } = useUpgrade();
+  
+  // Memoize subscription object for quota checks to avoid unnecessary re-renders
+  const subscription = useMemo(() => ({
+    tier,
+    status,
+    trialEndsAt,
+    trialStartedAt,
+    studioJobsUsed,
+    audioJobsUsed,
+    studioJobsLimit,
+    audioJobsLimit,
+    isExpired,
+    subscriptionSyncedAt,
+  }), [tier, status, trialEndsAt, trialStartedAt, studioJobsUsed, audioJobsUsed, studioJobsLimit, audioJobsLimit, isExpired, subscriptionSyncedAt]);
 
   /**
    * Generate flashcards for the notebook
    */
   const handleGenerateFlashcards = useCallback(async () => {
     try {
+      // Check quota before proceeding with detailed reason
+      const quotaCheck = checkQuotaRemaining('studio', subscription);
+      if (!quotaCheck.hasQuota) {
+        trackCreateAttemptBlocked('flashcards');
+        trackUpgradeModalShown('create_attempt');
+        setUpgradeModalSource('create_attempt');
+        setLimitReason(quotaCheck.reason);
+        setShowUpgradeModal(true);
+        return;
+      }
+
       // TODO: Implement confirmation dialog with centralized error handling
       const ok = await new Promise<boolean>((resolve) => {
         Alert.alert(
@@ -82,13 +114,24 @@ export const useStudioGeneration = ({
     } finally {
       setGeneratingType(null);
     }
-  }, [notebookId, flashcardsCount, setGeneratingType, refreshContent, checkAndAwardTask]);
+  }, [notebookId, flashcardsCount, setGeneratingType, refreshContent, checkAndAwardTask, subscription, trackCreateAttemptBlocked, trackUpgradeModalShown]);
 
   /**
    * Generate quiz for the notebook
    */
   const handleGenerateQuiz = useCallback(async () => {
     try {
+      // Check quota before proceeding with detailed reason
+      const quotaCheck = checkQuotaRemaining('studio', subscription);
+      if (!quotaCheck.hasQuota) {
+        trackCreateAttemptBlocked('quiz');
+        trackUpgradeModalShown('create_attempt');
+        setUpgradeModalSource('create_attempt');
+        setLimitReason(quotaCheck.reason);
+        setShowUpgradeModal(true);
+        return;
+      }
+
       // TODO: Implement confirmation dialog with centralized error handling
       const ok = await new Promise<boolean>((resolve) => {
         Alert.alert(
@@ -131,12 +174,22 @@ export const useStudioGeneration = ({
     } finally {
       setGeneratingType(null);
     }
-  }, [notebookId, quizzesCount, setGeneratingType, refreshContent, checkAndAwardTask]);
+  }, [notebookId, quizzesCount, setGeneratingType, refreshContent, checkAndAwardTask, subscription, trackCreateAttemptBlocked, trackUpgradeModalShown]);
 
   /**
    * Generate audio overview for the notebook
    */
   const handleGenerateAudioOverview = useCallback(async () => {
+    // Check quota before proceeding with detailed reason
+    const quotaCheck = checkQuotaRemaining('audio', subscription);
+    if (!quotaCheck.hasQuota) {
+      trackCreateAttemptBlocked('audio_overview');
+      trackUpgradeModalShown('create_attempt');
+      setUpgradeModalSource('create_attempt');
+      setLimitReason(quotaCheck.reason);
+      setShowUpgradeModal(true);
+      return;
+    }
     try {
       // TODO: Implement confirmation dialog with centralized error handling
       const ok = await new Promise<boolean>((resolve) => {
@@ -162,13 +215,20 @@ export const useStudioGeneration = ({
       // Start polling for status updates
       startAudioPolling(result.overview_id);
     } catch (error: any) {
-      console.error('Error generating audio overview:', error);
-
       // Check if generation actually started on the server despite the error
       // This handles network errors that occur after generation starts
       if (error?.isNetworkError) {
+        // If API layer already confirmed generation started, use that info
+        if (error?.generationStarted && error?.overviewId) {
+          // Generation started! Restore state and continue polling
+          setGeneratingType('audio');
+          setGeneratingAudioId(error.overviewId);
+          startAudioPolling(error.overviewId);
+          return; // Don't show error - generation is in progress
+        }
+
+        // Otherwise, check for pending audio generation
         try {
-          // Check for pending audio generation for this notebook
           const pendingAudio = await audioService.findPending(notebookId);
 
           if (pendingAudio) {
@@ -196,6 +256,9 @@ export const useStudioGeneration = ({
     setGeneratingType,
     setGeneratingAudioId,
     startAudioPolling,
+    subscription,
+    trackCreateAttemptBlocked,
+    trackUpgradeModalShown,
   ]);
 
   /**
@@ -237,10 +300,25 @@ export const useStudioGeneration = ({
     [setAudioOverviews, handleError]
   );
 
+  // Calculate pet level
+  const petLevel = Math.floor((cachedPetState?.points || 0) / 50) + 1;
+  const petName = cachedPetState?.name || 'Sparky';
+
   return {
     handleGenerateFlashcards,
     handleGenerateQuiz,
     handleGenerateAudioOverview,
     handleDeleteAudioOverview,
+    showUpgradeModal,
+    setShowUpgradeModal,
+    upgradeModalSource,
+    upgradeModalProps: {
+      notebooksCount: notebooks.length,
+      flashcardsStudied: flashcardsStudied,
+      streakDays: user.streak || 0,
+      petName,
+      petLevel,
+      limitReason,
+    },
   };
 };
