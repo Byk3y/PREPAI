@@ -21,6 +21,7 @@ import { useAudioPlaybackPosition } from '@/lib/hooks/useAudioPlaybackPosition';
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 import { AudioVisualizer } from './AudioVisualizer';
 import { useStore } from '@/lib/store';
+import { audioFeedbackService } from '@/lib/services/audioFeedbackService';
 import {
     CloseIcon,
     DownloadIcon,
@@ -62,8 +63,11 @@ export function AudioPlayer({
     const isDraggingSlider = useRef(false);
     const isSeeking = useRef(false);
     const hasAwardedTaskRef = useRef(false);
+    const feedbackLoadingRef = useRef(false);
+    const feedbackOperationRef = useRef(false); // Track if feedback operation is in progress
 
     const checkAndAwardTask = useStore((state) => state.checkAndAwardTask);
+    const authUser = useStore((state) => state.authUser);
 
     // Position persistence hook
     const {
@@ -90,6 +94,41 @@ export function AudioPlayer({
             }
         };
     }, [audioUrl, saveCurrentPosition]);
+
+    // Load existing feedback on mount
+    useEffect(() => {
+        if (!authUser?.id || feedbackLoadingRef.current) return;
+
+        let isMounted = true;
+
+        const loadFeedback = async () => {
+            try {
+                feedbackLoadingRef.current = true;
+                const feedback = await audioFeedbackService.getFeedback(
+                    authUser.id,
+                    audioOverviewId
+                );
+                // Only update state if component is still mounted
+                if (isMounted && feedback) {
+                    setLiked(feedback.is_liked);
+                }
+            } catch (error) {
+                // Non-critical error - log but don't block UI
+                console.error('Failed to load audio feedback:', error);
+            } finally {
+                if (isMounted) {
+                    feedbackLoadingRef.current = false;
+                }
+            }
+        };
+
+        loadFeedback();
+
+        // Cleanup: prevent state updates if component unmounts
+        return () => {
+            isMounted = false;
+        };
+    }, [authUser?.id, audioOverviewId]);
 
     const loadAudio = async () => {
         try {
@@ -264,13 +303,95 @@ export function AudioPlayer({
         }
     }, [playbackSpeed, loading]);
 
-    const handleLike = useCallback(() => {
-        setLiked((prev) => (prev === true ? null : true));
-    }, []);
+    const handleLike = useCallback(async () => {
+        // Prevent concurrent operations
+        if (feedbackOperationRef.current) return;
+        
+        // Capture current value before state update
+        const previousValue = liked;
+        const newValue = liked === true ? null : true;
+        
+        // Optimistic update
+        setLiked(newValue);
+        feedbackOperationRef.current = true;
 
-    const handleDislike = useCallback(() => {
-        setLiked((prev) => (prev === false ? null : false));
-    }, []);
+        // Persist to database (non-blocking)
+        if (authUser?.id) {
+            try {
+                if (newValue === null) {
+                    // Remove feedback
+                    await audioFeedbackService.removeFeedback(
+                        authUser.id,
+                        audioOverviewId
+                    );
+                } else {
+                    // Save like
+                    await audioFeedbackService.saveFeedback(
+                        authUser.id,
+                        audioOverviewId,
+                        true
+                    );
+                }
+            } catch (error) {
+                // Revert on error using functional update to get latest state
+                setLiked((current) => {
+                    // If state hasn't changed, revert to previous
+                    return current === newValue ? previousValue : current;
+                });
+                console.error('Failed to save like:', error);
+                // Non-critical - don't show error to user, just log
+            } finally {
+                feedbackOperationRef.current = false;
+            }
+        } else {
+            feedbackOperationRef.current = false;
+        }
+    }, [liked, authUser?.id, audioOverviewId]);
+
+    const handleDislike = useCallback(async () => {
+        // Prevent concurrent operations
+        if (feedbackOperationRef.current) return;
+        
+        // Capture current value before state update
+        const previousValue = liked;
+        const newValue = liked === false ? null : false;
+        
+        // Optimistic update
+        setLiked(newValue);
+        feedbackOperationRef.current = true;
+
+        // Persist to database (non-blocking)
+        if (authUser?.id) {
+            try {
+                if (newValue === null) {
+                    // Remove feedback
+                    await audioFeedbackService.removeFeedback(
+                        authUser.id,
+                        audioOverviewId
+                    );
+                } else {
+                    // Save dislike
+                    await audioFeedbackService.saveFeedback(
+                        authUser.id,
+                        audioOverviewId,
+                        false
+                    );
+                }
+            } catch (error) {
+                // Revert on error using functional update to get latest state
+                setLiked((current) => {
+                    // If state hasn't changed, revert to previous
+                    return current === newValue ? previousValue : current;
+                });
+                console.error('Failed to save dislike:', error);
+                // Non-critical - don't show error to user, just log
+            } finally {
+                feedbackOperationRef.current = false;
+            }
+        } else {
+            feedbackOperationRef.current = false;
+        }
+    }, [liked, authUser?.id, audioOverviewId]);
 
     return (
         <View className="flex-1 bg-white">

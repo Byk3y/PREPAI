@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      audio_feedback: {
+        Row: {
+          audio_overview_id: string
+          created_at: string | null
+          id: string
+          is_liked: boolean
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          audio_overview_id: string
+          created_at?: string | null
+          id?: string
+          is_liked: boolean
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          audio_overview_id?: string
+          created_at?: string | null
+          id?: string
+          is_liked?: boolean
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audio_feedback_audio_overview_id_fkey"
+            columns: ["audio_overview_id"]
+            isOneToOne: false
+            referencedRelation: "audio_overviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audio_overviews: {
         Row: {
           audio_url: string | null
@@ -1202,4 +1237,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
