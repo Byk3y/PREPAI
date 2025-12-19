@@ -20,3 +20,5 @@ CREATE INDEX IF NOT EXISTS idx_profiles_timezone
 ON profiles(timezone) 
 WHERE timezone IS NOT NULL;
 
+
+
