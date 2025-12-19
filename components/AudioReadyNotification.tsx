@@ -1,10 +1,10 @@
 /**
- * AudioReadyNotification - Non-intrusive top notification for audio completion
- * Slides down from top with smooth animation
+ * AudioReadyNotification - iOS-style compact notification banner
+ * Slides down from top, auto-dismisses, swipeable to dismiss
  */
 
-import React, { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Animated, StyleSheet, Platform } from 'react-native';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { View, Text, TouchableOpacity, Animated, StyleSheet, PanResponder } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -17,6 +17,9 @@ interface AudioReadyNotificationProps {
   onListenNow: () => void;
 }
 
+const AUTO_DISMISS_DELAY = 5000; // 5 seconds
+const SWIPE_THRESHOLD = 50; // Minimum swipe distance to trigger dismiss
+
 export const AudioReadyNotification: React.FC<AudioReadyNotificationProps> = ({
   visible,
   notebookName,
@@ -27,7 +30,47 @@ export const AudioReadyNotification: React.FC<AudioReadyNotificationProps> = ({
   const router = useRouter();
   const slideAnim = useRef(new Animated.Value(-100)).current; // Start above screen
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const panY = useRef(new Animated.Value(0)).current;
+  const autoDismissTimer = useRef<NodeJS.Timeout | null>(null);
+  const currentOffset = useRef(0);
 
+  const handleDismiss = useCallback(() => {
+    // Clear auto-dismiss timer
+    if (autoDismissTimer.current) {
+      clearTimeout(autoDismissTimer.current);
+      autoDismissTimer.current = null;
+    }
+    onDismiss();
+  }, [onDismiss]);
+
+  // Auto-dismiss timer
+  useEffect(() => {
+    if (visible) {
+      // Clear any existing timer
+      if (autoDismissTimer.current) {
+        clearTimeout(autoDismissTimer.current);
+      }
+      
+      // Set new auto-dismiss timer
+      autoDismissTimer.current = setTimeout(() => {
+        handleDismiss();
+      }, AUTO_DISMISS_DELAY);
+    } else {
+      // Clear timer when not visible
+      if (autoDismissTimer.current) {
+        clearTimeout(autoDismissTimer.current);
+        autoDismissTimer.current = null;
+      }
+    }
+
+    return () => {
+      if (autoDismissTimer.current) {
+        clearTimeout(autoDismissTimer.current);
+      }
+    };
+  }, [visible, handleDismiss]);
+
+  // Animation when visibility changes
   useEffect(() => {
     if (visible) {
       // Slide down and fade in
@@ -61,10 +104,68 @@ export const AudioReadyNotification: React.FC<AudioReadyNotificationProps> = ({
     }
   }, [visible]);
 
-  const handleListenNow = () => {
+  const handleTap = useCallback(() => {
+    // Clear auto-dismiss timer when user interacts
+    if (autoDismissTimer.current) {
+      clearTimeout(autoDismissTimer.current);
+      autoDismissTimer.current = null;
+    }
     onListenNow();
     router.push(`/audio-player/${overviewId}`);
-  };
+  }, [onListenNow, router, overviewId]);
+
+  // PanResponder for swipe-to-dismiss
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Only respond to upward swipes (negative dy)
+        return gestureState.dy < -5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onPanResponderGrant: () => {
+        // Clear auto-dismiss timer when user starts interacting
+        if (autoDismissTimer.current) {
+          clearTimeout(autoDismissTimer.current);
+          autoDismissTimer.current = null;
+        }
+        // Stop any ongoing animations
+        panY.stopAnimation();
+        // Set offset to current position
+        panY.setOffset(currentOffset.current);
+        panY.setValue(0);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        // Only allow upward movement (negative dy)
+        if (gestureState.dy < 0) {
+          panY.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        panY.flattenOffset();
+        currentOffset.current = 0;
+
+        // If swiped up enough, dismiss
+        if (gestureState.dy < -SWIPE_THRESHOLD || gestureState.vy < -0.5) {
+          Animated.timing(panY, {
+            toValue: -150,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            panY.setValue(0);
+            handleDismiss();
+          });
+        } else {
+          // Spring back to original position
+          Animated.spring(panY, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 50,
+            friction: 8,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   if (!visible) return null;
 
@@ -73,46 +174,41 @@ export const AudioReadyNotification: React.FC<AudioReadyNotificationProps> = ({
       style={[
         styles.container,
         {
-          transform: [{ translateY: slideAnim }],
+          transform: [
+            {
+              translateY: Animated.add(slideAnim, panY),
+            },
+          ],
           opacity: opacityAnim,
         },
       ]}
       pointerEvents="box-none"
     >
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <View style={styles.notification}>
-        {/* Icon and Content */}
-        <View style={styles.content}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="headset" size={24} color="#4F5BD5" />
-          </View>
-          <View style={styles.textContainer}>
-            <Text style={styles.title}>Audio Ready!</Text>
-            <Text style={styles.message} numberOfLines={1}>
-              {notebookName} is ready to play
-            </Text>
-          </View>
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.actions}>
+        <Animated.View
+          style={styles.notification}
+          {...panResponder.panHandlers}
+        >
           <TouchableOpacity
-            style={[styles.laterButton, { marginRight: 8 }]}
-            onPress={onDismiss}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.laterText}>Later</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.listenButton}
-            onPress={handleListenNow}
+            onPress={handleTap}
             activeOpacity={0.8}
+            style={styles.touchableContent}
           >
-            <Ionicons name="play" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.listenText}>Listen Now</Text>
+            {/* Icon and Content */}
+            <View style={styles.content}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="headset" size={20} color="#4F5BD5" />
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={styles.title}>Audio Ready!</Text>
+                <Text style={styles.message} numberOfLines={1}>
+                  {notebookName} is ready to play
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </View>
           </TouchableOpacity>
-        </View>
-      </View>
+        </Animated.View>
       </SafeAreaView>
     </Animated.View>
   );
@@ -127,28 +223,31 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   safeArea: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: 12,
+    paddingTop: 4,
   },
   notification: {
     backgroundColor: '#1F2937',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 8,
+    overflow: 'hidden',
+  },
+  touchableContent: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'rgba(79, 91, 213, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -158,50 +257,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
     marginBottom: 2,
     fontFamily: 'Nunito-SemiBold',
   },
   message: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#9CA3AF',
     fontFamily: 'Nunito-Regular',
-  },
-  actions: {
-    flexDirection: 'row',
-  },
-  laterButton: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  laterText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#D1D5DB',
-    fontFamily: 'Nunito-Medium',
-  },
-  listenButton: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    backgroundColor: '#4F5BD5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  listenText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    fontFamily: 'Nunito-SemiBold',
   },
 });
 

@@ -28,6 +28,10 @@ import { getTopicEmoji } from '@/lib/emoji-matcher';
 import { getFilenameFromPath } from '@/lib/utils';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 import { useFeedback } from '@/lib/feedback';
+import { notebookService } from '@/lib/services/notebookService';
+import { LockedNotebookOverlay } from '@/components/upgrade/LockedNotebookOverlay';
+import { canAccessNotebook, getAccessibleNotebookIds } from '@/lib/services/subscriptionService';
+import { SUBSCRIPTION_CONSTANTS } from '@/lib/constants';
 
 type TabType = 'sources' | 'chat' | 'studio';
 
@@ -35,7 +39,7 @@ export default function NotebookDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { handleError } = useErrorHandler();
-  const { notebooks, loadNotebooks, setNotebooks, deleteNotebook, updateNotebook } = useStore();
+  const { notebooks, loadNotebooks, setNotebooks, deleteNotebook, updateNotebook, tier, status, isExpired } = useStore();
   const { play } = useFeedback();
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const [notebook, setNotebook] = useState<Notebook | null>(null);
@@ -43,6 +47,7 @@ export default function NotebookDetailScreen() {
   const [triggerQuizGeneration, setTriggerQuizGeneration] = useState(false);
   const [renameModalVisible, setRenameModalVisible] = useState(false);
   const [renameValue, setRenameValue] = useState('');
+  const [showLockedOverlay, setShowLockedOverlay] = useState(false);
 
   // Helper function to transform Supabase notebook data to Notebook format
   const transformNotebook = (nb: any, existingMaterials?: Material[]): Notebook => ({
@@ -81,14 +86,55 @@ export default function NotebookDetailScreen() {
       // Get fresh notebooks from store after loading (avoid stale closure)
       const currentNotebooks = useStore.getState().notebooks;
       const found = currentNotebooks.find((n) => n.id === id);
-      setNotebook(found || null);
-      setLoading(false);
+      
+      if (found) {
+        setNotebook(found);
+        setLoading(false);
+        return;
+      }
+
+      // Notebook not found in store - try fetching directly from database
+      // This handles race conditions where the notebook was just created
+      // but hasn't been loaded into the store yet
+      try {
+        const fetchedNotebook = await notebookService.getNotebookById(id);
+        if (fetchedNotebook) {
+          setNotebook(fetchedNotebook);
+          // Also update the store with the fetched notebook
+          setNotebooks([fetchedNotebook, ...currentNotebooks]);
+        } else {
+          setNotebook(null);
+        }
+      } catch (error) {
+        console.error('Error fetching notebook from database:', error);
+        setNotebook(null);
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadNotebook();
     // Only depend on id - don't re-run when notebooks array changes
     // Real-time updates will handle state changes directly
   }, [id]);
+
+  // Check if notebook access is restricted (limited access mode)
+  useEffect(() => {
+    if (!id || !isExpired || tier === 'premium') return;
+
+    // Get the most recent notebooks (accessible in limited access mode)
+    const accessibleIds = getAccessibleNotebookIds(
+      notebooks,
+      SUBSCRIPTION_CONSTANTS.LIMITED_ACCESS_NOTEBOOK_COUNT
+    );
+
+    // Check if this notebook is accessible
+    const canAccess = canAccessNotebook(id, accessibleIds);
+
+    if (!canAccess) {
+      setShowLockedOverlay(true);
+    }
+  }, [id, isExpired, tier, notebooks]);
 
   // Ref to track if we're currently reloading materials (prevent multiple simultaneous reloads)
   const isReloadingRef = React.useRef(false);
@@ -422,7 +468,6 @@ export default function NotebookDetailScreen() {
           {/* Sources Tab */}
           <TouchableOpacity
             onPress={() => {
-              play('tap');
               setActiveTab('sources');
             }}
             style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}
@@ -440,7 +485,6 @@ export default function NotebookDetailScreen() {
           {/* Chat Tab */}
           <TouchableOpacity
             onPress={() => {
-              play('tap');
               setActiveTab('chat');
             }}
             style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}
@@ -458,7 +502,6 @@ export default function NotebookDetailScreen() {
           {/* Studio Tab */}
           <TouchableOpacity
             onPress={() => {
-              play('tap');
               setActiveTab('studio');
             }}
             style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}
@@ -540,6 +583,18 @@ export default function NotebookDetailScreen() {
           </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Locked Notebook Overlay */}
+      <LockedNotebookOverlay
+        visible={showLockedOverlay}
+        totalNotebooks={notebooks.length}
+        delayMs={SUBSCRIPTION_CONSTANTS.LOCKED_NOTEBOOK_OVERLAY_DELAY_MS}
+        onUpgrade={() => {
+          setShowLockedOverlay(false);
+          router.push('/upgrade');
+        }}
+        onDismiss={() => setShowLockedOverlay(false)}
+      />
     </SafeAreaView>
   );
 }

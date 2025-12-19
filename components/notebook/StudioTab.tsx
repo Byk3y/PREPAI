@@ -20,6 +20,8 @@ import { AudioReadyNotification } from '@/components/AudioReadyNotification';
 import { StudioExtractingState } from './studio/StudioExtractingState';
 import { GenerateOptionsSection } from './studio/GenerateOptionsSection';
 import { GeneratedMediaSection } from './studio/GeneratedMediaSection';
+import { UpgradeModal } from '@/components/upgrade/UpgradeModal';
+import { useUpgrade } from '@/lib/hooks/useUpgrade';
 
 interface StudioTabProps {
   notebook: Notebook;
@@ -64,6 +66,10 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
     handleGenerateQuiz,
     handleGenerateAudioOverview,
     handleDeleteAudioOverview,
+    showUpgradeModal,
+    setShowUpgradeModal,
+    upgradeModalSource,
+    upgradeModalProps,
   } = useStudioGeneration({
     notebookId: notebook.id,
     flashcardsCount: flashcards.length,
@@ -75,6 +81,8 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
     setGeneratingAudioId,
     startAudioPolling,
   });
+
+  const { trackUpgradeModalDismissed } = useUpgrade();
 
   // Check for in-progress audio generation on mount (handles navigation back)
   useEffect(() => {
@@ -105,10 +113,19 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
     return <StudioExtractingState />;
   }
 
+  // Calculate notification height for padding (safe area + notification height)
+  // Notification is ~60px + safe area top (~44-50px) = ~110px total
+  const notificationHeight = showAudioNotification && completedAudioId ? 110 : 0;
+
   // Main studio view
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: colors.background }}
+        contentContainerStyle={{
+          paddingTop: notificationHeight,
+        }}
+      >
         {/* Generate New Section */}
         <GenerateOptionsSection
           generatingType={generatingType}
@@ -139,6 +156,19 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
           overviewId={completedAudioId}
           onDismiss={dismissNotification}
           onListenNow={handleListenNow}
+        />
+      )}
+
+      {/* Upgrade Modal (quota exceeded) */}
+      {upgradeModalSource && (
+        <UpgradeModal
+          visible={showUpgradeModal}
+          onDismiss={() => {
+            trackUpgradeModalDismissed(upgradeModalSource);
+            setShowUpgradeModal(false);
+          }}
+          source={upgradeModalSource}
+          {...upgradeModalProps}
         />
       )}
     </GestureHandlerRootView>

@@ -115,7 +115,10 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
   // Or when navigating away?
   // Let's do it when revealing answer (flipping).
   const flipCard = () => {
-    play('reveal');
+    // Only play sound when revealing the answer (not when going back to question)
+    if (!isFlipped) {
+      play('reveal');
+    }
     haptic('selection');
     flipRotation.value = withTiming(isFlipped ? 0 : 180, { duration: 400 });
 
@@ -267,6 +270,10 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
                 backAnimatedStyle,
               ]}
             >
+              {/* Answer Tag */}
+              <View style={styles.answerTag}>
+                <Text style={styles.answerTagText}>Answer</Text>
+              </View>
               <View style={{ flex: 1, paddingHorizontal: 40, paddingVertical: 64 }}>
                 <Text style={styles.answerText}>
                   {currentCard.answer}
@@ -380,5 +387,23 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontFamily: 'Nunito-Medium',
     letterSpacing: 0.2,
+  },
+  answerTag: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    backgroundColor: 'rgba(79, 91, 213, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(79, 91, 213, 0.4)',
+    zIndex: 10,
+  },
+  answerTagText: {
+    fontSize: 12,
+    color: '#818cf8',
+    fontFamily: 'Nunito-SemiBold',
+    letterSpacing: 0.5,
   },
 });
