@@ -3,28 +3,28 @@
  * Shows empty state or list of study notebooks
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  RefreshControl,
-} from 'react-native';
+import React, { useState } from 'react';
+import { View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useStore } from '@/lib/store';
 import { useNotebookCreation } from '@/lib/hooks/useNotebookCreation';
-import { NotebookCard } from '@/components/NotebookCard';
 import { PetBubble } from '@/components/PetBubble';
 import MaterialTypeSelector from '@/components/MaterialTypeSelector';
 import TextInputModal from '@/components/TextInputModal';
 import { TikTokLoader } from '@/components/TikTokLoader';
-import { supabase } from '@/lib/supabase';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { HomeActionButtons } from '@/components/home/HomeActionButtons';
+import { HomeEmptyState } from '@/components/home/HomeEmptyState';
+import { NotebookList } from '@/components/home/NotebookList';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import { UpgradeModal } from '@/components/upgrade/UpgradeModal';
+import { useUpgrade } from '@/lib/hooks/useUpgrade';
+import { useHomeSubscriptions } from '@/hooks/useHomeSubscriptions';
+import { useHomeNavigation } from '@/hooks/useHomeNavigation';
+import { useTrialSubscriptionUI } from '@/hooks/useTrialSubscriptionUI';
+import { useNotebookList } from '@/hooks/useNotebookList';
+import { useHomeAnalytics } from '@/hooks/useHomeAnalytics';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -35,8 +35,10 @@ export default function HomeScreen() {
     isInitialized,
     notebooksSyncedAt,
     notebooksUserId,
+    user,
+    flashcardsStudied,
   } = useStore();
-  
+
   // Theme
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
@@ -48,85 +50,49 @@ export default function HomeScreen() {
     handlePDFUpload,
     handlePhotoUpload,
     handleCameraUpload,
-    handleTextSave
+    handleTextSave,
+    showUpgradeModal: showCreateUpgradeModal,
+    setShowUpgradeModal: setShowCreateUpgradeModal,
+    upgradeModalProps,
   } = useNotebookCreation();
 
-  // Navigation state (keeping local for flash prevention logic if needed)
-  const [isNavigating, setIsNavigating] = useState(false);
-  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isNavigatingRef = useRef(false);
+  // Navigation with flash prevention
+  const { navigateToNotebook, isNavigatingRef } = useHomeNavigation();
+
+  // Real-time subscriptions (needs navigation ref to prevent flash)
+  useHomeSubscriptions(isNavigatingRef);
+
+  // Trial/subscription UI state
+  const {
+    showTrialReminder,
+    showUpgradeModal,
+    showLimitedAccess,
+    daysRemaining,
+    accessibleCount,
+    totalCount,
+    setShowTrialReminder,
+    setShowUpgradeModal,
+  } = useTrialSubscriptionUI(notebooks);
+
+  // Notebook list filtering and sorting
+  const { accessibleNotebooks } = useNotebookList({
+    notebooks,
+    showLimitedAccess,
+  });
+
+  // Analytics tracking
+  useHomeAnalytics();
+
+  // Analytics tracking functions
+  const { trackUpgradeModalDismissed } = useUpgrade();
+
+  // Refresh state
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Real-time updates
-  useEffect(() => {
-    if (!authUser) return;
-
-    const channel = supabase
-      .channel('notebooks-list')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notebooks',
-          filter: `user_id=eq.${authUser.id}`,
-        },
-        async () => {
-          if (!isNavigatingRef.current) {
-            await loadNotebooks();
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notebooks',
-          filter: `user_id=eq.${authUser.id}`,
-        },
-        async () => {
-          await loadNotebooks();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [authUser, loadNotebooks]);
-
-  // Cleanup timeout
-  useEffect(() => {
-    return () => {
-      if (navigationTimeoutRef.current) {
-        clearTimeout(navigationTimeoutRef.current);
-      }
-    };
-  }, []);
 
   // Modal states
   const [showMaterialSelector, setShowMaterialSelector] = useState(false);
   const [showTextInput, setShowTextInput] = useState(false);
   const [textInputType, setTextInputType] = useState<'text' | 'note'>('text');
-
-  // Navigation Helper
-  const navigateToNotebook = (notebookId: string) => {
-    // Prevent rapid double-taps from pushing the route twice
-    if (isNavigatingRef.current) return;
-
-    setIsNavigating(true);
-    isNavigatingRef.current = true;
-    router.push(`/notebook/${notebookId}`);
-
-    if (navigationTimeoutRef.current) {
-      clearTimeout(navigationTimeoutRef.current);
-    }
-    navigationTimeoutRef.current = setTimeout(() => {
-      setIsNavigating(false);
-      isNavigatingRef.current = false;
-    }, 800);
-  };
 
   const handleCreateNotebook = () => {
     setShowMaterialSelector(true);
@@ -213,86 +179,24 @@ export default function HomeScreen() {
 
       {/* Content */}
       {!canShowContent ? (
-        !authUser ? (
-        <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
-          <Text style={{ fontSize: 24, fontFamily: 'Nunito-Bold', color: colors.text, marginBottom: 16 }}>
-            Not Signed In
-          </Text>
-          <Text style={{ color: colors.textSecondary, marginBottom: 32, textAlign: 'center', fontFamily: 'Nunito-Regular' }}>
-            Please sign in to access your study materials
-          </Text>
-          <TouchableOpacity
-            onPress={() => router.push('/auth')}
-            style={{ backgroundColor: '#3B82F6', paddingHorizontal: 32, paddingVertical: 16, borderRadius: 999 }}
-          >
-            <Text style={{ color: '#FFFFFF', fontFamily: 'Nunito-SemiBold', fontSize: 18 }}>
-              Sign In
-            </Text>
-          </TouchableOpacity>
-        </View>
-        ) : (
-          <View style={{ flex: 1, backgroundColor: colors.background }} />
-        )
+        <HomeEmptyState isSignedIn={!!authUser} />
       ) : (
-        <ScrollView
-          style={{ flex: 1, backgroundColor: colors.background }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: 24,
-            paddingTop: 8,
-            paddingBottom: 120,
-            flexGrow: 1, // allow pull-to-refresh from anywhere
-          }}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={handleRefresh}
-              tintColor="transparent"
-              colors={['transparent']}
-              style={{ backgroundColor: 'transparent' }}
-            />
-          }
-        >
-          {isRefreshing && (
-            <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-              <TikTokLoader size={10} color="#6366f1" containerWidth={60} />
-            </View>
-          )}
-          {[...notebooks]
-            .sort((a, b) => {
-              const dateA = new Date(a.createdAt).getTime();
-              const dateB = new Date(b.createdAt).getTime();
-              return dateB - dateA;
-            })
-            .map((notebook) => (
-              <NotebookCard
-                key={notebook.id}
-                notebook={notebook}
-                onPress={() => handleNotebookPress(notebook.id)}
-              />
-            ))}
-
-          {/* Add New Button (List Item) */}
-          <TouchableOpacity
-            onPress={handleCreateNotebook}
-            style={{
-              backgroundColor: colors.surface,
-              borderRadius: 16,
-              padding: 16,
-              marginBottom: 24,
-              borderWidth: 2,
-              borderStyle: 'dashed',
-              borderColor: colors.border,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            activeOpacity={0.7}
-          >
-            <Text style={{ fontSize: 16, fontFamily: 'Nunito-SemiBold', color: colors.textSecondary }}>
-              + Add New Notebook
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
+        <NotebookList
+          notebooks={accessibleNotebooks}
+          isRefreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          onNotebookPress={handleNotebookPress}
+          onCreateNotebook={handleCreateNotebook}
+          showTrialReminder={showTrialReminder}
+          daysRemaining={daysRemaining}
+          notebooksCount={notebooks.length}
+          streakDays={user.streak || 0}
+          showLimitedAccess={showLimitedAccess}
+          accessibleCount={accessibleCount}
+          totalCount={totalCount}
+          onUpgrade={() => router.push('/upgrade')}
+          onDismissTrialReminder={() => setShowTrialReminder(false)}
+        />
       )}
 
       {/* Loading Overlay */}
@@ -345,6 +249,32 @@ export default function HomeScreen() {
         type={textInputType}
         onClose={() => setShowTextInput(false)}
         onSave={onTextSave}
+      />
+
+      {/* Upgrade Modal (trial expired on first app open) */}
+      <UpgradeModal
+        visible={showUpgradeModal && !showCreateUpgradeModal}
+        onDismiss={() => {
+          trackUpgradeModalDismissed('trial_expired');
+          setShowUpgradeModal(false);
+        }}
+        source="trial_expired"
+        notebooksCount={notebooks.length}
+        flashcardsStudied={flashcardsStudied}
+        streakDays={user.streak || 0}
+        petName={user.name || 'Sparky'}
+        petLevel={Math.floor((user.streak || 0) / 7) + 1} // Simple level calculation
+      />
+
+      {/* Upgrade Modal (create attempt blocked) */}
+      <UpgradeModal
+        visible={showCreateUpgradeModal}
+        onDismiss={() => {
+          trackUpgradeModalDismissed('create_attempt');
+          setShowCreateUpgradeModal(false);
+        }}
+        source="create_attempt"
+        {...upgradeModalProps}
       />
     </SafeAreaView>
   );
