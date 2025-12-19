@@ -1,0 +1,273 @@
+import { useRef, useCallback, useEffect } from 'react';
+import { PanResponder, Animated } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useStore } from '@/lib/store';
+import { useFeedback } from '@/lib/feedback';
+import { ANIMATION_CONFIG, PET_SIZE, TOP_PADDING, BOTTOM_PADDING } from '../constants';
+import {
+  calculateTopLeftBounds,
+  clampTopLeftPosition,
+  convertTopLeftToCenter,
+  convertCenterToTopLeft,
+  calculateEdgeSnapTarget,
+  getHorizontalInset,
+  type Position,
+  type ScreenDimensions,
+  type SafeAreaInsets,
+} from '../utils/positionCalculations';
+
+interface UsePetBubbleGesturesConfig {
+  position: Position;
+  positionRef: React.MutableRefObject<Position>;
+  setPosition: (position: Position | ((prev: Position) => Position)) => void;
+  screenDimensions: ScreenDimensions;
+  insets: SafeAreaInsets;
+  // Animation hooks
+  scaleAnim: Animated.Value;
+  panX: Animated.Value;
+  panY: Animated.Value;
+  leftAnim: Animated.Value;
+  topAnim: Animated.Value;
+  currentPanX: React.MutableRefObject<number>;
+  currentPanY: React.MutableRefObject<number>;
+  isDragging: React.MutableRefObject<boolean>;
+  stopIdleAnimation: () => void;
+  scaleUp: () => void;
+  scaleDown: (callback?: () => void) => void;
+  resetPanValues: (needsResetX: boolean, needsResetY: boolean, callback?: () => void) => void;
+  animateEdgeSnap: (needsXAnimation: boolean, needsYAnimation: boolean, callback?: () => void) => void;
+  setPanValues: (x: number, y: number) => void;
+  setAllAnimatedValues: (position: Position, panXValue: number, panYValue: number) => void;
+  startIdleAnimation: () => void;
+}
+
+/**
+ * Hook to manage pet bubble gesture handling (drag, tap, edge snapping)
+ */
+export function usePetBubbleGestures(config: UsePetBubbleGesturesConfig) {
+  const router = useRouter();
+  const { authUser } = useStore();
+  const { play } = useFeedback();
+  const hasMoved = useRef(false);
+
+  const {
+    position,
+    positionRef,
+    setPosition,
+    screenDimensions,
+    insets,
+    scaleAnim,
+    panX,
+    panY,
+    leftAnim,
+    topAnim,
+    currentPanX,
+    currentPanY,
+    isDragging,
+    stopIdleAnimation,
+    scaleUp,
+    scaleDown,
+    resetPanValues,
+    animateEdgeSnap,
+    setPanValues,
+    setAllAnimatedValues,
+    startIdleAnimation,
+  } = config;
+
+  // Use refs to always get latest values in PanResponder handlers (fixes closure issue)
+  const screenDimensionsRef = useRef(screenDimensions);
+  const insetsRef = useRef(insets);
+
+  // Update refs whenever values change
+  useEffect(() => {
+    screenDimensionsRef.current = screenDimensions;
+  }, [screenDimensions]);
+
+  useEffect(() => {
+    insetsRef.current = insets;
+  }, [insets]);
+
+  const openPetSheet = useCallback(() => {
+    if (!authUser) return;
+    play('tap');
+    router.push('/pet-sheet');
+  }, [authUser, play, router]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Only activate if movement is significant (prevents accidental activation)
+        const moveDistance = Math.sqrt(gestureState.dx ** 2 + gestureState.dy ** 2);
+        return moveDistance > ANIMATION_CONFIG.movementThreshold;
+      },
+      onPanResponderGrant: () => {
+        isDragging.current = true;
+        hasMoved.current = false; // Reset movement flag
+        currentPanX.current = 0; // Reset pan tracking
+        currentPanY.current = 0; // Reset pan tracking
+        stopIdleAnimation();
+        scaleUp();
+      },
+      onPanResponderMove: (_, gestureState) => {
+        // Mark that user has moved
+        if (
+          Math.abs(gestureState.dx) > ANIMATION_CONFIG.movementDetectionThreshold ||
+          Math.abs(gestureState.dy) > ANIMATION_CONFIG.movementDetectionThreshold
+        ) {
+          hasMoved.current = true;
+        }
+
+        // Use ref to get latest position (avoids stale closure)
+        const currentPos = positionRef.current;
+        // Use refs to get latest screen dimensions and insets (fixes closure issue)
+        const currentScreenDimensions = screenDimensionsRef.current;
+        const currentInsets = insetsRef.current;
+
+        // Calculate the base visual position (top-left corner)
+        const baseLeft = currentPos.x - PET_SIZE / 2;
+        const baseTop = currentPos.y - PET_SIZE / 2;
+
+        // Get bounds for top-left corner
+        const bounds = calculateTopLeftBounds(currentScreenDimensions, currentInsets);
+
+        // Calculate where the bubble would be with the gesture movement
+        const potentialLeft = baseLeft + gestureState.dx;
+        const potentialTop = baseTop + gestureState.dy;
+
+        // Clamp the potential position to stay within bounds (creating the "wall" effect)
+        const clamped = clampTopLeftPosition(potentialLeft, potentialTop, bounds);
+
+        // Calculate how much we can actually move (the clamped deltas)
+        const clampedDx = clamped.left - baseLeft;
+        const clampedDy = clamped.top - baseTop;
+
+        // Update pan values with clamped deltas - this creates the "wall" that prevents
+        // the bubble from visually entering the edge area
+        setPanValues(clampedDx, clampedDy);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        isDragging.current = false;
+
+        // Detect tap vs drag - use both movement flag and distance
+        const totalDistance = Math.sqrt(gestureState.dx ** 2 + gestureState.dy ** 2);
+        const isTap = !hasMoved.current && totalDistance < ANIMATION_CONFIG.tapThreshold;
+
+        if (isTap) {
+          // Tap detected - only reset if pan values are non-zero to avoid jump
+          const needsResetX = Math.abs(currentPanX.current) > 0.1;
+          const needsResetY = Math.abs(currentPanY.current) > 0.1;
+
+          resetPanValues(needsResetX, needsResetY, () => {
+            startIdleAnimation();
+            openPetSheet();
+          });
+          return;
+        }
+
+        // Drag detected - calculate new position with edge snapping
+        // Use ref to get latest position (avoids stale closure)
+        const currentPos = positionRef.current;
+        // Use refs to get latest screen dimensions and insets (fixes closure issue)
+        const currentScreenDimensions = screenDimensionsRef.current;
+        const currentInsets = insetsRef.current;
+
+        // Calculate the base visual position (top-left corner)
+        const baseLeft = currentPos.x - PET_SIZE / 2;
+        const baseTop = currentPos.y - PET_SIZE / 2;
+
+        // Get bounds for top-left corner
+        const bounds = calculateTopLeftBounds(currentScreenDimensions, currentInsets);
+
+        // Calculate where the bubble would be with the gesture movement
+        const potentialLeft = baseLeft + gestureState.dx;
+        const potentialTop = baseTop + gestureState.dy;
+
+        // Clamp the potential position to stay within bounds
+        const clamped = clampTopLeftPosition(potentialLeft, potentialTop, bounds);
+
+        // Convert back to center coordinates for position state
+        const clampedCenter = convertTopLeftToCenter(clamped.left, clamped.top);
+
+        // Double-check: Clamp center Y to proper bounds (should match the render bounds)
+        const horizontalInset = getHorizontalInset(currentInsets);
+        const minCenterY = currentInsets.top + PET_SIZE / 2 + TOP_PADDING;
+        const maxCenterY = currentScreenDimensions.height - currentInsets.bottom - PET_SIZE / 2 - BOTTOM_PADDING;
+        const finalClampedY = Math.max(minCenterY, Math.min(maxCenterY, clampedCenter.y));
+
+        // Determine which edge to snap to (horizontal only)
+        const symmetricTargetX = calculateEdgeSnapTarget(
+          clampedCenter.x,
+          currentScreenDimensions,
+          currentInsets
+        );
+
+        // Calculate current position and pan values
+        const currentX = currentPos.x;
+        const currentY = currentPos.y;
+        const currentPanXValue = currentPanX.current;
+        const currentPanYValue = currentPanY.current;
+
+        // Calculate current visual position (where bubble actually is on screen)
+        const currentVisualX = currentX + currentPanXValue;
+        const currentVisualY = currentY + currentPanYValue;
+
+        // Calculate the offset needed to reach target from current visual position
+        const visualOffsetX = symmetricTargetX - currentVisualX;
+        const visualOffsetY = finalClampedY - currentVisualY;
+
+        // Check which axes need animation
+        const needsXAnimation = Math.abs(visualOffsetX) > 0.1;
+        const needsYAnimation = Math.abs(visualOffsetY) > 0.1;
+
+        if (!needsXAnimation && !needsYAnimation) {
+          // Already at target - need to update position WITHOUT visual jump
+          const targetPosition: Position = { x: symmetricTargetX, y: finalClampedY };
+
+          // CRITICAL: Set ALL animated values synchronously BEFORE React state update
+          // This prevents layout recalculation flash
+          setAllAnimatedValues(targetPosition, 0, 0);
+
+          // Now update position state - React will render but animated values are already correct
+          setPosition(targetPosition);
+          positionRef.current = targetPosition;
+
+          // Scale back to normal
+          scaleDown(() => {
+            startIdleAnimation();
+          });
+          return;
+        }
+
+        // CRITICAL FIX: Update position state accounting for current pan values
+        // Strategy: Set position to target, but adjust pan values to maintain visual position
+        // Then animate pan values to 0, which smoothly moves visual position to target
+        const targetPosition: Position = { x: symmetricTargetX, y: finalClampedY };
+
+        // Calculate what pan values should be to maintain current visual position
+        // visual = position + pan, so pan = visual - position
+        const adjustedPanX = currentVisualX - symmetricTargetX;
+        const adjustedPanY = currentVisualY - finalClampedY;
+
+        // CRITICAL FIX: Set ALL animated values synchronously BEFORE any React state update
+        // This ensures native animated values are correct when React renders
+        // No layout recalculation flash because we're updating animated values, not layout props
+        setAllAnimatedValues(targetPosition, adjustedPanX, adjustedPanY);
+
+        // Now update position state - React will render but animated values are already correct
+        setPosition(targetPosition);
+        positionRef.current = targetPosition;
+
+        // Animate to target
+        animateEdgeSnap(needsXAnimation, needsYAnimation, () => {
+          startIdleAnimation();
+        });
+      },
+    })
+  ).current;
+
+  return {
+    panResponder,
+  };
+}
+
