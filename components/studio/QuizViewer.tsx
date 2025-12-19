@@ -135,7 +135,7 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
 
       <ScrollView
         ref={scrollRef}
-        style={{ flex: 1, paddingHorizontal: 24, paddingVertical: 24 }}
+        style={{ flex: 1, paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 }}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
         <QuestionCard question={currentQuestion.question} wasSkipped={wasSkipped} colors={colors} />

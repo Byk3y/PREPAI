@@ -78,7 +78,7 @@ export function QuizHeader({
 
 const styles = StyleSheet.create({
   container: {
-    paddingBottom: 24,
+    paddingBottom: 12,
   },
   topBar: {
     flexDirection: 'row',
