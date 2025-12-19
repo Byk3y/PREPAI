@@ -1,85 +1,75 @@
 /**
  * QuizViewer - Interactive quiz interface with multiple choice questions
- * Features: question navigation, answer selection, scoring, results display
- * Updated: Dark mode support, quiz completion tracking for daily task
+ * Refactored with component-based architecture
  */
 
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import type { Quiz, QuizQuestion } from '@/lib/store/types';
-import { useStore } from '@/lib/store';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
-import { completionService } from '@/lib/services/completionService';
 import { useFeedback } from '@/lib/feedback';
-
-interface QuizViewerProps {
-  quiz: Quiz;
-  onClose: () => void;
-  onComplete?: (score: number) => void;
-}
+import { useStore } from '@/lib/store';
+import { useQuizState } from '@/hooks/useQuizState';
+import { QuizHeader } from '@/components/quiz/QuizHeader';
+import { QuestionCard } from '@/components/quiz/QuestionCard';
+import { AnswerOptions } from '@/components/quiz/AnswerOptions';
+import { HintSection } from '@/components/quiz/HintSection';
+import { QuizNavigation } from '@/components/quiz/QuizNavigation';
+import { QuizResults } from '@/components/quiz/QuizResults';
+import { calculateMetrics } from '@/lib/quiz/utils';
+import type { QuizViewerProps } from '@/lib/quiz/types';
 
 export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplete }) => {
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
-  const [showResults, setShowResults] = useState(false);
-  const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, boolean>>({});
-  const [revealedHints, setRevealedHints] = useState<Record<string, boolean>>({});
-  const [showExplanations, setShowExplanations] = useState<Record<string, boolean>>({});
-  const [isReviewMode, setIsReviewMode] = useState(false);
-  const [optionLayouts, setOptionLayouts] = useState<Record<string, Record<string, number>>>({});
-  const scrollRef = useRef<ScrollView | null>(null);
-  
-  // Task completion tracking
-  const completionRecordedRef = useRef(false);
-  const { petState, authUser, checkAndAwardTask, refreshTaskProgress, getUserTimezone } = useStore();
-  const petName = petState?.name || 'Maria';
-  
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
   const { play, haptic, preload } = useFeedback();
+  const { petState } = useStore();
+  const petName = petState?.name || 'Maria';
+  const scrollRef = useRef<ScrollView | null>(null);
 
-  // Preload key sounds used in quiz so they are ready on first play
+  // Preload key sounds used in quiz
   useEffect(() => {
     preload(['correct', 'incorrect', 'complete', 'hint']);
   }, [preload]);
 
-  const currentQuestion = quiz.questions[currentQuestionIndex];
-  const totalQuestions = quiz.questions.length;
-  const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
+  // Use quiz state hook
+  const quizState = useQuizState({
+    quiz,
+    onComplete,
+    onPlaySound: play,
+    onHaptic: haptic,
+  });
 
-  // Derived state - must be defined before useEffect that depends on them
+  const {
+    currentQuestionIndex,
+    answers,
+    submittedAnswers,
+    revealedHints,
+    isReviewMode,
+    showResults,
+    optionLayouts,
+    handleSelectAnswer,
+    handleNext,
+    handlePrevious,
+    handleRevealHint,
+    resetQuiz,
+    enterReviewMode,
+    handleOptionLayout,
+  } = quizState;
+
+  const currentQuestion = quiz.questions[currentQuestionIndex];
+  
+  // Safety check: ensure current question exists
+  if (!currentQuestion) {
+    console.error('[QuizViewer] Invalid question index or empty quiz');
+    return null;
+  }
   const selectedAnswer = answers[currentQuestion.id];
   const isSubmitted = submittedAnswers[currentQuestion.id];
   const isCorrect = selectedAnswer === currentQuestion.correct;
   const wasSkipped = isReviewMode && !selectedAnswer;
   const hintAvailable = currentQuestion.hint && currentQuestion.hint.trim().length > 0;
   const hintRevealed = revealedHints[currentQuestion.id];
-
-  // Handle answer selection - auto-submit on selection
-  const handleSelectAnswer = (option: 'A' | 'B' | 'C' | 'D') => {
-    if (isReviewMode) return;
-    // Set the answer
-    const newAnswers = {
-      ...answers,
-      [currentQuestion.id]: option,
-    };
-    setAnswers(newAnswers);
-
-    // Auto-submit immediately
-    setSubmittedAnswers({
-      ...submittedAnswers,
-      [currentQuestion.id]: true,
-    });
-
-    // Show explanations for this question
-    setShowExplanations({
-      ...showExplanations,
-      [currentQuestion.id]: true,
-    });
-  };
 
   // Feedback when an answer state changes to submitted
   useEffect(() => {
@@ -92,9 +82,9 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
       play('incorrect');
       haptic('error');
     }
-  }, [isSubmitted, selectedAnswer, isCorrect, currentQuestion.correct, play, haptic]);
+  }, [isSubmitted, selectedAnswer, isCorrect, play, haptic]);
 
-  // Auto-scroll to the highlighted option (selected or correct) in review/submitted state
+  // Auto-scroll to the highlighted option in review/submitted state
   useEffect(() => {
     const layouts = optionLayouts[currentQuestion.id];
     if (!layouts) return;
@@ -102,520 +92,85 @@ export const QuizViewer: React.FC<QuizViewerProps> = ({ quiz, onClose, onComplet
     const targetKey = selectedAnswer && !isCorrect ? selectedAnswer : currentQuestion.correct;
     const targetY = layouts[targetKey];
     if (targetY !== undefined && scrollRef.current) {
-      // Offset a bit to show context above
       const y = Math.max(targetY - 60, 0);
       scrollRef.current.scrollTo({ y, animated: true });
     }
-  }, [currentQuestion.id, selectedAnswer, isCorrect, isSubmitted, isReviewMode, optionLayouts]);
+  }, [currentQuestion.id, currentQuestion.correct, selectedAnswer, isCorrect, isSubmitted, isReviewMode, optionLayouts]);
 
-  // Navigate to next question
-  const handleNext = () => {
-    if (currentQuestionIndex < totalQuestions - 1) {
-      play('tap');
-      haptic('selection');
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    } else {
-      play('complete');
-      haptic('success');
-      // In review mode, just return to results without recalculating
-      if (isReviewMode) {
-        setShowResults(true);
-        setIsReviewMode(false);
-      } else {
-        calculateResults();
-      }
-    }
-  };
-
-  // Calculate and show results
-  const calculateResults = async () => {
-    let correctCount = 0;
-    quiz.questions.forEach((q) => {
-      if (answers[q.id] === q.correct) {
-        correctCount++;
-      }
-    });
-
-    const scorePercent = Math.round((correctCount / totalQuestions) * 100);
-
-    setShowResults(true);
-    if (onComplete) {
-      onComplete(scorePercent);
-    }
-
-    // Record quiz completion for daily task (only once per quiz session)
-    if (!completionRecordedRef.current && authUser) {
-      completionRecordedRef.current = true;
-      
-      try {
-        // Record quiz completion via service
-        await completionService.recordQuizCompletion(
-          authUser.id,
-          quiz.id,
-          scorePercent,
-          totalQuestions,
-          correctCount
-        );
-
-        // Refresh progress and check for task completion
-        await refreshTaskProgress('complete_quiz');
-        
-        // Check if threshold is met and award task
-        const timezone = await getUserTimezone();
-        await completionService.checkAndAwardTaskIfThresholdMet(
-          authUser.id,
-          'complete_quiz',
-          timezone,
-          1, // Threshold: 1 quiz
-          () => checkAndAwardTask('complete_quiz')
-        );
-      } catch (err) {
-        // Silent fail - don't block user experience for task tracking
-        console.log('[QuizViewer] Completion record failed:', err);
-      }
-    }
-  };
-
-  // Navigate to previous question
-  const handlePrevious = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
-    }
-  };
-
-  // Result metrics (computed every render)
-  const correctCount = quiz.questions.filter((q) => answers[q.id] === q.correct).length;
-  const totalAnswered = Object.keys(answers).length;
-  const wrongCount = Math.max(totalAnswered - correctCount, 0);
-  const skippedCount = Math.max(totalQuestions - totalAnswered, 0);
-  const scorePercent = Math.round((correctCount / totalQuestions) * 100);
-
-  const handleRevealHint = () => {
-    if (!hintAvailable || isReviewMode) return;
-    play('hint');
-    haptic('light');
-    setRevealedHints((prev) => ({ ...prev, [currentQuestion.id]: true }));
-  };
+  // Calculate metrics for results screen
+  const metrics = showResults ? calculateMetrics(answers, quiz.questions) : null;
 
   // Results screen
-  if (showResults) {
+  if (showResults && metrics) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-        <View style={{ 
-          flexDirection: 'row', 
-          alignItems: 'center', 
-          justifyContent: 'space-between', 
-          paddingHorizontal: 24, 
-          paddingVertical: 16,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border
-        }}>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={28} color={colors.icon} />
-          </TouchableOpacity>
-          <Text style={{ fontSize: 16, fontFamily: 'Nunito-SemiBold', color: colors.text }}>
-            Quiz Complete
-          </Text>
-          <View style={{ width: 28 }} />
-        </View>
-
-        <ScrollView style={{ flex: 1 }}>
-          <View style={{ alignItems: 'center', paddingHorizontal: 24, paddingVertical: 48 }}>
-            <View style={{ 
-              width: 128, 
-              height: 128, 
-              backgroundColor: isDarkMode ? '#064e3b' : '#dcfce7', 
-              borderRadius: 64, 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              marginBottom: 24 
-            }}>
-              <Text style={{ fontSize: 48, fontFamily: 'Nunito-Bold', color: isDarkMode ? '#34d399' : '#16a34a' }}>
-                {scorePercent}%
-              </Text>
-            </View>
-
-            <Text style={{ fontSize: 24, fontFamily: 'Nunito-Bold', color: colors.text, marginBottom: 8 }}>
-              Great job!
-            </Text>
-            <Text style={{ fontSize: 16, color: colors.textSecondary, textAlign: 'center', marginBottom: 32, fontFamily: 'Nunito-Regular' }}>
-              You got {correctCount} out of {totalQuestions} questions correct
-            </Text>
-
-            {/* Summary cards */}
-            <View style={{ width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 40 }}>
-              <View style={{ flex: 1, minWidth: 150, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
-                <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 4, fontFamily: 'Nunito-Regular' }}>Score</Text>
-                <Text style={{ fontSize: 24, fontFamily: 'Nunito-SemiBold', color: colors.text }}>
-                  {correctCount} / {totalQuestions}
-                </Text>
-              </View>
-              <View style={{ flex: 1, minWidth: 150, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
-                <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 4, fontFamily: 'Nunito-Regular' }}>Accuracy</Text>
-                <Text style={{ fontSize: 24, fontFamily: 'Nunito-SemiBold', color: colors.text }}>
-                  {scorePercent}%
-                </Text>
-              </View>
-              <View style={{ flex: 1, minWidth: 150, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
-                <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 4, fontFamily: 'Nunito-Regular' }}>Right</Text>
-                <Text style={{ fontSize: 24, fontFamily: 'Nunito-SemiBold', color: '#16a34a' }}>
-                  {correctCount}
-                </Text>
-              </View>
-              <View style={{ flex: 1, minWidth: 150, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
-                <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 4, fontFamily: 'Nunito-Regular' }}>Wrong</Text>
-                <Text style={{ fontSize: 24, fontFamily: 'Nunito-SemiBold', color: '#dc2626' }}>
-                  {wrongCount}
-                </Text>
-              </View>
-              <View style={{ flex: 1, minWidth: 150, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16 }}>
-                <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 4, fontFamily: 'Nunito-Regular' }}>Skipped</Text>
-                <Text style={{ fontSize: 24, fontFamily: 'Nunito-SemiBold', color: colors.text }}>
-                  {skippedCount}
-                </Text>
-              </View>
-            </View>
-
-            {/* Actions */}
-            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 24, marginBottom: 20 }}>
-              <TouchableOpacity
-                onPress={() => {
-                  play('start');
-                  haptic('selection');
-                  // Reset all quiz state to retake
-                  setShowResults(false);
-                  setCurrentQuestionIndex(0);
-                  setAnswers({});
-                  setSubmittedAnswers({});
-                  setRevealedHints({});
-                  setShowExplanations({});
-                  setIsReviewMode(false);
-                }}
-                style={{ width: 140, borderWidth: 2, borderColor: colors.border, borderRadius: 999, paddingVertical: 10 }}
-              >
-                <Text style={{ textAlign: 'center', fontFamily: 'Nunito-SemiBold', color: colors.text, fontSize: 14 }}>
-                  Retake Quiz
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  play('tap');
-                  haptic('selection');
-                  setShowResults(false);
-                  setCurrentQuestionIndex(0);
-                  setIsReviewMode(true);
-                }}
-                style={{ width: 140, backgroundColor: '#3f5efb', borderRadius: 999, paddingVertical: 10 }}
-              >
-                <Text style={{ textAlign: 'center', fontFamily: 'Nunito-SemiBold', color: '#FFFFFF', fontSize: 14 }}>
-                  Review Answers
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-          </View>
-        </ScrollView>
-      </SafeAreaView>
+      <QuizResults
+        scorePercent={metrics.scorePercent}
+        correctCount={metrics.correctCount}
+        totalQuestions={quiz.questions.length}
+        wrongCount={metrics.wrongCount}
+        skippedCount={metrics.skippedCount}
+        onClose={onClose}
+        onRetake={resetQuiz}
+        onReview={enterReviewMode}
+        colors={colors}
+        isDarkMode={isDarkMode}
+        onPlaySound={play}
+        onHaptic={haptic}
+      />
     );
   }
 
   // Question screen
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-      {/* Header */}
-      <View style={{ paddingBottom: 24 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 16 }}>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={28} color={colors.icon} />
-          </TouchableOpacity>
-          <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 12 }}>
-            <Text
-              numberOfLines={1}
-              style={{ fontSize: 16, fontFamily: 'Nunito-SemiBold', color: colors.text, textAlign: 'center' }}
-            >
-              {quiz.title}
-            </Text>
-            {isReviewMode && (
-              <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 4, fontFamily: 'Nunito-Regular' }}>
-                Reviewing answers
-              </Text>
-            )}
-          </View>
-          <View style={{ width: 28 }} />
-        </View>
+      <QuizHeader
+        title={quiz.title}
+        currentIndex={currentQuestionIndex}
+        totalQuestions={quiz.questions.length}
+        isReviewMode={isReviewMode}
+        onClose={onClose}
+        colors={colors}
+        isDarkMode={isDarkMode}
+      />
 
-        {/* Custom Gauge Bar with question count */}
-        <View style={{ paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Text style={{ fontSize: 14, fontFamily: 'Nunito-Medium', color: colors.textSecondary }}>
-            {currentQuestionIndex + 1} / {totalQuestions}
-          </Text>
-          {/* Progress Bar */}
-          <View style={{ flex: 1, height: 16, backgroundColor: isDarkMode ? colors.surfaceAlt : '#e5e5e5', borderRadius: 8, overflow: 'hidden' }}>
-            <View
-              style={{ height: '100%', backgroundColor: '#4ade80', borderTopRightRadius: 8, borderBottomRightRadius: 8, width: `${Math.max(progress, 5)}%` }}
-            />
-          </View>
-
-          {/* Icons */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <LinearGradient
-              colors={['#38bdf8', '#a855f7']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Ionicons name="flash" size={18} color="white" />
-            </LinearGradient>
-            <Ionicons name="infinite" size={28} color="#3b82f6" />
-          </View>
-        </View>
-      </View>
-
-      {/* Question Content */}
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1, paddingHorizontal: 24, paddingVertical: 24 }}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
-        <Text style={{ fontSize: 24, fontFamily: 'Nunito-Bold', color: colors.text, marginBottom: 24, lineHeight: 34 }}>
-          {currentQuestion.question}
-        </Text>
+        <QuestionCard question={currentQuestion.question} wasSkipped={wasSkipped} colors={colors} />
 
-        {wasSkipped && (
-          <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: -12, marginBottom: 16, fontFamily: 'Nunito-Regular' }}>
-            You skipped this question. Correct answer is highlighted below.
-          </Text>
-        )}
+        <AnswerOptions
+          question={currentQuestion}
+          selectedAnswer={selectedAnswer}
+          isSubmitted={isSubmitted}
+          isReviewMode={isReviewMode}
+          answers={answers}
+          onSelectAnswer={handleSelectAnswer}
+          onOptionLayout={handleOptionLayout}
+          colors={colors}
+          isDarkMode={isDarkMode}
+        />
 
-        {/* Options */}
-        <View style={{ gap: 12 }}>
-          {(Object.keys(currentQuestion.options) as Array<'A' | 'B' | 'C' | 'D'>).map((key) => {
-            const isSelected = selectedAnswer === key;
-            const isCorrectAnswer = currentQuestion.correct === key;
-            const showCorrect = (isSubmitted && isCorrectAnswer) || (wasSkipped && isCorrectAnswer);
-            const showIncorrect = isSubmitted && isSelected && !isCorrectAnswer;
-            const explanationEligible = currentQuestion.explanations && (isSubmitted || isReviewMode);
-            const shouldShowExplanation =
-              explanationEligible &&
-              (isCorrectAnswer || (isSelected && !isCorrectAnswer));
-            const explanationText = currentQuestion.explanations?.[key];
-
-            let bgColor = colors.surface;
-            let borderColor = colors.border;
-            let badgeBg = isDarkMode ? colors.surfaceAlt : '#f5f5f5';
-            let badgeText = colors.textSecondary;
-            let optionText = colors.text;
-
-            if (showCorrect) {
-              bgColor = isDarkMode ? '#064e3b' : '#dcfce7';
-              borderColor = '#22c55e';
-              badgeBg = '#22c55e';
-              badgeText = '#FFFFFF';
-              optionText = isDarkMode ? '#86efac' : '#14532d';
-            } else if (showIncorrect) {
-              bgColor = isDarkMode ? '#7f1d1d' : '#fee2e2';
-              borderColor = '#ef4444';
-              badgeBg = '#ef4444';
-              badgeText = '#FFFFFF';
-              optionText = isDarkMode ? '#fca5a5' : '#7f1d1d';
-            } else if (isSelected) {
-              bgColor = isDarkMode ? '#1e3a5f' : '#dbeafe';
-              borderColor = '#3b82f6';
-              badgeBg = '#3b82f6';
-              badgeText = '#FFFFFF';
-              optionText = isDarkMode ? '#93c5fd' : '#1e3a8a';
-            }
-
-            return (
-              <TouchableOpacity
-                key={key}
-                onPress={() => !isSubmitted && handleSelectAnswer(key)}
-                disabled={isSubmitted || isReviewMode}
-                onLayout={(e) => {
-                  const y = e.nativeEvent.layout.y;
-                  setOptionLayouts((prev) => ({
-                    ...prev,
-                    [currentQuestion.id]: {
-                      ...(prev[currentQuestion.id] || {}),
-                      [key]: y,
-                    },
-                  }));
-                }}
-                style={{
-                  borderRadius: 12,
-                  padding: 16,
-                  borderWidth: 2,
-                  backgroundColor: bgColor,
-                  borderColor: borderColor,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: 12,
-                      backgroundColor: badgeBg,
-                    }}
-                  >
-                    <Text style={{ fontFamily: 'Nunito-SemiBold', color: badgeText }}>
-                      {key}
-                    </Text>
-                  </View>
-                  <Text style={{ flex: 1, fontSize: 16, color: optionText, fontFamily: 'Nunito-Regular' }}>
-                    {currentQuestion.options[key]}
-                  </Text>
-                  {showCorrect && (
-                    <Ionicons name="checkmark-circle" size={24} color="#10b981" />
-                  )}
-                  {showIncorrect && (
-                    <Ionicons name="close-circle" size={24} color="#ef4444" />
-                  )}
-                </View>
-
-                {shouldShowExplanation && explanationText && (
-                  <View
-                    style={{
-                      marginTop: 12,
-                      padding: 12,
-                      borderRadius: 10,
-                      backgroundColor: showCorrect
-                        ? (isDarkMode ? '#0f2f25' : '#bbf7d0')
-                        : (isDarkMode ? '#4a1f1f' : '#fecdd3'),
-                      borderWidth: 1,
-                      borderColor: showCorrect ? '#16a34a' : '#f87171',
-                    }}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <Ionicons
-                        name={showCorrect ? 'checkmark-circle' : 'close-circle'}
-                        size={18}
-                        color={showCorrect ? '#16a34a' : '#ef4444'}
-                      />
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontFamily: 'Nunito-SemiBold',
-                          color: showCorrect ? (isDarkMode ? '#bbf7d0' : '#0f172a') : (isDarkMode ? '#fecdd3' : '#7f1d1d'),
-                        }}
-                      >
-                        {showCorrect ? 'Why this is correct' : 'Why this is incorrect'}
-                      </Text>
-                    </View>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        lineHeight: 20,
-                        color: showCorrect ? (isDarkMode ? '#d1fae5' : '#065f46') : (isDarkMode ? '#fecdd3' : '#7f1d1d'),
-                        fontFamily: 'Nunito-Regular',
-                      }}
-                    >
-                      {explanationText}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Hint CTA and content (hidden during review) */}
-        {!isReviewMode && (
-          <View style={{ marginTop: 24 }}>
-            <TouchableOpacity
-              onPress={handleRevealHint}
-              disabled={!hintAvailable || hintRevealed}
-              style={{
-                alignSelf: 'flex-start',
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 999,
-                borderWidth: 1,
-                borderColor: hintRevealed ? colors.border : '#3b82f6',
-                backgroundColor: hintRevealed ? colors.surface : 'transparent',
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons
-                  name="bulb-outline"
-                  size={18}
-                  color={hintRevealed ? colors.textMuted : '#3b82f6'}
-                />
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontFamily: 'Nunito-SemiBold',
-                    color: hintRevealed ? colors.textMuted : '#3b82f6',
-                  }}
-                >
-                  {hintAvailable
-                    ? `Ask ${petName} for a hint`
-                    : 'No hint available'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {hintRevealed && hintAvailable && (
-              <View style={{ 
-                marginTop: 12, 
-                padding: 16, 
-                backgroundColor: isDarkMode ? '#1e3a5f' : '#dbeafe', 
-                borderRadius: 12, 
-                borderWidth: 1, 
-                borderColor: isDarkMode ? '#3b82f6' : '#bfdbfe' 
-              }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <Ionicons name="sparkles-outline" size={18} color="#2563eb" />
-                  <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: isDarkMode ? '#93c5fd' : '#1e40af' }}>
-                    Hint
-                  </Text>
-                </View>
-                <Text style={{ fontSize: 14, color: isDarkMode ? '#bfdbfe' : '#1e3a8a', lineHeight: 20, fontFamily: 'Nunito-Regular' }}>
-                  {currentQuestion.hint}
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
+        <HintSection
+          hint={currentQuestion.hint}
+          hintAvailable={hintAvailable}
+          hintRevealed={hintRevealed}
+          petName={petName}
+          onRevealHint={handleRevealHint}
+          isReviewMode={isReviewMode}
+          colors={colors}
+          isDarkMode={isDarkMode}
+        />
       </ScrollView>
 
-      {/* Action Buttons - Always available for navigation */}
-      <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 32, marginBottom: 8 }}>
-        {currentQuestionIndex > 0 ? (
-          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 24 }}>
-            <TouchableOpacity
-              onPress={handlePrevious}
-              style={{ width: 140, borderWidth: 2, borderColor: colors.border, borderRadius: 999, paddingVertical: 10 }}
-            >
-              <Text style={{ textAlign: 'center', fontFamily: 'Nunito-SemiBold', color: colors.text, fontSize: 14 }}>
-                Previous
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleNext}
-              style={{ width: 140, backgroundColor: '#3f5efb', borderRadius: 999, paddingVertical: 10 }}
-            >
-              <Text style={{ textAlign: 'center', fontFamily: 'Nunito-SemiBold', color: '#FFFFFF', fontSize: 14 }}>
-                {currentQuestionIndex < totalQuestions - 1 ? 'Next' : 'Finish'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={{ alignItems: 'center' }}>
-            <TouchableOpacity
-              onPress={handleNext}
-              style={{ width: 140, backgroundColor: '#3f5efb', borderRadius: 999, paddingVertical: 10 }}
-            >
-              <Text style={{ textAlign: 'center', fontFamily: 'Nunito-SemiBold', color: '#FFFFFF', fontSize: 14 }}>
-                {currentQuestionIndex < totalQuestions - 1 ? 'Next' : 'Finish'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
+      <QuizNavigation
+        currentIndex={currentQuestionIndex}
+        totalQuestions={quiz.questions.length}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
+        colors={colors}
+      />
     </SafeAreaView>
   );
 };
