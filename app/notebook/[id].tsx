@@ -133,6 +133,7 @@ export default function NotebookDetailScreen() {
       <LockedNotebookOverlay
         visible={showLockedOverlay}
         totalNotebooks={notebooks.length}
+        notebookId={id}
         delayMs={SUBSCRIPTION_CONSTANTS.LOCKED_NOTEBOOK_OVERLAY_DELAY_MS}
         onUpgrade={() => {
           setShowLockedOverlay(false);
