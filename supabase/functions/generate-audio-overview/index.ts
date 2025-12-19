@@ -9,11 +9,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { checkQuota, incrementQuota } from '../_shared/quota.ts';
 import { generatePodcastScript, validateScript } from '../_shared/script-generator.ts';
 import { generatePodcastAudioWithRetry, getAudioDuration } from '../_shared/gemini-tts.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getRequiredEnv, getOptionalEnv } from '../_shared/env.ts';
+import { getCorsHeaders, getCorsPreflightHeaders } from '../_shared/cors.ts';
 
 interface GenerateAudioRequest {
   notebook_id: string;
@@ -30,13 +27,15 @@ interface GenerateAudioResponse {
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsPreflightHeaders(req) });
   }
+
+  const corsHeaders = getCorsHeaders(req);
 
   try {
     // 1. Initialize Supabase client (service role for database operations)
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = getRequiredEnv('SUPABASE_URL');
+    const supabaseServiceKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // 2. AUTHENTICATE: Verify JWT token
@@ -377,8 +376,8 @@ Deno.serve(async (req) => {
 
     // Log failed attempt
     try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabaseUrl = getRequiredEnv('SUPABASE_URL');
+      const supabaseServiceKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
       await supabase.from('usage_logs').insert({
@@ -394,7 +393,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         error: error.message || 'Internal server error',
-        stack: Deno.env.get('DENO_ENV') === 'development' ? error.stack : undefined,
+        stack: getOptionalEnv('DENO_ENV', '') === 'development' ? error.stack : undefined,
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

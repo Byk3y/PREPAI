@@ -123,11 +123,8 @@ async function geminiOCR(
   fileBuffer: Uint8Array,
   confidenceThreshold: number
 ): Promise<OCRResult> {
-  const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
-
-  if (!apiKey) {
-    throw new Error('GOOGLE_AI_API_KEY not configured');
-  }
+  const { getRequiredEnv } = await import('./env.ts');
+  const apiKey = getRequiredEnv('GOOGLE_AI_API_KEY');
 
   const startTime = Date.now();
 
@@ -230,11 +227,8 @@ async function googleVisionOCR(
   fileBuffer: Uint8Array,
   confidenceThreshold: number
 ): Promise<OCRResult> {
-  const apiKey = Deno.env.get('GOOGLE_VISION_API_KEY');
-
-  if (!apiKey) {
-    throw new Error('Google Vision API key not configured');
-  }
+  const { getRequiredEnv } = await import('./env.ts');
+  const apiKey = getRequiredEnv('GOOGLE_VISION_API_KEY');
 
   const startTime = Date.now();
 
@@ -306,11 +300,8 @@ async function googleVisionOCR(
  * Supports speaker diarization and timestamps
  */
 export async function transcribeAudio(audioUrl: string): Promise<string> {
-  const apiKey = Deno.env.get('ASSEMBLYAI_API_KEY');
-
-  if (!apiKey) {
-    throw new Error('AssemblyAI API key not configured');
-  }
+  const { getRequiredEnv } = await import('./env.ts');
+  const apiKey = getRequiredEnv('ASSEMBLYAI_API_KEY');
 
   try {
     // Step 1: Upload audio file to AssemblyAI

@@ -53,6 +53,78 @@ function getContentType(filename: string): string {
   return contentTypes[ext || ''] || 'application/octet-stream';
 }
 
+/**
+ * Sanitize filename to prevent path traversal attacks
+ * Removes dangerous characters and path traversal sequences
+ * @param filename - The original filename
+ * @returns Sanitized filename
+ * @throws Error if filename is invalid after sanitization
+ */
+function sanitizeFilename(filename: string): string {
+  if (!filename || typeof filename !== 'string') {
+    throw new Error('Filename must be a non-empty string');
+  }
+
+  // Remove leading/trailing whitespace
+  let sanitized = filename.trim();
+
+  // Reject empty filenames
+  if (sanitized.length === 0) {
+    throw new Error('Filename cannot be empty');
+  }
+
+  // Remove path traversal sequences
+  sanitized = sanitized.replace(/\.\./g, ''); // Remove .. sequences
+  sanitized = sanitized.replace(/\.\//g, ''); // Remove ./ sequences
+  sanitized = sanitized.replace(/\.\\/g, ''); // Remove .\ sequences (Windows)
+  sanitized = sanitized.replace(/\\/g, '/'); // Normalize backslashes to forward slashes
+
+  // Remove leading/trailing slashes
+  sanitized = sanitized.replace(/^\/+|\/+$/g, '');
+
+  // Remove null bytes
+  sanitized = sanitized.replace(/\0/g, '');
+
+  // Reject filenames that start with . (hidden files)
+  if (sanitized.startsWith('.')) {
+    throw new Error('Filename cannot start with a dot (hidden files not allowed)');
+  }
+
+  // Limit filename length (255 characters is common filesystem limit)
+  if (sanitized.length > 255) {
+    // Try to preserve extension
+    const ext = sanitized.split('.').pop();
+    const nameWithoutExt = sanitized.substring(0, sanitized.lastIndexOf('.'));
+    const maxNameLength = 255 - (ext ? ext.length + 1 : 0); // +1 for the dot
+    sanitized = nameWithoutExt.substring(0, maxNameLength) + (ext ? `.${ext}` : '');
+  }
+
+  // Validate filename contains only safe characters
+  // Allow: alphanumeric, dots, hyphens, underscores, spaces
+  const safePattern = /^[a-zA-Z0-9._\-\s]+$/;
+  if (!safePattern.test(sanitized)) {
+    // Remove unsafe characters but keep the filename structure
+    sanitized = sanitized.replace(/[^a-zA-Z0-9._\-\s]/g, '');
+  }
+
+  // Final validation - ensure not empty after all sanitization
+  if (sanitized.length === 0) {
+    throw new Error('Filename is invalid after sanitization');
+  }
+
+  return sanitized;
+}
+
+/**
+ * Validate UUID format
+ * @param uuid - The UUID string to validate
+ * @returns true if valid UUID, false otherwise
+ */
+function isValidUUID(uuid: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+}
+
 export const storageService = {
   /**
    * Upload a material file to Supabase Storage
@@ -69,8 +141,19 @@ export const storageService = {
     filename: string
   ): Promise<UploadResult> => {
     try {
+      // Validate UUIDs
+      if (!isValidUUID(userId)) {
+        throw new Error('Invalid user ID format');
+      }
+      if (!isValidUUID(materialId)) {
+        throw new Error('Invalid material ID format');
+      }
+
+      // Sanitize filename to prevent path traversal
+      const sanitizedFilename = sanitizeFilename(filename);
+
       // Storage path: uploads/{user_id}/{material_id}/{filename}
-      const storagePath = `${userId}/${materialId}/${filename}`;
+      const storagePath = `${userId}/${materialId}/${sanitizedFilename}`;
 
       // For React Native, use FormData with file URI
       const mimeType = getContentType(filename);
@@ -87,7 +170,7 @@ export const storageService = {
       formData.append('file', {
         uri: uploadUri,
         type: mimeType,
-        name: filename,
+        name: sanitizedFilename,
       });
 
       // Upload to Supabase Storage
@@ -102,7 +185,7 @@ export const storageService = {
         await handleError(error, {
           operation: 'upload_material_file',
           component: 'storage-service',
-          metadata: { userId, materialId, filename },
+          metadata: { userId, materialId, filename: sanitizedFilename },
         });
         return { storagePath: '', error: error.message };
       }
@@ -191,5 +274,8 @@ export const storageService = {
     }
   },
 };
+
+
+
 
 

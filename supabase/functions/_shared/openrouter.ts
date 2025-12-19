@@ -3,6 +3,8 @@
  * Unified interface for calling any LLM model with automatic cost calculation
  */
 
+import { getRequiredEnv } from './env.ts';
+
 interface ModelConfig {
   name: string;
   maxTokens: number;
@@ -67,10 +69,7 @@ export async function callLLM(
   const modelName = options.model || config.name;
   const startTime = Date.now();
 
-  const apiKey = Deno.env.get('OPENROUTER_API_KEY');
-  if (!apiKey) {
-    throw new Error('OPENROUTER_API_KEY not configured');
-  }
+  const apiKey = getRequiredEnv('OPENROUTER_API_KEY');
 
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {

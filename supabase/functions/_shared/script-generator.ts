@@ -5,7 +5,7 @@
  *   2. Generate Dialogue script (Pet & Teacher)
  */
 
-const GEMINI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
+import { getRequiredEnv } from './env.ts';
 // Use gemini-2.0-flash for faster and more reliable insight extraction
 const GEMINI_FLASH_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
@@ -50,6 +50,7 @@ function calculateTargetWordCount(materialContent: string): number {
  */
 async function detectGender(name: string): Promise<'M' | 'F'> {
   // Simple heuristic or common names could be cached, but LLM is cheap enough
+  const GEMINI_API_KEY = getRequiredEnv('GOOGLE_AI_API_KEY');
   try {
     const response = await fetch(`${GEMINI_FLASH_ENDPOINT}?key=${GEMINI_API_KEY}`, {
       method: 'POST',
@@ -77,6 +78,7 @@ async function extractKeyInsights(
   materialContent: string,
   notebookTitle: string
 ): Promise<{ insights: string[]; tokens: number }> {
+  const GEMINI_API_KEY = getRequiredEnv('GOOGLE_AI_API_KEY');
   console.log('[Script Generator] Stage 1: Extracting key insights...');
 
   const systemPrompt = `You are an expert educational content analyst. Your task is to extract the most important and interesting insights from study material that would make for an engaging podcast discussion.
@@ -113,6 +115,7 @@ Return ONLY a JSON object with this structure:
   ]
 }`;
 
+  const GEMINI_API_KEY = getRequiredEnv('GOOGLE_AI_API_KEY');
   try {
     // Use Flash model for insight extraction (faster, higher limits)
     const response = await fetch(`${GEMINI_FLASH_ENDPOINT}?key=${GEMINI_API_KEY}`, {
@@ -259,6 +262,7 @@ ${petCharacter.name}: [Response]
 
 Return ONLY the script.`;
 
+  const GEMINI_API_KEY = getRequiredEnv('GOOGLE_AI_API_KEY');
   try {
     const response = await fetch(`${GEMINI_FLASH_ENDPOINT}?key=${GEMINI_API_KEY}`, {
       method: 'POST',

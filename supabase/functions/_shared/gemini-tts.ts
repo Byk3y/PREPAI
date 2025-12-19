@@ -4,7 +4,8 @@
  * Uses the same technology that powers NotebookLM Audio Overviews
  */
 
-const GEMINI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
+import { getRequiredEnv } from './env.ts';
+
 const GEMINI_TTS_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent';
 
 export interface GeminiTTSConfig {
@@ -73,6 +74,52 @@ function writeString(view: DataView, offset: number, str: string): void {
 }
 
 /**
+ * Parse sample rate from WAV file header
+ * WAV format: sample rate is stored at bytes 24-27 (little-endian uint32)
+ * @param wavBytes - WAV file bytes
+ * @returns Sample rate in Hz, or null if invalid WAV file
+ */
+function parseWavSampleRate(wavBytes: Uint8Array): number | null {
+  try {
+    // Check minimum size (need at least 44 bytes for header)
+    if (wavBytes.length < 44) {
+      return null;
+    }
+
+    // Check for RIFF header
+    const riff = String.fromCharCode(
+      wavBytes[0], wavBytes[1], wavBytes[2], wavBytes[3]
+    );
+    if (riff !== 'RIFF') {
+      return null;
+    }
+
+    // Check for WAVE format
+    const wave = String.fromCharCode(
+      wavBytes[8], wavBytes[9], wavBytes[10], wavBytes[11]
+    );
+    if (wave !== 'WAVE') {
+      return null;
+    }
+
+    // Read sample rate from bytes 24-27 (little-endian uint32)
+    const view = new DataView(wavBytes.buffer, wavBytes.byteOffset, wavBytes.byteLength);
+    const sampleRate = view.getUint32(24, true); // true = little-endian
+
+    // Validate sample rate is reasonable (between 8000 and 192000 Hz)
+    if (sampleRate < 8000 || sampleRate > 192000) {
+      console.warn(`[Gemini TTS] Invalid sample rate in WAV header: ${sampleRate}Hz, using fallback`);
+      return null;
+    }
+
+    return sampleRate;
+  } catch (error) {
+    console.error('[Gemini TTS] Error parsing WAV header:', error);
+    return null;
+  }
+}
+
+/**
  * Default style prompt for Alex & Morgan podcast hosts
  */
 const DEFAULT_STYLE_PROMPT = `Generate a conversational podcast between two hosts discussing study material:
@@ -90,9 +137,7 @@ STYLE: Natural, conversational podcast format with back-and-forth dialogue. Incl
 export async function generatePodcastAudio(
   config: GeminiTTSConfig
 ): Promise<GeminiTTSResponse> {
-  if (!GEMINI_API_KEY) {
-    throw new Error('GOOGLE_AI_API_KEY not configured');
-  }
+  const GEMINI_API_KEY = getRequiredEnv('GOOGLE_AI_API_KEY');
 
   console.log('[Gemini TTS] Generating podcast audio...');
 
@@ -215,27 +260,44 @@ export async function generatePodcastAudio(
 
     // If audio is raw PCM (audio/L16), wrap it in a WAV container
     let finalMimeType = mimeType;
+    let knownSampleRate: number | null = null;
     if (mimeType.includes('audio/L16') || mimeType.includes('pcm')) {
       console.log('[Gemini TTS] Converting raw PCM to WAV...');
 
       // Parse sample rate from MIME type (e.g., "audio/L16;codec=pcm;rate=24000")
       const rateMatch = mimeType.match(/rate=(\d+)/);
-      const sampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
+      knownSampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
       const numChannels = 1; // Mono
       const bitsPerSample = 16; // L16 = 16-bit
 
-      audioBytes = createWavFile(audioBytes, sampleRate, numChannels, bitsPerSample);
+      audioBytes = createWavFile(audioBytes, knownSampleRate, numChannels, bitsPerSample);
       finalMimeType = 'audio/wav';
 
-      console.log(`[Gemini TTS] WAV created: ${audioBytes.length} bytes (${sampleRate}Hz)`);
+      console.log(`[Gemini TTS] WAV created: ${audioBytes.length} bytes (${knownSampleRate}Hz)`);
     }
 
     // Calculate actual duration from audio data
     // For WAV: duration = (fileSize - 44 header) / (sampleRate * channels * bytesPerSample)
     let durationSeconds: number;
     if (finalMimeType === 'audio/wav') {
-      const rateMatch = mimeType.match(/rate=(\d+)/);
-      const sampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
+      // Parse sample rate from WAV header (most reliable method)
+      // If we just created the WAV from PCM, we already know the sample rate
+      let sampleRate = knownSampleRate;
+      
+      if (sampleRate === null) {
+        // Parse from WAV header
+        const parsedRate = parseWavSampleRate(audioBytes);
+        if (parsedRate !== null) {
+          sampleRate = parsedRate;
+          console.log(`[Gemini TTS] Parsed sample rate from WAV header: ${sampleRate}Hz`);
+        } else {
+          // Fallback: try MIME type, then default
+          const rateMatch = mimeType.match(/rate=(\d+)/);
+          sampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
+          console.warn(`[Gemini TTS] Could not parse WAV header, using fallback: ${sampleRate}Hz`);
+        }
+      }
+
       const dataSize = audioBytes.length - 44; // Subtract WAV header
       durationSeconds = dataSize / (sampleRate * 1 * 2); // mono, 16-bit
     } else {

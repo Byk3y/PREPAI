@@ -4,6 +4,7 @@
  */
 
 import type { PDFService, ServiceName } from './types.ts';
+import { getRequiredEnv } from '../env.ts';
 
 /**
  * GeminiService - Primary PDF extraction using Gemini 2.0 Flash
@@ -14,7 +15,11 @@ export class GeminiService implements PDFService {
   private apiKey: string | undefined;
 
   constructor() {
-    this.apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
+    try {
+      this.apiKey = getRequiredEnv('GOOGLE_AI_API_KEY');
+    } catch {
+      this.apiKey = undefined;
+    }
   }
 
   isAvailable(): boolean {
@@ -385,7 +390,11 @@ export class GoogleVisionPDFService implements PDFService {
   private apiKey: string | undefined;
 
   constructor() {
-    this.apiKey = Deno.env.get('GOOGLE_VISION_API_KEY');
+    try {
+      this.apiKey = getRequiredEnv('GOOGLE_VISION_API_KEY');
+    } catch {
+      this.apiKey = undefined;
+    }
   }
 
   isAvailable(): boolean {
