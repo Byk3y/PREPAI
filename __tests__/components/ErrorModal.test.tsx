@@ -8,11 +8,7 @@ import { ErrorModal } from '@/components/ErrorModal';
 import { AppError } from '@/lib/errors/AppError';
 import { ErrorType, ErrorSeverity, RecoveryAction } from '@/lib/errors/types';
 
-// Mock react-native before importing component
-jest.mock('react-native', () => {
-  const RN = jest.requireActual('react-native');
-  return RN;
-});
+// Mocks are handled in jest.setup.js
 
 // Mock dependencies
 jest.mock('@/lib/ThemeContext', () => ({
@@ -154,5 +150,8 @@ describe('ErrorModal', () => {
     expect(getByText('Dismiss')).toBeTruthy();
   });
 });
+
+
+
 
 

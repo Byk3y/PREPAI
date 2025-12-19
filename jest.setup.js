@@ -103,20 +103,75 @@ jest.mock('@/lib/sentry', () => ({
   addBreadcrumb: jest.fn(),
 }));
 
-// Mock React Native Platform (needed for expo-modules-core)
-// For component tests, @testing-library/react-native will handle react-native mocking
-// We just need Platform for expo-modules-core
+// Mock react-native Appearance API (used by react-native-css-interop)
 jest.mock('react-native', () => {
-  // Only provide minimal mocks needed for non-component tests
-  // Component tests will use @testing-library/react-native's setup
-  return {
+  const mockRN = {
     Platform: {
       OS: 'ios',
       Version: '15.0',
       select: jest.fn((obj) => obj.ios || obj.default),
     },
+    Appearance: {
+      getColorScheme: jest.fn(() => 'light'),
+      setColorScheme: jest.fn(),
+      addChangeListener: jest.fn(),
+      removeChangeListener: jest.fn(),
+    },
+    NativeModules: {},
+    __fbBatchedBridgeConfig: {},
+    Alert: {
+      alert: jest.fn(),
+    },
+    StyleSheet: {
+      create: (styles) => styles,
+      flatten: (style) => style,
+      compose: (...styles) => styles,
+    },
+    View: 'View',
+    Text: 'Text',
+    TouchableOpacity: 'TouchableOpacity',
+    TextInput: 'TextInput',
+    Modal: 'Modal',
+    ActivityIndicator: 'ActivityIndicator',
+    ScrollView: 'ScrollView',
+    Image: 'Image',
+    Animated: {
+      Value: jest.fn(() => ({
+        setValue: jest.fn(),
+        setOffset: jest.fn(),
+        flattenOffset: jest.fn(),
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        removeAllListeners: jest.fn(),
+        stopAnimation: jest.fn(),
+        interpolate: jest.fn(),
+      })),
+      View: 'Animated.View',
+      timing: jest.fn(),
+      spring: jest.fn(),
+      sequence: jest.fn(),
+      parallel: jest.fn(),
+      loop: jest.fn(),
+    },
+    Dimensions: {
+      get: jest.fn(() => ({ width: 375, height: 812 })),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    },
   };
+  return mockRN;
 }, { virtual: true });
+
+// Mock react-native-css-interop (NativeWind) - must be after react-native mock
+jest.mock('react-native-css-interop', () => {
+  const RN = require('react-native');
+  return {
+    getColorScheme: () => RN.Appearance?.getColorScheme?.() || 'light',
+    useColorScheme: () => RN.Appearance?.getColorScheme?.() || 'light',
+  };
+});
+
+// Note: react-native mock is defined above (before react-native-css-interop)
 
 // Mock expo-image-manipulator (uses expo-modules-core which needs Platform)
 jest.mock('expo-image-manipulator', () => ({
@@ -150,6 +205,25 @@ jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }));
 
+// Mock react-native-svg - return View component from react-native mock
+jest.mock('react-native-svg', () => {
+  // Get View from the mocked react-native (already defined above)
+  const mockRN = jest.requireMock('react-native');
+  const View = mockRN.View || 'View';
+  return {
+    __esModule: true,
+    default: View,
+    Svg: View,
+    Path: View,
+    Circle: View,
+    Rect: View,
+    G: View,
+    Defs: View,
+    LinearGradient: View,
+    Stop: View,
+  };
+});
+
 // Set up global test environment variables
 global.__DEV__ = true;
 
@@ -166,6 +240,7 @@ afterAll(() => {
   console.warn = originalWarn;
   console.error = originalError;
 });
+
 
 
 
