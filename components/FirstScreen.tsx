@@ -16,16 +16,16 @@ interface FirstScreenProps {
   textColor?: string;
   /** Show app name at bottom - defaults to true */
   showAppName?: boolean;
-  /** App name to display - defaults to PrepAI */
+  /** App name to display - defaults to Brigo */
   appName?: string;
 }
 
 export function FirstScreen({
   imageSrc = require('@/assets/first-screen/splash.png'),
   backgroundColor = '#faf9f6',
-  textColor = '#1a1a1a',
+  textColor = '#ffffff',
   showAppName = true,
-  appName = 'PrepAI'
+  appName = 'Brigo'
 }: FirstScreenProps) {
   return (
     <SafeAreaView
@@ -71,13 +71,13 @@ const styles = StyleSheet.create({
   },
   appNameContainer: {
     position: 'absolute',
-    bottom: 80,
+    bottom: 40,
     alignItems: 'center',
   },
   appName: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
+    fontSize: 24,
+    fontWeight: '400',
+    letterSpacing: 0.3,
     textTransform: 'lowercase',
   },
 });

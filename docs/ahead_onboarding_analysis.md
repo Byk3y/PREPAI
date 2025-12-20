@@ -20,7 +20,7 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 - Drawing requires more cognitive engagement than tapping
 - Self-promises are psychologically binding
 
-**Adoptable for PrepAI:**
+**Adoptable for Brigo:**
 - After pet naming, ask user to "promise" to study X minutes per day
 - Use drawing/gesture instead of just button tap for commitment
 - Frame as "I commit to my studies" rather than "Continue"
@@ -40,7 +40,7 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 - Creates sense of progress
 - Prevents abandonment from information overload
 
-**Adoptable for PrepAI:**
+**Adoptable for Brigo:**
 - Add progress indicators: "Step 3 of 7"
 - Break our 7 screens into sub-sections if needed
 - Add milestone celebrations ("You're halfway there!")
@@ -59,7 +59,7 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 - Reduces skepticism
 - Makes the app feel legitimate and effective
 
-**Adoptable for PrepAI:**
+**Adoptable for Brigo:**
 - Add screen: "Backed by cognitive science research"
 - Mention active recall, spaced repetition research
 - Could add university/researcher credentials if available
@@ -83,11 +83,11 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 - Testimonials add emotional connection
 - Comparison graphs make benefits tangible
 
-**Adoptable for PrepAI:**
-- Add statistics: "Students using PrepAI improve test scores by X%"
+**Adoptable for Brigo:**
+- Add statistics: "Students using Brigo improve test scores by X%"
 - Show learner counts if available
 - Add testimonials from beta users
-- Create comparison: "Traditional studying" vs "PrepAI users"
+- Create comparison: "Traditional studying" vs "Brigo users"
 - Display App Store ratings prominently
 
 ---
@@ -107,7 +107,7 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 - Assessment creates investment (sunk cost)
 - Seeing your "scores" provides immediate value
 
-**Adoptable for PrepAI:**
+**Adoptable for Brigo:**
 - Add learning style assessment (visual, auditory, kinesthetic)
 - Ask about study goals (exam prep, long-term retention, etc.)
 - Ask about current study methods
@@ -130,7 +130,7 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 - Builds trust through transparency
 - Creates "aha moments" before asking for commitment
 
-**Adoptable for PrepAI:**
+**Adoptable for Brigo:**
 - Our current flow does this well (shows value before auth)
 - Could add more educational content
 - Could show a "preview" of what they'll get
@@ -150,7 +150,7 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 - Low barriers reduce abandonment
 - Creates psychological momentum
 
-**Adoptable for PrepAI:**
+**Adoptable for Brigo:**
 - Our buttons could be more commitment-oriented
 - Instead of "Continue", use "I'm ready to learn"
 - Add specific time commitment: "Study 15 min per day"
@@ -172,7 +172,7 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 - Creates emotional resonance
 - Memorable and shareable
 
-**Adoptable for PrepAI:**
+**Adoptable for Brigo:**
 - Our pet companion already does this well
 - Could add more relatable study scenarios
 - Use metaphors: "Your brain is like a muscle..."
@@ -193,7 +193,7 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 - Builds trust through transparency
 - Users understand why they're being asked
 
-**Adoptable for PrepAI:**
+**Adoptable for Brigo:**
 - We should explain notification value before requesting
 - Show statistics: "Students with reminders study 3x more"
 - Set clear expectations: "1 daily reminder at your chosen time"
@@ -215,7 +215,7 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 - Makes long flows feel manageable
 - Provides clear feedback
 
-**Adoptable for PrepAI:**
+**Adoptable for Brigo:**
 - We have progress bar, but could enhance
 - Add "Step X of Y" text
 - Add milestone celebrations
@@ -236,10 +236,10 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 - Uses contrast to highlight value
 - Emotional impact through comparison
 
-**Adoptable for PrepAI:**
+**Adoptable for Brigo:**
 - We already do this in Screen 1
 - Could add visual comparison chart
-- Show "Traditional studying" vs "PrepAI studying"
+- Show "Traditional studying" vs "Brigo studying"
 - Make the problem more visceral
 
 ---
@@ -257,7 +257,7 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 - Addresses common objections
 - Creates positive first experience
 
-**Adoptable for PrepAI:**
+**Adoptable for Brigo:**
 - Emphasize "5 min per day" or "15 min per day"
 - Use "Give it a try" language
 - Address "I don't have time" objection
@@ -265,9 +265,9 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 
 ---
 
-## 📊 Comparison: Ahead vs PrepAI Current Flow
+## 📊 Comparison: Ahead vs Brigo Current Flow
 
-| Aspect | Ahead | PrepAI Current | Gap Analysis |
+| Aspect | Ahead | Brigo Current | Gap Analysis |
 |--------|-------|----------------|--------------|
 | **Total Screens** | 36 screens | 7 screens | Ahead is 5x longer, but more comprehensive |
 | **Assessment** | 10-question behavioral assessment | None | Major gap - we don't personalize |
@@ -282,7 +282,7 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 
 ---
 
-## 🎯 Top 10 Adoptable Features for PrepAI
+## 🎯 Top 10 Adoptable Features for Brigo
 
 ### 1. **Learning Style Assessment** (High Impact)
 **What:** Add 5-7 question assessment about learning preferences
@@ -305,10 +305,10 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 **What:** Add statistics, learner counts, testimonials
 **Why:** Builds trust and reduces skepticism
 **How:**
-- "Students using PrepAI improve test scores by 40%"
+- "Students using Brigo improve test scores by 40%"
 - "Join 50k+ students studying smarter"
 - Real testimonials from beta users
-- Comparison chart: Traditional vs PrepAI
+- Comparison chart: Traditional vs Brigo
 
 ### 4. **Progress Milestones** (Medium Impact)
 **What:** Celebrate progress through onboarding
@@ -349,7 +349,7 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 **Why:** Stronger emotional connection
 **How:**
 - Visual comparison chart
-- "Traditional studying" vs "PrepAI studying"
+- "Traditional studying" vs "Brigo studying"
 - More specific pain points
 
 ### 9. **Micro-Commitment Language** (Low Impact)
@@ -470,7 +470,7 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 
 ## 🎯 Final Recommendation
 
-**For PrepAI, I recommend:**
+**For Brigo, I recommend:**
 
 1. **Keep our 7-screen structure** (it's good!)
 2. **Add 3-5 question learning style assessment** (before pet naming)
@@ -484,6 +484,9 @@ Ahead's onboarding is a **36-screen masterpiece** that leverages multiple psycho
 This would bring us to ~10-12 screens total, which is still manageable but much more effective than our current 7.
 
 **The biggest gap:** We don't personalize. Adding even a simple 3-question assessment would dramatically improve engagement and retention.
+
+
+
 
 
 

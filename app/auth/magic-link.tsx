@@ -42,7 +42,7 @@ export default function MagicLinkScreen() {
   const getHeading = () => {
     switch (flowStep) {
       case 'email':
-        return 'Welcome to PrepAI';
+        return 'Welcome to Brigo';
       case 'otp':
         return 'Enter verification code';
       case 'names':

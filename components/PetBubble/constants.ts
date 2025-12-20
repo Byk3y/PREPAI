@@ -51,3 +51,5 @@ export const ANIMATION_CONFIG = {
   initialTopOffset: 0.2, // 20% from top
 } as const;
 
+
+

@@ -253,3 +253,5 @@ Run through this sequence to test all events:
 - **Batching**: Mixpanel batches events, so they may not appear immediately
 - **Rate Limiting**: Mixpanel has rate limits, but normal usage shouldn't hit them
 
+
+

@@ -157,6 +157,7 @@ export const audioService = {
         title: data.title,
         duration: data.duration,
         audio_url: audioUrl,
+        storage_path: data.storage_path,
         script: data.script,
         generated_at: data.created_at,
       };
@@ -294,6 +295,8 @@ function isUrlExpired(url: string): boolean {
     return true; // If can't parse, assume expired
   }
 }
+
+
 
 
 

@@ -1,5 +1,5 @@
 /**
- * Theme tokens for PrepAI
+ * Theme tokens for Brigo
  * Centralized design system colors, spacing, and typography
  */
 

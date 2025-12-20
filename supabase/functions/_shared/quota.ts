@@ -58,7 +58,7 @@ export async function checkQuota(
       if (now > trialEnd) {
         return {
           allowed: false,
-          reason: 'Your trial has expired. Upgrade to continue using PrepAI!',
+          reason: 'Your trial has expired. Upgrade to continue using Brigo!',
           tier: 'trial',
         };
       }

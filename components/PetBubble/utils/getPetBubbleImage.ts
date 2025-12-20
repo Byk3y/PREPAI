@@ -11,3 +11,5 @@ export function getPetBubbleImage(stage: number): ImageSourcePropType {
   return PET_BUBBLE_IMAGES[currentStage] || PET_BUBBLE_IMAGES[1];
 }
 
+
+

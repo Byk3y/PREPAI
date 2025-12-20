@@ -1,6 +1,6 @@
 # Supabase Setup Guide
 
-This guide will help you set up Supabase for your PrepAI study app.
+This guide will help you set up Supabase for your Brigo study app.
 
 ## ✅ Step 1: Install Dependencies (Already Done)
 
@@ -13,7 +13,7 @@ The following packages have been installed:
 1. Go to [https://supabase.com](https://supabase.com) and sign up/login
 2. Click "New Project"
 3. Fill in:
-   - **Name**: Your project name (e.g., "PrepAI")
+   - **Name**: Your project name (e.g., "Brigo")
    - **Database Password**: Choose a strong password (save it!)
    - **Region**: Choose closest to your users
    - **Pricing Plan**: Free tier is fine to start

@@ -154,3 +154,5 @@ export function getSymmetricPadding(insets: SafeAreaInsets): number {
   return getHorizontalInset(insets) + EDGE_PADDING;
 }
 
+
+

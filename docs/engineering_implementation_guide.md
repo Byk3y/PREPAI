@@ -2,7 +2,7 @@ engineering_implementation_guide.md
 
 👉 Engineering Implementation & Best Practices Guide
 
-PrepAI — Pet Growth System (Stage 1 MVP)
+Brigo — Pet Growth System (Stage 1 MVP)
 
 This guide explains how the system should be built, the expected behaviors, architectural patterns, and the best practices Claude should follow when implementing code.
 It is the engineering companion to the PRD and task definitions spec.

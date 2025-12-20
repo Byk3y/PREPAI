@@ -1,12 +1,12 @@
 ✅ PRODUCT REQUIREMENTS DOCUMENT (PRD) — Pet Growth System (Stage 1 MVP)
 
-PrepAI — Pet Engagement & Daily Task System
+Brigo — Pet Engagement & Daily Task System
 
 ⸻
 
 1. Overview
 
-The Pet Growth System is designed to increase user engagement in PrepAI by giving users a virtual study companion (the “Pet”) that levels up as they complete tasks.
+The Pet Growth System is designed to increase user engagement in Brigo by giving users a virtual study companion (the “Pet”) that levels up as they complete tasks.
 
 This PRD defines the Stage 1 MVP, using static PNGs only, a bottom sheet UI, and a simple points system that rewards exploration and daily use of the app.
 
@@ -18,7 +18,7 @@ This document does not include future Lottie animations, emotional systems, or a
 
 Primary Goals
 	•	Motivate users to return daily
-	•	Teach users how to use PrepAI (foundational tasks)
+	•	Teach users how to use Brigo (foundational tasks)
 	•	Reward consistent studying behavior (daily tasks)
 	•	Provide clear progression via pet evolution (Stage 1 → Stage 2 → Stage 3…)
 
@@ -60,7 +60,7 @@ Two categories of tasks:
 
 4.1 Foundational Tasks (One-Time Tasks)
 
-Purpose: Teach user how PrepAI works
+Purpose: Teach user how Brigo works
 These appear only during Stage 1 until completed.
 
 List of Foundational Tasks

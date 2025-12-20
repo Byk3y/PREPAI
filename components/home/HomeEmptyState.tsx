@@ -75,3 +75,5 @@ export function HomeEmptyState({ isSignedIn }: HomeEmptyStateProps) {
   return <View style={{ flex: 1, backgroundColor: colors.background }} />;
 }
 
+
+

@@ -1,4 +1,4 @@
-# PrepAI Onboarding Rejuvenation Plan v2
+# Brigo Onboarding Rejuvenation Plan v2
 ## Modular Architecture Approach
 
 **Last Updated:** 2025-12-13
@@ -513,7 +513,7 @@ const statistics = [
 ```typescript
 const testimonials = [
   {
-    quote: "PrepAI helped me go from C's to A's in just one semester!",
+    quote: "Brigo helped me go from C's to A's in just one semester!",
     author: "Sarah M.",
     school: "State University",  // Optional
     rating: 5

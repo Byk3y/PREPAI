@@ -1,4 +1,4 @@
-# PrepAI — Expo UI Starter
+# Brigo — Expo UI Starter
 
 A UI-first Expo + TypeScript starter for a gamified study app. This scaffold includes mock data and is ready for quick prototyping and demos.
 

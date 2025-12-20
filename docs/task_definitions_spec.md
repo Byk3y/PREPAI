@@ -5,11 +5,11 @@ No SQL, no code — just the authoritative task definition source.
 
 task_definitions_spec.md
 
-PrepAI — Task Definitions Specification
+Brigo — Task Definitions Specification
 
 Stage 1 MVP • Authoritative Source for Task System
 
-This document defines all tasks in PrepAI's Stage 1 MVP.
+This document defines all tasks in Brigo's Stage 1 MVP.
 It is the source of truth for:
 	•	Seeding the pet_tasks table
 	•	Implementing task triggers
@@ -24,11 +24,11 @@ No additional tasks should exist in the database for MVP.
 
 1. Task Categories
 
-PrepAI has two types of tasks:
+Brigo has two types of tasks:
 
 ✔️ Foundational Tasks
 	•	One-time tasks
-	•	Teach the user how PrepAI works
+	•	Teach the user how Brigo works
 	•	Visible only while incomplete
 	•	Always visible during Stage 1
 	•	If user enters Stage 2 without completing them → tasks remain visible until completed

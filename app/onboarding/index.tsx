@@ -1,6 +1,6 @@
 /**
  * Onboarding Flow - Main Orchestrator
- * Coordinates 7 screens introducing PrepAI's value proposition
+ * Coordinates 7 screens introducing Brigo's value proposition
  * Science-backed education leading to trial signup
  *
  * Modular architecture with separate screen components

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "PrepAI",
-    "slug": "prep-ai",
+    "name": "Brigo",
+    "slug": "brigo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,7 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.prepai.app",
+      "bundleIdentifier": "com.brigo.app",
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -34,7 +34,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FF9500"
       },
-      "package": "com.prepai.app",
+      "package": "com.brigo.app",
       "versionCode": 1,
       "permissions": [
         "CAMERA",
@@ -68,7 +68,7 @@
         }
       ]
     ],
-    "scheme": "prepai",
+    "scheme": "brigo",
     "owner": "francis.dev",
     "extra": {
       "router": {

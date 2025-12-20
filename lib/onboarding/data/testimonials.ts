@@ -21,7 +21,7 @@ export const TESTIMONIALS: Testimonial[] = [
   },
   {
     stars: '⭐⭐⭐⭐⭐',
-    text: "Studying 15 minutes with PrepAI beats 2 hours of highlighting. My test scores prove it.",
+    text: "Studying 15 minutes with Brigo beats 2 hours of highlighting. My test scores prove it.",
     author: 'David L., Engineering Student',
   },
 ];

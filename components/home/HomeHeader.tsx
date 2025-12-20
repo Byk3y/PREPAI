@@ -156,7 +156,7 @@ export const HomeHeader: React.FC = () => {
             <Text
                 style={{ fontFamily: 'Nunito-Bold', fontSize: 24, color: colors.text }}
             >
-                PrepAI
+                Brigo
             </Text>
             <TouchableOpacity
                 onPress={handleProfilePress}

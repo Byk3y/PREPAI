@@ -114,7 +114,7 @@ export default function TextInputModal({
 
             {/* Description */}
             <Text style={[styles.description, { color: colors.textSecondary }]}>
-              Paste your copied text below to upload as a source in PrepAI.
+              Paste your copied text below to upload as a source in Brigo.
             </Text>
 
             {/* Text Input - Starts small, expands with content */}

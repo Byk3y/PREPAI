@@ -65,7 +65,7 @@ export const useStore = create<StoreWithHydration>()(
       },
     }),
     {
-      name: 'prep-ai-storage',
+      name: 'brigo-storage',
       version: 2, // Incremented to clear old petState from AsyncStorage
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({

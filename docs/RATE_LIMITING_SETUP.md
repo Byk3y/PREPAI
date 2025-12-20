@@ -24,7 +24,7 @@ Rate limiting has been implemented using Upstash Redis to prevent abuse, control
 
 1. After logging in, click **"Create Database"**
 2. Configure your database:
-   - **Name**: `prepai-rate-limiting` (or any name you prefer)
+   - **Name**: `brigo-rate-limiting` (or any name you prefer)
    - **Type**: Choose **Global** for best performance across regions
      - Alternative: Choose your nearest region (e.g., `us-west-1`) for lower latency
    - **TLS**: Keep enabled (recommended)

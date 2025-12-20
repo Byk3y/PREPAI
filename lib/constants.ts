@@ -7,17 +7,17 @@
  * External URLs
  */
 export const APP_URLS = {
-  TERMS: 'https://prepai.app/terms',
-  PRIVACY: 'https://prepai.app/privacy',
-  WEBSITE: 'https://prepai.app',
+  TERMS: 'https://brigo.app/terms',
+  PRIVACY: 'https://brigo.app/privacy',
+  WEBSITE: 'https://brigo.app',
 } as const;
 
 /**
  * App Configuration
  */
 export const APP_CONFIG = {
-  APP_NAME: 'PrepAI',
-  SUPPORT_EMAIL: 'support@prepai.app',
+  APP_NAME: 'Brigo',
+  SUPPORT_EMAIL: 'support@brigo.app',
 } as const;
 
 /**

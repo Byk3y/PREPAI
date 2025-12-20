@@ -1,6 +1,6 @@
 # Testing Guide
 
-This document provides comprehensive information about the testing infrastructure for the PrepAI React Native Expo Router app.
+This document provides comprehensive information about the testing infrastructure for the Brigo React Native Expo Router app.
 
 ## Overview
 
@@ -406,6 +406,9 @@ For questions or issues with testing:
 1. Check this documentation
 2. Review existing test files for examples
 3. Consult the Jest and React Native Testing Library documentation
+
+
+
 
 
 

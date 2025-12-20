@@ -29,7 +29,7 @@ This upgrade strategy balances **conversion effectiveness with user respect** by
 ### 1. **Progress Visualization** (Primary Driver)
 **Principle**: People are motivated when they see tangible progress.
 
-**Application for PrepAI**:
+**Application for Brigo**:
 - Show their **accomplishments** (notebooks created, flashcards studied, streak maintained)
 - Display their **pet's growth** (current stage, points earned)
 - Visualize their **study journey** (days active, quizzes completed)
@@ -258,7 +258,7 @@ unlimited study materials!
 ```
 Your Trial Has Ended
 
-Thanks for trying PrepAI Premium! Here's what you've accomplished:
+Thanks for trying Brigo Premium! Here's what you've accomplished:
 
 📚 12 notebooks created
 🎴 45 flashcards studied
@@ -411,7 +411,7 @@ unlimited study materials!
 ```
 Your Trial Has Ended
 
-Thanks for trying PrepAI Premium! Here's what you've accomplished:
+Thanks for trying Brigo Premium! Here's what you've accomplished:
 
 📚 [X] notebooks created
 🎴 [X] flashcards studied
@@ -705,3 +705,5 @@ Ready to create unlimited study materials?
 ---
 
 **Bottom Line**: Duolingo proves aggressive tactics work for conversion. User backlash proves they have costs. Our middle ground captures the conversion benefits while avoiding the brand damage.
+
+

@@ -77,8 +77,8 @@ export async function callLLM(
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://prepai.app',
-        'X-Title': 'PrepAI Study App',
+        'HTTP-Referer': 'https://brigo.app',
+        'X-Title': 'Brigo Study App',
       },
       body: JSON.stringify({
         model: modelName,

@@ -850,3 +850,5 @@ const handleUpgrade = () => {
 - Gradual optimization from gentle to effective
 
 **Bottom Line**: Capture Duolingo's conversion tactics, avoid their brand damage, build sustainable growth.
+
+

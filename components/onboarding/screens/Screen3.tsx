@@ -1,6 +1,6 @@
 /**
  * Screen 3: The Solution Part 1
- * Introduces PrepAI's core value proposition
+ * Introduces Brigo's core value proposition
  * Includes policy checkbox and auth buttons
  */
 
@@ -122,7 +122,7 @@ export function Screen3({ colors }: Screen3Props) {
             </View>
           </TouchableOpacity>
           <Text style={[styles.termsText, { color: colors.text }]}>
-            I agree to PrepAI's{' '}
+            I agree to Brigo's{' '}
             <Text style={[styles.linkText, { color: colors.primary }]} onPress={handleTermsPress}>
               Terms & Conditions
             </Text>

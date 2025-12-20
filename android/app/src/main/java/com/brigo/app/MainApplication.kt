@@ -1,4 +1,4 @@
-package com.prepai.app
+package com.brigo.app
 
 import android.app.Application
 import android.content.res.Configuration
