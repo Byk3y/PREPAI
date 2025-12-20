@@ -37,10 +37,11 @@
       "package": "com.brigo.app",
       "versionCode": 1,
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "RECORD_AUDIO"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -75,7 +76,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "59e26f4b-55a6-42f6-8f2c-7eab5e67fe7d"
+        "projectId": "292f816a-44fc-41b8-9f3f-7c9f5dec3d02"
       }
     }
   }
