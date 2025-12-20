@@ -8,6 +8,7 @@ import { callLLMWithRetry } from '../_shared/openrouter.ts';
 import { checkQuota, incrementQuota } from '../_shared/quota.ts';
 import { getRequiredEnv, getOptionalEnv } from '../_shared/env.ts';
 import { getCorsHeaders, getCorsPreflightHeaders } from '../_shared/cors.ts';
+import { checkRateLimit, RATE_LIMITS } from '../_shared/ratelimit.ts';
 
 interface GenerateStudioRequest {
   notebook_id: string;
@@ -98,6 +99,36 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Forbidden: You do not own this notebook' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 4.5. RATE LIMITING: Check if user is making too many requests
+    const rateLimitResult = await checkRateLimit({
+      identifier: user.id,
+      limit: RATE_LIMITS.GENERATE_STUDIO.limit,
+      window: RATE_LIMITS.GENERATE_STUDIO.window,
+      endpoint: 'generate-studio-content',
+    });
+
+    if (!rateLimitResult.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: 'Too many requests. Please wait before generating more content.',
+          retryAfter: rateLimitResult.retryAfter,
+          remaining: 0,
+          resetAt: rateLimitResult.resetAt,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Retry-After': String(rateLimitResult.retryAfter),
+            'X-RateLimit-Limit': String(RATE_LIMITS.GENERATE_STUDIO.limit),
+            'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+            'X-RateLimit-Reset': String(rateLimitResult.resetAt),
+          },
+        }
       );
     }
 

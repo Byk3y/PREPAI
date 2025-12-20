@@ -14,13 +14,13 @@
  * - OpenRouter LLM title and preview generation
  */
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'supabase';
 import { callLLMWithRetry } from '../_shared/openrouter.ts';
 import { extractPDF, extractImageText, transcribeAudio } from '../_shared/extraction.ts';
 import { checkQuota } from '../_shared/quota.ts';
 import { getRequiredEnv, getOptionalEnv } from '../_shared/env.ts';
 import { getCorsHeaders, getCorsPreflightHeaders } from '../_shared/cors.ts';
+import { checkRateLimit, RATE_LIMITS } from '../_shared/ratelimit.ts';
 
 /**
  * Extract content based on material type
@@ -279,7 +279,7 @@ IMPORTANT: Use markdown formatting for emphasis IN THE OVERVIEW ONLY:
   }
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsPreflightHeaders(req) });
@@ -366,6 +366,36 @@ serve(async (req) => {
     const notebookId = notebook.id;
     const userId = notebook.user_id;
     const originalTitle = notebook.title; // Store original title for error recovery
+
+    // RATE LIMITING: Check if user is making too many requests
+    const rateLimitResult = await checkRateLimit({
+      identifier: userId,
+      limit: RATE_LIMITS.PROCESS_MATERIAL.limit,
+      window: RATE_LIMITS.PROCESS_MATERIAL.window,
+      endpoint: 'process-material',
+    });
+
+    if (!rateLimitResult.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: 'Too many requests. Please wait before processing more materials.',
+          retryAfter: rateLimitResult.retryAfter,
+          remaining: 0,
+          resetAt: rateLimitResult.resetAt,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'Retry-After': String(rateLimitResult.retryAfter),
+            'X-RateLimit-Limit': String(RATE_LIMITS.PROCESS_MATERIAL.limit),
+            'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+            'X-RateLimit-Reset': String(rateLimitResult.resetAt),
+          },
+        }
+      );
+    }
 
     // QUOTA NOTE: Preview generation is unlimited for all users (trial + premium)
     // Quota enforcement only applies to:
