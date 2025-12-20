@@ -40,6 +40,8 @@ interface AudioPlayerProps {
     duration?: number; // in seconds
     onClose?: () => void;
     onDownload?: () => void;
+    isDownloading?: boolean; // Optional: Show loading state on download button
+    downloadProgress?: number; // Optional: Download progress percentage (0-100)
 }
 
 export function AudioPlayer({
@@ -50,6 +52,8 @@ export function AudioPlayer({
     duration = 0,
     onClose,
     onDownload,
+    isDownloading = false,
+    downloadProgress = 0,
 }: AudioPlayerProps) {
     const { handleError } = useErrorHandler();
     const [isPlaying, setIsPlaying] = useState(false);
@@ -418,12 +422,28 @@ export function AudioPlayer({
 
                     <TouchableOpacity
                         onPress={onDownload}
+                        disabled={isDownloading}
                         className="p-2"
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={{ opacity: isDownloading ? 0.5 : 1 }}
                     >
-                        <DownloadIcon size={22} color="#1a1a1a" />
+                        {isDownloading ? (
+                            <ActivityIndicator size="small" color="#1a1a1a" />
+                        ) : (
+                            <DownloadIcon size={22} color="#1a1a1a" />
+                        )}
                     </TouchableOpacity>
                 </View>
+
+                {/* Download Progress Bar */}
+                {isDownloading && downloadProgress > 0 && (
+                    <View className="w-full bg-gray-100" style={{ height: 3 }}>
+                        <View
+                            className="h-full bg-[#4F5BD5]"
+                            style={{ width: `${downloadProgress}%` }}
+                        />
+                    </View>
+                )}
 
                 {/* Content Area with Blue Line */}
                 <View className="flex-1 justify-end">

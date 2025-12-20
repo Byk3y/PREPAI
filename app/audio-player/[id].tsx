@@ -9,6 +9,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { Alert } from 'react-native';
 import { audioService } from '@/lib/services/audioService';
+import { audioDownloadService } from '@/lib/services/audioDownloadService';
 import type { AudioOverview } from '@/lib/store/types';
 import { TikTokLoader } from '@/components/TikTokLoader';
 
@@ -19,6 +20,8 @@ export default function AudioPlayerScreen() {
     const [audioOverview, setAudioOverview] = useState<AudioOverview | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [downloadProgress, setDownloadProgress] = useState(0);
 
     // Load audio overview on mount
     useEffect(() => {
@@ -54,8 +57,38 @@ export default function AudioPlayerScreen() {
         router.back();
     };
 
-    const handleDownload = () => {
-        Alert.alert('Download', 'Download feature coming soon!');
+    const handleDownload = async () => {
+        if (!audioOverview || isDownloading) return;
+
+        try {
+            setIsDownloading(true);
+            setDownloadProgress(0);
+
+            const result = await audioDownloadService.downloadAudioFile(
+                audioOverview.audio_url,
+                audioOverview.title,
+                audioOverview.storage_path,
+                (progress) => {
+                    setDownloadProgress(progress.percentage);
+                }
+            );
+
+            if (result.success) {
+                // Success - share sheet was presented, no need to show alert
+                // User will see native share/save UI
+                setDownloadProgress(100);
+            } else {
+                // Show error alert
+                Alert.alert('Download Failed', result.message);
+            }
+        } catch (error) {
+            console.error('Download error:', error);
+            Alert.alert('Download Failed', 'An unexpected error occurred. Please try again.');
+        } finally {
+            setIsDownloading(false);
+            // Reset progress after a short delay
+            setTimeout(() => setDownloadProgress(0), 1000);
+        }
     };
 
     // Loading state
@@ -89,6 +122,8 @@ export default function AudioPlayerScreen() {
                 duration={audioOverview.duration}
                 onClose={handleClose}
                 onDownload={handleDownload}
+                isDownloading={isDownloading}
+                downloadProgress={downloadProgress}
             />
         </View>
     );
