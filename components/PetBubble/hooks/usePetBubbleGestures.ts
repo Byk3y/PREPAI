@@ -122,10 +122,10 @@ export function usePetBubbleGestures(config: UsePetBubbleGesturesConfig) {
     // Navigate to pet sheet
     router.push('/pet-sheet');
 
-    // Reset guard after cooldown period (500ms is enough for navigation to complete)
+    // Reset guard after cooldown period (300ms is enough for navigation to start)
     navigationCooldown.current = setTimeout(() => {
       isNavigating.current = false;
-    }, 500);
+    }, 300);
   }, [authUser, play, router]);
 
   const panResponder = useRef(
@@ -195,8 +195,8 @@ export function usePetBubbleGestures(config: UsePetBubbleGesturesConfig) {
 
           resetPanValues(needsResetX, needsResetY, () => {
             startIdleAnimation();
-            openPetSheet();
           });
+          openPetSheet();
           return;
         }
 

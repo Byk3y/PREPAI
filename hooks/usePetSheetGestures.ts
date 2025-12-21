@@ -32,10 +32,13 @@ export function usePetSheetGestures({ onDismiss, scrollY }: UsePetSheetGesturesC
     useEffect(() => {
         translateY.setValue(SCREEN_HEIGHT);
 
+        // Use requestAnimationFrame to ensure the initial position is rendered 
+        // before starting the animation, otherwise it might appear instantly.
         requestAnimationFrame(() => {
-            Animated.timing(translateY, {
+            Animated.spring(translateY, {
                 toValue: 0,
-                duration: 320, // slightly faster slide-up
+                tension: 50, // Slightly reduced for a more elegant, less aggressive slide
+                friction: 11,
                 useNativeDriver: true,
             }).start();
         });
@@ -69,7 +72,7 @@ export function usePetSheetGestures({ onDismiss, scrollY }: UsePetSheetGesturesC
             // Dismiss sheet
             Animated.timing(translateY, {
                 toValue: SCREEN_HEIGHT,
-                duration: 250,
+                duration: 200,
                 useNativeDriver: true,
             }).start(() => {
                 onDismiss();
@@ -137,7 +140,7 @@ export function usePetSheetGestures({ onDismiss, scrollY }: UsePetSheetGesturesC
     const dismiss = () => {
         Animated.timing(translateY, {
             toValue: SCREEN_HEIGHT,
-            duration: 250,
+            duration: 200,
             useNativeDriver: true,
         }).start(() => {
             onDismiss();
