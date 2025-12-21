@@ -50,6 +50,10 @@ export function usePetBubbleGestures(config: UsePetBubbleGesturesConfig) {
   const { play } = useFeedback();
   const hasMoved = useRef(false);
 
+  // Navigation guard to prevent duplicate rapid taps
+  const isNavigating = useRef(false);
+  const navigationCooldown = useRef<NodeJS.Timeout | null>(null);
+
   const {
     position,
     positionRef,
@@ -87,10 +91,41 @@ export function usePetBubbleGestures(config: UsePetBubbleGesturesConfig) {
     insetsRef.current = insets;
   }, [insets]);
 
+  // Cleanup navigation cooldown timer on unmount
+  useEffect(() => {
+    return () => {
+      if (navigationCooldown.current) {
+        clearTimeout(navigationCooldown.current);
+      }
+    };
+  }, []);
+
   const openPetSheet = useCallback(() => {
     if (!authUser) return;
+
+    // Guard against multiple rapid taps
+    if (isNavigating.current) {
+      return;
+    }
+
+    // Set navigation guard
+    isNavigating.current = true;
+
+    // Clear any existing cooldown
+    if (navigationCooldown.current) {
+      clearTimeout(navigationCooldown.current);
+    }
+
+    // Play haptic feedback
     play('tap');
+
+    // Navigate to pet sheet
     router.push('/pet-sheet');
+
+    // Reset guard after cooldown period (500ms is enough for navigation to complete)
+    navigationCooldown.current = setTimeout(() => {
+      isNavigating.current = false;
+    }, 500);
   }, [authUser, play, router]);
 
   const panResponder = useRef(
