@@ -60,8 +60,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   imageContainer: {
-    width: 140,
-    height: 140,
+    width: 60,
+    height: 60,
     alignItems: 'center',
     justifyContent: 'center',
   },

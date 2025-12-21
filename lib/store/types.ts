@@ -32,6 +32,7 @@ export interface User {
   coins: number;
   avatar?: string;
   meta?: ProfileMeta;    // Profile metadata from database
+  created_at?: string;   // ISO timestamp
 }
 
 export interface PetState {

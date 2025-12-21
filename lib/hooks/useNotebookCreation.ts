@@ -84,6 +84,7 @@ export const useNotebookCreation = () => {
             const { checkAndAwardTask } = useStore.getState();
             if (checkAndAwardTask) {
                 checkAndAwardTask('add_material');
+                checkAndAwardTask('add_material_daily');
             }
             setIsAddingNotebook(false);
             return notebookId;
@@ -129,6 +130,7 @@ export const useNotebookCreation = () => {
             const { checkAndAwardTask } = useStore.getState();
             if (checkAndAwardTask) {
                 checkAndAwardTask('add_material');
+                checkAndAwardTask('add_material_daily');
             }
             setIsAddingNotebook(false);
             return notebookId;
@@ -197,6 +199,7 @@ export const useNotebookCreation = () => {
             const { checkAndAwardTask } = useStore.getState();
             if (checkAndAwardTask) {
                 checkAndAwardTask('add_material');
+                checkAndAwardTask('add_material_daily');
             }
 
             setIsAddingNotebook(false);
@@ -245,6 +248,7 @@ export const useNotebookCreation = () => {
             const { checkAndAwardTask } = useStore.getState();
             if (checkAndAwardTask) {
                 checkAndAwardTask('add_material');
+                checkAndAwardTask('add_material_daily');
             }
 
             setIsAddingNotebook(false);
@@ -283,6 +287,7 @@ export const useNotebookCreation = () => {
             const { checkAndAwardTask } = useStore.getState();
             if (checkAndAwardTask) {
                 checkAndAwardTask('add_material');
+                checkAndAwardTask('add_material_daily');
             }
 
             setIsAddingNotebook(false);

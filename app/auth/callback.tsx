@@ -10,27 +10,61 @@ import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
 import { useStore } from '@/lib/store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { validateTokens } from '@/lib/auth/tokenValidator';
+import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 
 export default function AuthCallbackScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { handleError } = useErrorHandler();
 
   useEffect(() => {
+    let mounted = true;
+
     const handleAuthCallback = async () => {
       try {
-        // Handle deep link URL if app was opened via magic link
+        // Handle deep link URL if app was opened via magic link or OAuth callback
         const url = await Linking.getInitialURL();
         if (url) {
           const parsed = Linking.parse(url);
           console.log('Deep link URL:', url);
           console.log('Parsed URL:', parsed);
           
-          // Extract tokens from query params or hash
+          // Extract tokens from query params, hash fragment, or route params
           const queryParams = parsed.queryParams || {};
-          const accessToken = (queryParams.access_token || params.access_token) as string | undefined;
-          const refreshToken = (queryParams.refresh_token || params.refresh_token) as string | undefined;
+          let accessToken = (queryParams.access_token || params.access_token) as string | undefined;
+          let refreshToken = (queryParams.refresh_token || params.refresh_token) as string | undefined;
+
+          // If not in query params, check hash fragment (OAuth callbacks use hash)
+          if (!accessToken || !refreshToken) {
+            try {
+              const urlObj = new URL(url);
+              const fragment = urlObj.hash.substring(1); // Remove the '#'
+              if (fragment) {
+                const hashParams = new URLSearchParams(fragment);
+                accessToken = accessToken || (hashParams.get('access_token') as string | undefined);
+                refreshToken = refreshToken || (hashParams.get('refresh_token') as string | undefined);
+              }
+            } catch (e) {
+              // URL parsing failed, try regex fallback
+              const hashMatch = url.match(/#access_token=([^&]+).*refresh_token=([^&]+)/);
+              if (hashMatch) {
+                accessToken = accessToken || decodeURIComponent(hashMatch[1]);
+                refreshToken = refreshToken || decodeURIComponent(hashMatch[2]);
+              }
+            }
+          }
 
           if (accessToken && refreshToken) {
+            // Validate tokens before using them (security - prevents injection attacks)
+            const validation = validateTokens(accessToken, refreshToken);
+            if (!validation.isValid) {
+              console.error('Auth callback - token validation failed:', validation.error);
+              if (!mounted) return;
+              router.replace('/auth');
+              return;
+            }
+
             const { error } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken,
@@ -38,6 +72,7 @@ export default function AuthCallbackScreen() {
 
             if (error) {
               console.error('Auth callback error:', error);
+              if (!mounted) return;
               router.replace('/auth');
               return;
             }
@@ -48,6 +83,15 @@ export default function AuthCallbackScreen() {
           const refreshToken = params.refresh_token as string | undefined;
 
           if (accessToken && refreshToken) {
+            // Validate tokens before using them (security - prevents injection attacks)
+            const validation = validateTokens(accessToken, refreshToken);
+            if (!validation.isValid) {
+              console.error('Auth callback - token validation failed:', validation.error);
+              if (!mounted) return;
+              router.replace('/auth');
+              return;
+            }
+
             const { error } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken,
@@ -55,6 +99,7 @@ export default function AuthCallbackScreen() {
 
             if (error) {
               console.error('Auth callback error:', error);
+              if (!mounted) return;
               router.replace('/auth');
               return;
             }
@@ -208,7 +253,7 @@ export default function AuthCallbackScreen() {
                     }
                   }
                 }
-                return; // Exit early, we've handled the new pet state case
+                // Continue to navigation logic below - don't return early
               }
 
               if (petStateError) {
@@ -288,21 +333,41 @@ export default function AuthCallbackScreen() {
           if (currentOnboardingScreen >= 3 && currentOnboardingScreen < 9) {
             // Resume onboarding at saved screen (after auth break at screen 3)
             console.log('Resuming onboarding at screen', currentOnboardingScreen);
+            if (!mounted) return;
             router.replace('/onboarding');
           } else {
             // Onboarding complete, go to home
+            if (!mounted) return;
             router.replace('/');
           }
         } else {
+          if (!mounted) return;
           router.replace('/auth');
         }
       } catch (error) {
-        console.error('Auth callback error:', error);
+        if (!mounted) return;
+
+        // Use centralized error handler for proper classification and reporting
+        await handleError(error, {
+          operation: 'auth_callback',
+          component: 'auth-callback',
+          metadata: {
+            hasParams: !!params,
+            paramsKeys: Object.keys(params || {})
+          },
+        });
+
+        // Redirect to auth on error
+        if (!mounted) return;
         router.replace('/auth');
       }
     };
 
     handleAuthCallback();
+
+    return () => {
+      mounted = false;
+    };
   }, [params]);
 
   return (

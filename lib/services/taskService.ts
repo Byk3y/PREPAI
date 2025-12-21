@@ -1,11 +1,6 @@
-/**
- * Task Service
- * Handles task-related database operations and RPC calls
- */
-
 import { supabase } from '@/lib/supabase';
 import { handleError } from '@/lib/errors';
-import type { DailyTask } from '@/lib/store/types';
+import type { DailyTask, TaskProgress } from '@/lib/store/types';
 
 // Type definition for award_task_points RPC response
 interface AwardTaskPointsResponse {
@@ -49,7 +44,7 @@ export const taskService = {
         return [];
       }
 
-      return data || [];
+      return (data as any) || [];
     } catch (error) {
       await handleError(error, {
         operation: 'get_daily_tasks',
@@ -78,7 +73,7 @@ export const taskService = {
         return [];
       }
 
-      return data || [];
+      return (data as any) || [];
     } catch (error) {
       await handleError(error, {
         operation: 'get_foundational_tasks',
@@ -97,7 +92,7 @@ export const taskService = {
    * @param timezone - The user's timezone (default: 'UTC')
    * @returns Current progress value (number)
    */
-  getTaskProgress: async (userId: string, taskKey: string, timezone: string = 'UTC'): Promise<number> => {
+  getTaskProgress: async (userId: string, taskKey: string, timezone: string = 'UTC'): Promise<TaskProgress> => {
     try {
       const { data, error } = await supabase.rpc('get_task_progress', {
         p_user_id: userId,
@@ -111,18 +106,23 @@ export const taskService = {
           component: 'task-service',
           metadata: { userId, taskKey, timezone },
         });
-        return 0;
+        return { current: 0, goal: 1, unit: 'count', percentage: 0 };
       }
 
-      // RPC returns JSONB with { current, goal, unit, percentage }
-      return (data?.current as number) || 0;
+      const result = data as any;
+      return {
+        current: (result?.current as number) || 0,
+        goal: (result?.goal as number) || 1,
+        unit: (result?.unit as string) || 'count',
+        percentage: (result?.percentage as number) || 0,
+      };
     } catch (error) {
       await handleError(error, {
         operation: 'get_task_progress',
         component: 'task-service',
         metadata: { userId, taskKey, timezone },
       });
-      return 0;
+      return { current: 0, goal: 1, unit: 'count', percentage: 0 };
     }
   },
 

@@ -310,11 +310,11 @@ export function AudioPlayer({
     const handleLike = useCallback(async () => {
         // Prevent concurrent operations
         if (feedbackOperationRef.current) return;
-        
+
         // Capture current value before state update
         const previousValue = liked;
         const newValue = liked === true ? null : true;
-        
+
         // Optimistic update
         setLiked(newValue);
         feedbackOperationRef.current = true;
@@ -336,6 +336,11 @@ export function AudioPlayer({
                         true
                     );
                 }
+
+                // Trigger "Reviewer" daily task
+                if (checkAndAwardTask) {
+                    checkAndAwardTask('audio_feedback_given');
+                }
             } catch (error) {
                 // Revert on error using functional update to get latest state
                 setLiked((current) => {
@@ -355,11 +360,11 @@ export function AudioPlayer({
     const handleDislike = useCallback(async () => {
         // Prevent concurrent operations
         if (feedbackOperationRef.current) return;
-        
+
         // Capture current value before state update
         const previousValue = liked;
         const newValue = liked === false ? null : false;
-        
+
         // Optimistic update
         setLiked(newValue);
         feedbackOperationRef.current = true;
@@ -380,6 +385,11 @@ export function AudioPlayer({
                         audioOverviewId,
                         false
                     );
+                }
+
+                // Trigger "Reviewer" daily task
+                if (checkAndAwardTask) {
+                    checkAndAwardTask('audio_feedback_given');
                 }
             } catch (error) {
                 // Revert on error using functional update to get latest state

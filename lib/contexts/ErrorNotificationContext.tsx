@@ -99,6 +99,15 @@ export const ErrorNotificationProvider: React.FC<ErrorNotificationProviderProps>
   }, [generateId]);
 
   const showError = useCallback((error: AppError) => {
+    // Skip LOW severity errors - these are expected/non-critical (e.g., token refresh errors when logged out)
+    if (error.severity === ErrorSeverity.LOW) {
+      // Still log in dev mode for debugging, but don't show to user
+      if (__DEV__) {
+        console.log('[ErrorNotification] Suppressed LOW severity error:', error.technicalMessage);
+      }
+      return;
+    }
+
     // Route to appropriate display based on severity
     switch (error.severity) {
       case ErrorSeverity.CRITICAL:
@@ -107,7 +116,6 @@ export const ErrorNotificationProvider: React.FC<ErrorNotificationProviderProps>
         showModal(error);
         break;
       case ErrorSeverity.MEDIUM:
-      case ErrorSeverity.LOW:
         // Non-blocking errors get toast
         showToast(error);
         break;
@@ -150,6 +158,7 @@ export const ErrorNotificationProvider: React.FC<ErrorNotificationProviderProps>
     </ErrorNotificationContext.Provider>
   );
 };
+
 
 
 

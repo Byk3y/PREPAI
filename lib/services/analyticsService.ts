@@ -10,10 +10,19 @@
  * 3. Restart Expo dev server after adding token
  */
 
-import Mixpanel from 'mixpanel-react-native';
 import Constants from 'expo-constants';
 
-let mixpanelInstance: Mixpanel | null = null;
+// Safely import Mixpanel - it may not be available if native module isn't linked
+let Mixpanel: any = null;
+try {
+  Mixpanel = require('mixpanel-react-native').default;
+} catch (error) {
+  if (__DEV__) {
+    console.warn('[Mixpanel] Native module not available:', error);
+  }
+}
+
+let mixpanelInstance: any = null;
 let isInitialized = false;
 
 /**
@@ -22,6 +31,14 @@ let isInitialized = false;
  * Uses static init method which is the recommended approach for React Native/Expo
  */
 export function initMixpanel() {
+  // Check if Mixpanel module is available
+  if (!Mixpanel || typeof Mixpanel.init !== 'function') {
+    if (__DEV__) {
+      console.warn('[Mixpanel] Native module not available. Skipping initialization.');
+    }
+    return;
+  }
+
   const token = process.env.EXPO_PUBLIC_MIXPANEL_TOKEN;
 
   // Only initialize if token is provided
@@ -45,21 +62,28 @@ export function initMixpanel() {
   // Use static init method for proper initialization
   // This is the recommended way for React Native/Expo
   // We don't await it since this is called at module load time
-  Mixpanel.init(token, true) // true = trackAutomaticEvents
-    .then((instance) => {
-      mixpanelInstance = instance;
-      isInitialized = true;
-      
-      if (__DEV__) {
-        console.log('[Mixpanel] Initialized successfully');
-      }
-    })
-    .catch((error) => {
-      console.error('[Mixpanel] Initialization error:', error);
-      // Don't crash the app if Mixpanel fails to initialize
-      mixpanelInstance = null;
-      isInitialized = false;
-    });
+  try {
+    Mixpanel.init(token, true) // true = trackAutomaticEvents
+      .then((instance: any) => {
+        mixpanelInstance = instance;
+        isInitialized = true;
+        
+        if (__DEV__) {
+          console.log('[Mixpanel] Initialized successfully');
+        }
+      })
+      .catch((error: any) => {
+        console.error('[Mixpanel] Initialization error:', error);
+        // Don't crash the app if Mixpanel fails to initialize
+        mixpanelInstance = null;
+        isInitialized = false;
+      });
+  } catch (error) {
+    console.error('[Mixpanel] Failed to call init:', error);
+    // Don't crash the app if Mixpanel fails to initialize
+    mixpanelInstance = null;
+    isInitialized = false;
+  }
 }
 
 /**
@@ -165,10 +189,8 @@ export function setSuperProperties(properties: Record<string, any>): void {
  * Clear user data (call on logout)
  */
 export function clearUser(): void {
+  // Silently return if not initialized - no need to log this
   if (!isInitialized || !mixpanelInstance) {
-    if (__DEV__) {
-      console.log('[Mixpanel] Clear user (not initialized)');
-    }
     return;
   }
 

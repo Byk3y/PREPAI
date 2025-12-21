@@ -109,7 +109,7 @@ export const completionService = {
       // Get current progress using taskService
       const progress = await taskService.getTaskProgress(userId, taskKey, timezone);
 
-      if (progress >= threshold && onThresholdMet) {
+      if (progress.current >= threshold && onThresholdMet) {
         await onThresholdMet();
       }
     } catch (error) {

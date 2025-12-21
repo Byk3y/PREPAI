@@ -67,7 +67,11 @@
         {
           "microphonePermission": "This app needs access to your microphone for audio features."
         }
-      ]
+      ],
+      "@sentry/react-native",
+      "expo-secure-store",
+      "@react-native-google-signin/google-signin",
+      "expo-web-browser"
     ],
     "scheme": "brigo",
     "owner": "francis.dev",

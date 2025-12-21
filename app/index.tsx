@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import { useStore } from '@/lib/store';
 import { useNotebookCreation } from '@/lib/hooks/useNotebookCreation';
 import { PetBubble } from '@/components/PetBubble';
@@ -28,6 +28,7 @@ import { useHomeAnalytics } from '@/hooks/useHomeAnalytics';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const segments = useSegments();
   const {
     notebooks,
     loadNotebooks,
@@ -169,6 +170,13 @@ export default function HomeScreen() {
     Date.now() - notebooksSyncedAt < 24 * 60 * 60 * 1000; // 24h freshness window
 
   const canShowContent = authUser ? isInitialized || isNotebookCacheFresh : false;
+  
+  // Show loading state if we're on home route but not signed in (routing will redirect)
+  // This prevents "Not Signed In" flash when app loads and routing hasn't redirected yet
+  // Check if segments are empty (root route) - routing will redirect to /auth if no user
+  const isOnHomeRoute = segments.length === 0 || segments[0] === undefined;
+  // Always show loading if on home route without user (routing will handle redirect)
+  const shouldShowLoading = isOnHomeRoute && !authUser;
 
   return (
     <SafeAreaView
@@ -178,7 +186,10 @@ export default function HomeScreen() {
       <HomeHeader />
 
       {/* Content */}
-      {!canShowContent ? (
+      {shouldShowLoading ? (
+        // Show blank loading state while routing redirects (prevents flash)
+        <View style={{ flex: 1, backgroundColor: colors.background }} />
+      ) : !canShowContent ? (
         <HomeEmptyState isSignedIn={!!authUser} />
       ) : (
         <NotebookList

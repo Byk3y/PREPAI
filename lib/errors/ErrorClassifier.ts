@@ -78,15 +78,16 @@ export class ErrorClassifier {
       });
     }
 
-    // Quota/limit errors
+    // Quota/limit errors (including rate limits)
     if (this.isQuotaError(message)) {
+      const isRateLimit = message.includes('rate limit') || message.includes('rate_limit');
       return new AppError({
         type: ErrorType.QUOTA,
         message: error.message,
         context,
-        severity: ErrorSeverity.HIGH,
-        retryable: false,
-        recoveryAction: RecoveryAction.UPGRADE
+        severity: isRateLimit ? ErrorSeverity.MEDIUM : ErrorSeverity.HIGH,
+        retryable: isRateLimit, // Rate limits are retryable after a delay
+        recoveryAction: isRateLimit ? RecoveryAction.RETRY : RecoveryAction.UPGRADE
       });
     }
 
@@ -257,6 +258,8 @@ export class ErrorClassifier {
     return (
       message.includes('limit') ||
       message.includes('quota') ||
+      message.includes('rate limit') ||
+      message.includes('rate_limit') ||
       message.includes('trial expired') ||
       message.includes('trial has expired') ||
       message.includes('exceeded') ||
@@ -313,6 +316,52 @@ export class ErrorClassifier {
 
   private static classifySupabaseError(error: any, context: ErrorContext): AppError {
     const message = error.message || error.error || 'Supabase error';
+
+    // Suppress expected auth errors when logged out (invalid refresh token, etc.)
+    // These are normal when there's no active session
+    if (
+      message.includes('Invalid Refresh Token') ||
+      message.includes('Refresh Token Not Found') ||
+      message.includes('refresh_token_not_found') ||
+      (message.includes('JWT') && message.includes('expired'))
+    ) {
+      // These are expected when logged out - suppress them
+      return new AppError({
+        type: ErrorType.AUTH,
+        message,
+        context,
+        severity: ErrorSeverity.LOW, // Low severity - don't show to user
+        retryable: false,
+        // LOW severity - won't show in UI
+        originalError: error
+      });
+    }
+
+    // Rate limit errors (check after auth errors, as they're common)
+    if (message.includes('rate limit') || message.includes('rate_limit') || message.includes('Request rate limit reached')) {
+      // Suppress rate limit errors during token refresh (expected when logged out)
+      if (context.operation?.includes('refresh') || context.operation?.includes('token')) {
+        return new AppError({
+          type: ErrorType.QUOTA,
+          message,
+          context,
+          severity: ErrorSeverity.LOW,
+          retryable: false,
+          // LOW severity - won't show in UI
+          originalError: error
+        });
+      }
+      
+      return new AppError({
+        type: ErrorType.QUOTA,
+        message,
+        context,
+        severity: ErrorSeverity.MEDIUM,
+        retryable: true, // Rate limits are retryable after a delay
+        recoveryAction: RecoveryAction.RETRY,
+        originalError: error
+      });
+    }
 
     // Authentication errors
     if (error.code === 'PGRST301' || message.includes('JWT')) {

@@ -20,6 +20,9 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
+import { signInWithGoogle } from '@/lib/auth/googleSignIn';
+import { OAuthConfig } from '@/lib/auth/config';
+import { useState } from 'react';
 
 // Colorful Google G icon
 const GoogleIcon = () => (
@@ -61,6 +64,7 @@ export default function AuthScreen() {
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
   const { handleError } = useErrorHandler();
+  const [loading, setLoading] = useState(false);
 
   const handleEmailAuth = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -69,31 +73,56 @@ export default function AuthScreen() {
 
   const handleSocialLogin = async (provider: 'google' | 'apple') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: `${process.env.EXPO_PUBLIC_SUPABASE_URL}/auth/callback`,
-        },
-      });
+      if (provider === 'google') {
+        // Use native Google sign-in
+        const { session, user } = await signInWithGoogle();
 
-      if (error) {
-        await handleError(error, {
-          operation: 'social_login',
-          component: 'auth-index',
-          metadata: { provider }
+        if (session && user) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+          // Let the onAuthStateChange listener handle setAuthUser() call automatically
+          // This prevents duplicate state updates and racing routing effects
+          // The useAuthSetup hook will process the session and trigger routing
+          // via the onAuthStateChange callback, ensuring single source of truth
+        }
+      } else {
+        // Apple - use OAuth flow for now (will implement native later)
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'apple',
+          options: {
+            redirectTo: OAuthConfig.redirectUri,
+          },
         });
+
+        if (error) {
+          await handleError(error, {
+            operation: 'social_login',
+            component: 'auth-index',
+            metadata: { provider }
+          });
+          return;
+        }
+
+        // OAuth will redirect, handled by callback
+      }
+    } catch (error: any) {
+      // Handle cancellation gracefully (user cancelled Google sign-in)
+      if (error.message?.includes('cancelled') || error.message?.includes('Sign in was cancelled')) {
+        // User cancelled - don't show error, just return
+        setLoading(false);
         return;
       }
 
-      // OAuth will redirect, handled by callback
-    } catch (error: any) {
       await handleError(error, {
         operation: 'social_login',
         component: 'auth-index',
         metadata: { provider }
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -143,9 +172,11 @@ export default function AuthScreen() {
                 {
                   borderColor: colors.border,
                   backgroundColor: colors.surfaceElevated,
+                  opacity: loading ? 0.6 : 1,
                 },
               ]}
               activeOpacity={0.7}
+              disabled={loading}
             >
               <GoogleIcon />
               <Text style={[styles.authMethodText, { color: colors.text }]}>

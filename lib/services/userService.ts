@@ -17,7 +17,7 @@ export const userService = {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, first_name, last_name, streak, avatar_url')
+        .select('id, name, first_name, last_name, streak, avatar_url, meta, created_at')
         .eq('id', userId)
         .single();
 
@@ -40,6 +40,8 @@ export const userService = {
           streak: data.streak || 0,
           coins: 0, // Not used in current system
           avatar: data.avatar_url || undefined,
+          meta: (data.meta as any) || {},
+          created_at: data.created_at || undefined,
         };
       }
 
@@ -108,8 +110,7 @@ export const userService = {
         });
         return null;
       }
-
-      return data?.meta || null;
+      return (data?.meta as any) || null;
     } catch (error) {
       await handleError(error, {
         operation: 'get_profile_meta',
@@ -149,6 +150,44 @@ export const userService = {
         metadata: { userId },
       });
       return 0;
+    }
+  },
+
+  /**
+   * Update user profile
+   * @param userId - The user's ID
+   * @param updates - Partial profile updates
+   */
+  updateProfile: async (userId: string, updates: Partial<User>): Promise<boolean> => {
+    try {
+      const dbUpdates: any = {};
+      if (updates.name !== undefined) dbUpdates.name = updates.name;
+      if (updates.first_name !== undefined) dbUpdates.first_name = updates.first_name;
+      if (updates.last_name !== undefined) dbUpdates.last_name = updates.last_name;
+      if (updates.avatar !== undefined) dbUpdates.avatar_url = updates.avatar;
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(dbUpdates)
+        .eq('id', userId);
+
+      if (error) {
+        await handleError(error, {
+          operation: 'update_profile',
+          component: 'user-service',
+          metadata: { userId, updates },
+        });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      await handleError(error, {
+        operation: 'update_profile',
+        component: 'user-service',
+        metadata: { userId, updates },
+      });
+      return false;
     }
   },
 };

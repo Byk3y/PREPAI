@@ -35,9 +35,14 @@ export function useStreakCheck() {
                     // Reload user profile to update streak in store
                     await loadUserProfile();
 
-                    // Award the maintain_streak task always if streak logic succeeded
-                    // The server-side RPC (award_task_points) handles idempotent daily rewards
                     await checkAndAwardTask('maintain_streak');
+
+                    // Check for "Early Bird" daily task (5 AM - 9 AM)
+                    const now = new Date();
+                    const hour = now.getHours();
+                    if (hour >= 5 && hour < 9) {
+                        await checkAndAwardTask('study_early_bird');
+                    }
                 }
             } catch (error) {
                 console.error('[StreakCheck] Failed to check streak:', error);

@@ -148,6 +148,20 @@ export const audioService = {
             });
             // Continue with new URL even if update fails
           }
+        } else {
+          // URL refresh failed - log error but continue with old URL
+          // The old URL might be expired, but we'll let the audio player handle the error
+          if (__DEV__) {
+            console.warn('[Audio Service] Failed to refresh signed URL:', urlError || 'No URL returned');
+          }
+          await handleError(
+            urlError || new Error('Failed to get signed URL'),
+            {
+              operation: 'refresh_audio_url',
+              component: 'audio-service',
+              metadata: { overviewId, storagePath: data.storage_path },
+            }
+          );
         }
       }
 
@@ -283,18 +297,74 @@ export const audioService = {
 
 /**
  * Check if a signed URL has expired
- * Supabase signed URLs expire after the specified duration (7 days)
+ * Supabase signed URLs contain a JWT token with expiration (exp claim)
+ * Returns true if URL is expired or if expiration cannot be determined (safe to refresh)
  */
 function isUrlExpired(url: string): boolean {
   try {
-    // Supabase signed URLs contain a token parameter with expiration
-    // For simplicity, refresh if URL is older than 6 days (24h buffer)
-    // In production, parse the JWT token to check actual expiration
-    return false; // Simplified: rely on 7-day expiration, refresh on access
-  } catch {
-    return true; // If can't parse, assume expired
+    if (!url || !url.includes('token=')) {
+      // No token in URL, assume expired
+      return true;
+    }
+
+    // Extract token from URL query parameter
+    const tokenMatch = url.match(/[?&]token=([^&]+)/);
+    if (!tokenMatch || !tokenMatch[1]) {
+      return true; // No token found, assume expired
+    }
+
+    const token = tokenMatch[1];
+
+    try {
+      // JWT format: header.payload.signature
+      // We need to decode the payload (second part)
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        return true; // Invalid JWT format, assume expired
+      }
+
+      // Decode base64url encoded payload
+      // Base64url uses - and _ instead of + and /, and no padding
+      const payload = parts[1];
+      const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+      
+      // Decode base64 to string using atob (available in React Native/Expo)
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore - atob is available in React Native/Expo runtime
+      const decodedString = atob(padded);
+      
+      // Parse JSON payload
+      const decoded = JSON.parse(decodedString);
+
+      // Check expiration (exp is in seconds since epoch)
+      if (decoded.exp && typeof decoded.exp === 'number') {
+        const expirationTime = decoded.exp * 1000; // Convert to milliseconds
+        const now = Date.now();
+        const bufferTime = 60 * 60 * 1000; // 1 hour buffer before expiration
+        
+        // Return true if expired or will expire within 1 hour
+        return now >= (expirationTime - bufferTime);
+      }
+
+      // No exp claim, assume expired
+      return true;
+    } catch (decodeError) {
+      // Failed to decode token, assume expired to be safe
+      if (__DEV__) {
+        console.warn('[Audio Service] Failed to decode JWT token:', decodeError);
+      }
+      return true;
+    }
+  } catch (error) {
+    // Any other error, assume expired to be safe
+    if (__DEV__) {
+      console.warn('[Audio Service] Error checking URL expiration:', error);
+    }
+    return true;
   }
 }
+
 
 
 

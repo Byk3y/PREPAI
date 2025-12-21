@@ -101,6 +101,17 @@ export function useQuizState({
           1, // Threshold: 1 quiz
           () => checkAndAwardTask('complete_quiz')
         );
+
+        // Check if perfect score and award task
+        if (scorePercent === 100) {
+          await completionService.checkAndAwardTaskIfThresholdMet(
+            authUser.id,
+            'quiz_perfect_score' as any,
+            timezone,
+            1,
+            () => checkAndAwardTask('quiz_perfect_score')
+          );
+        }
       } catch (err) {
         // Silent fail - don't block user experience for task tracking
         console.log('[useQuizState] Completion record failed:', err);

@@ -2,6 +2,8 @@
 # Exclude large files and build artifacts to speed up uploads
 
 # iOS
+/ios
+ios/
 ios/Pods/
 ios/build/
 ios/*.xcworkspace/xcuserdata/
@@ -10,6 +12,8 @@ ios/*.xcodeproj/project.xcworkspace/xcuserdata/
 ios/DerivedData/
 
 # Android
+/android
+android/
 android/build/
 android/app/build/
 android/.gradle/

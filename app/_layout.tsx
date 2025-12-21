@@ -7,10 +7,40 @@ import { initSentry } from '@/lib/sentry';
 
 initSentry();
 
+// Suppress expected Supabase auth errors in console (invalid refresh token when logged out)
+if (typeof console !== 'undefined' && console.error) {
+  const originalError = console.error;
+  console.error = (...args: any[]) => {
+    const message = args[0]?.toString() || '';
+    // Suppress expected auth errors when logged out
+    if (
+      message.includes('Invalid Refresh Token') ||
+      message.includes('Refresh Token Not Found') ||
+      message.includes('refresh_token_not_found') ||
+      (message.includes('AuthApiError') && message.includes('Refresh Token')) ||
+      (message.includes('Request rate limit reached') && message.includes('AuthApiError'))
+    ) {
+      // Don't log these expected errors - they're harmless when logged out or during rapid reloads
+      if (__DEV__) {
+        // Only log in dev mode for debugging, but silently
+        return;
+      }
+      return;
+    }
+    // Log all other errors normally
+    originalError.apply(console, args);
+  };
+}
+
 // Initialize Mixpanel as early as possible (before React renders)
 import { initMixpanel } from '@/lib/services/analyticsService';
 
 initMixpanel();
+
+// Initialize Google Sign-In configuration (OAuth flow - works in Expo Go)
+import { configureGoogleSignIn } from '@/lib/auth/googleSignIn';
+
+configureGoogleSignIn();
 
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -55,8 +85,13 @@ function RootLayoutInner() {
 
   // Don't render Stack until fonts are loaded AND routing logic has run at least once
   // This prevents the home screen from flashing before redirect
+  // Show a loading screen with proper background color instead of null to prevent dark flash
   if (!fontsLoaded || !isRoutingReady) {
-    return null;
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+      </View>
+    );
   }
 
   return (

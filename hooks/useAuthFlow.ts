@@ -11,6 +11,7 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '@/lib/supabase';
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 import { validateEmail, validateOTP, validateName } from '@/lib/auth/validation';
+import { isOnboardingComplete } from '@/lib/auth/onboardingStatus';
 import {
   OTP_TIMEOUT_MS,
   SUCCESS_MESSAGES,
@@ -18,6 +19,7 @@ import {
   ERROR_COMPONENT,
 } from '@/lib/auth/constants';
 import type { FlowStep, ProfileMeta, UseAuthFlowReturn } from '@/lib/auth/types';
+import { signInWithGoogle } from '@/lib/auth/googleSignIn';
 
 export function useAuthFlow(): UseAuthFlowReturn {
   const router = useRouter();
@@ -48,7 +50,8 @@ export function useAuthFlow(): UseAuthFlowReturn {
   // Route user after successful authentication
   const routeAfterAuth = useCallback(
     async (meta?: ProfileMeta) => {
-      const hasCompletedOnboarding = meta?.has_completed_onboarding ?? false;
+      // Use centralized onboarding status utility (handles both explicit flag and legacy inference)
+      const hasCompletedOnboarding = isOnboardingComplete(meta || null);
 
       if (hasCompletedOnboarding) {
         router.replace('/');
@@ -146,12 +149,85 @@ export function useAuthFlow(): UseAuthFlowReturn {
       if (data.session && data.user) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-        // Check if profile has names
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('first_name, last_name, meta')
-          .eq('id', data.user.id)
-          .single();
+        // Explicitly set the session to ensure RLS policies work
+        // This is important because verifyOtp might not immediately set the session in the client
+        // (especially in Expo Go where native modules may have timing issues)
+        try {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          });
+
+          if (sessionError) {
+            console.warn('Error setting session after OTP verification:', sessionError);
+            // Continue anyway - session might already be set from verifyOtp
+          }
+        } catch (sessionErr) {
+          console.warn('Network error setting session (will continue):', sessionErr);
+          // Continue - verifyOtp already set the session
+        }
+
+        // Retry logic for profile query (RLS might need a moment to recognize the session)
+        // Also handles network errors gracefully
+        let profile = null;
+        let profileError = null;
+        let retries = 0;
+        const maxRetries = 3;
+        let networkError = false;
+
+        while (retries < maxRetries) {
+          try {
+            const result = await supabase
+              .from('profiles')
+              .select('first_name, last_name, meta')
+              .eq('id', data.user.id)
+              .single();
+
+            profile = result.data;
+            profileError = result.error;
+
+            // If we got the profile, break
+            if (profile) {
+              break;
+            }
+
+            // If it's a "no rows" error, wait a bit and retry (session might not be set yet)
+            if (profileError?.code === 'PGRST116') {
+              retries++;
+              if (retries < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 200 * retries)); // Exponential backoff
+                continue;
+              }
+            } else {
+              // Other errors (including network) - break and handle below
+              if (profileError?.message?.includes('Network') || profileError?.message?.includes('fetch')) {
+                networkError = true;
+              }
+              break;
+            }
+          } catch (err: any) {
+            // Network error caught
+            networkError = true;
+            retries++;
+            if (retries < maxRetries) {
+              console.warn(`Network error fetching profile (retry ${retries}/${maxRetries}):`, err);
+              await new Promise(resolve => setTimeout(resolve, 200 * retries));
+            } else {
+              console.error('Network error fetching profile after retries:', err);
+              break;
+            }
+          }
+        }
+
+        // Handle profile query result
+        if (networkError && !profile) {
+          // Network error - proceed as if new user (safer than blocking)
+          // The auth state change handler will load the profile when network is available
+          console.warn('Network error checking profile - proceeding as new user');
+          setLoading(false);
+          setFlowStep('names');
+          return;
+        }
 
         if (profileError) {
           console.error('Error checking profile:', profileError);
@@ -273,36 +349,84 @@ export function useAuthFlow(): UseAuthFlowReturn {
   const handleSocialLogin = useCallback(
     async (provider: 'google' | 'apple') => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setLoading(true);
 
       try {
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider,
-          options: {
-            redirectTo: `${process.env.EXPO_PUBLIC_SUPABASE_URL}/auth/callback`,
-          },
-        });
+        if (provider === 'google') {
+          // Use native Google sign-in
+          const { session, user } = await signInWithGoogle();
 
-        if (error) {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          await handleError(error, {
-            operation: ERROR_OPERATIONS.SOCIAL_LOGIN,
-            component: ERROR_COMPONENT,
-            metadata: { provider },
+          if (session && user) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+            // Check if profile exists and has names
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('first_name, last_name, meta')
+              .eq('id', user.id)
+              .single();
+
+            if (profileError && profileError.code !== 'PGRST116') {
+              // Error other than "no rows" - log but continue
+              console.warn('Error checking profile:', profileError);
+            }
+
+            // Check if names exist and are valid
+            const hasValidFirstName =
+              profile?.first_name &&
+              profile.first_name.trim() !== '' &&
+              !profile.first_name.includes('@');
+            const hasValidLastName = profile?.last_name && profile.last_name.trim() !== '';
+
+            if (hasValidFirstName && hasValidLastName) {
+              // Names exist - route to appropriate screen
+              await routeAfterAuth(profile.meta as ProfileMeta);
+            } else {
+              // Names missing - show name collection screen
+              setFlowStep('names');
+            }
+          }
+        } else {
+          // Apple - use OAuth flow for now (will implement native later)
+          const { data, error } = await supabase.auth.signInWithOAuth({
+            provider: 'apple',
+            options: {
+              redirectTo: `${process.env.EXPO_PUBLIC_SUPABASE_URL}/auth/callback`,
+            },
           });
+
+          if (error) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            await handleError(error, {
+              operation: ERROR_OPERATIONS.SOCIAL_LOGIN,
+              component: ERROR_COMPONENT,
+              metadata: { provider },
+            });
+            return;
+          }
+
+          // OAuth will redirect, handled by callback
+        }
+      } catch (error: any) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        
+        // Handle cancellation gracefully (user cancelled Google sign-in)
+        if (error.message?.includes('cancelled') || error.message?.includes('Sign in was cancelled')) {
+          // User cancelled - don't show error, just return
+          setLoading(false);
           return;
         }
 
-        // OAuth will redirect, handled by callback
-      } catch (error: any) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         await handleError(error, {
           operation: ERROR_OPERATIONS.SOCIAL_LOGIN,
           component: ERROR_COMPONENT,
           metadata: { provider },
         });
+      } finally {
+        setLoading(false);
       }
     },
-    [handleError]
+    [handleError, routeAfterAuth]
   );
 
   // Reset flow to email step

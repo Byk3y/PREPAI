@@ -4,7 +4,7 @@
  * TODO: Make draggable with react-native-gesture-handler
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MotiViewCompat as MotiView } from '@/components/MotiViewCompat';
 import { useStore } from '@/lib/store';
@@ -19,6 +19,14 @@ export const PetWidget: React.FC<PetWidgetProps> = ({
   onReactionComplete 
 }) => {
   const { petState } = useStore();
+  const [isMounted, setIsMounted] = useState(true);
+
+  useEffect(() => {
+    setIsMounted(true);
+    return () => {
+      setIsMounted(false);
+    };
+  }, []);
 
   useEffect(() => {
     if (reaction && onReactionComplete) {
@@ -29,6 +37,11 @@ export const PetWidget: React.FC<PetWidgetProps> = ({
       return () => clearTimeout(timer);
     }
   }, [reaction, onReactionComplete]);
+
+  // Don't render animations if not mounted (prevents warnings)
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <View className="items-center justify-center p-4">
@@ -41,7 +54,7 @@ export const PetWidget: React.FC<PetWidgetProps> = ({
         transition={{
           type: 'timing',
           duration: reaction ? 600 : 2000,
-          loop: !reaction,
+          loop: !reaction && isMounted, // Stop loop when unmounted
           repeatReverse: true,
         }}
         className="w-32 h-32 rounded-full bg-primary-200 items-center justify-center mb-4"
