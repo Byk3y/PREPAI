@@ -66,17 +66,40 @@ export function PetDisplay({ streak, stage, currentStage, onNextStage, onPrevSta
                     }}
                     style={styles.petEmojiContainer}
                 >
-                    {/* Pet image - full view for unlocked stages, silhouette for locked */}
-                    <Image
-                        key={`pet-${stage}-${isUnlocked ? 'unlocked' : 'locked'}`}
-                        source={petImage}
+                    {/* 
+                        DUAL RENDER STRATEGY: 
+                        We keep both stages mounted to prevent "flashing" or re-decoding.
+                        This ensures Stage 1 never accidentally takes the Stage 2 scale during transition.
+                    */}
+
+                    {/* Stage 1 Render */}
+                    <View style={[styles.imageWrapper, { opacity: stage === 1 ? 1 : 0 }]}>
+                        <Image
+                            source={PET_FULL_VIEW_IMAGES[1]}
+                            style={styles.petImage}
+                            resizeMode="contain"
+                            fadeDuration={0}
+                        />
+                    </View>
+
+                    {/* Stage 2 Render (Silhouette or Full) */}
+                    <View
                         style={[
-                            styles.petImage,
-                            stage === 2 && { transform: [{ scale: 1.2 }] } // Stage 2 is slightly larger
+                            styles.imageWrapper,
+                            styles.absoluteWrapper,
+                            { opacity: stage === 2 ? 1 : 0 }
                         ]}
-                        resizeMode="contain"
-                        fadeDuration={0}
-                    />
+                    >
+                        <Image
+                            source={stage === 2 ? petImage : PET_SILHOUETTE_IMAGES[2]}
+                            style={[
+                                styles.petImage,
+                                { transform: [{ scale: 1.2 }] }
+                            ]}
+                            resizeMode="contain"
+                            fadeDuration={0}
+                        />
+                    </View>
                 </MotiView>
             </View>
 
@@ -150,5 +173,18 @@ const styles = StyleSheet.create({
     petImage: {
         width: '100%',
         height: '100%',
+    },
+    imageWrapper: {
+        width: '100%',
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    absoluteWrapper: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
     },
 });

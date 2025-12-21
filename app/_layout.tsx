@@ -66,11 +66,11 @@ import { useStreakCheck } from '@/hooks/useStreakCheck';
 function RootLayoutInner() {
   // Load fonts
   const fontsLoaded = useAppFonts();
-  
+
   // Get theme from context
   const { isDarkMode, effectiveColorScheme } = useTheme();
   const colors = getThemeColors(isDarkMode);
-  
+
   // Initialize all app setup hooks
   useGlobalErrorHandler();
   useThemeSync();
@@ -79,7 +79,7 @@ function RootLayoutInner() {
   useAssetPreloading();
   useAppStateMonitoring();
   useStreakCheck();
-  
+
   // Handle routing logic (waits for fonts and hydration)
   const isRoutingReady = useRoutingLogic(fontsLoaded);
 
@@ -95,7 +95,7 @@ function RootLayoutInner() {
   }
 
   return (
-    <View 
+    <View
       key={`theme-${effectiveColorScheme}`}
       style={{ flex: 1, backgroundColor: colors.background }}
     >
@@ -135,6 +135,11 @@ function RootLayoutInner() {
       />
       <Image
         source={require('@/assets/pets/stage-2/silhouette.png')}
+        style={{ width: 300, height: 300, opacity: 0, position: 'absolute', top: -9999, left: -9999 }}
+        fadeDuration={0}
+      />
+      <Image
+        source={require('@/assets/pets/stage-2/full-view.png')}
         style={{ width: 300, height: 300, opacity: 0, position: 'absolute', top: -9999, left: -9999 }}
         fadeDuration={0}
       />
