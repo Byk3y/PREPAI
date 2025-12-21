@@ -30,14 +30,14 @@ export function useStreakCheck() {
                     return;
                 }
 
-                if (incrementResult?.success) {
+                const result = incrementResult as any;
+                if (result?.success) {
                     // Reload user profile to update streak in store
                     await loadUserProfile();
 
-                    // Award the maintain_streak task if streak was incremented
-                    if (incrementResult.was_incremented) {
-                        await checkAndAwardTask('maintain_streak');
-                    }
+                    // Award the maintain_streak task always if streak logic succeeded
+                    // The server-side RPC (award_task_points) handles idempotent daily rewards
+                    await checkAndAwardTask('maintain_streak');
                 }
             } catch (error) {
                 console.error('[StreakCheck] Failed to check streak:', error);
