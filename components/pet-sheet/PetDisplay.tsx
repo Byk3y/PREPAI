@@ -2,87 +2,153 @@
  * Pet Display - Streak counter and animated pet emoji
  */
 
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ImageSourcePropType } from 'react-native';
 import { MotiViewCompat as MotiView } from '@/components/MotiViewCompat';
 import { Ionicons } from '@expo/vector-icons';
+import { Easing } from 'react-native-reanimated';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 // Pet full-view images by stage - require() needs static strings
-const PET_FULL_VIEW_IMAGES: Record<number, ImageSourcePropType> = {
-    1: require('@/assets/pets/stage-1/full-view.png'),
-    2: require('@/assets/pets/stage-2/full-view.png'),
-};
-
-// Pet silhouette images for locked stages
-const PET_SILHOUETTE_IMAGES: Record<number, ImageSourcePropType> = {
-    2: require('@/assets/pets/stage-2/silhouette.png'),
-};
+const STAGE_1_FULL = require('@/assets/pets/stage-1/full-view.png');
+const STAGE_2_FULL = require('@/assets/pets/stage-2/full-view.png');
+const STAGE_2_SILHOUETTE = require('@/assets/pets/stage-2/silhouette.png');
 
 interface PetDisplayProps {
     streak: number;
-    stage: 1 | 2;  // Required, the stage being displayed (may be preview)
-    currentStage: 1 | 2;  // Required, the actual unlocked stage
-    onNextStage?: () => void;  // Optional: for previewing next stage
-    onPrevStage?: () => void;  // Optional: for previewing previous stage
+    stage: 1 | 2;
+    currentStage: 1 | 2;
+    onNextStage?: () => void;
+    onPrevStage?: () => void;
 }
 
-export function PetDisplay({ streak, stage, currentStage, onNextStage, onPrevStage }: PetDisplayProps) {
+/**
+ * FieryStreakNumber - Memoized sub-component to handle heavy fire animations
+ * isolated from the pet's mounting logic.
+ */
+const FieryStreakNumber = memo(({ streak }: { streak: number }) => {
+    return (
+        <View style={styles.fieryTextContainer}>
+            {/* Layer 1: Outer Ember/Deep Heat (Bottom) */}
+            <MotiView
+                animate={{
+                    opacity: [0.6, 1, 0.7],
+                    scale: [1, 1.05, 1],
+                }}
+                transition={{
+                    type: 'timing',
+                    duration: 2000,
+                    loop: true,
+                    easing: Easing.bezier(0.4, 0, 0.6, 1),
+                }}
+                style={StyleSheet.absoluteFill}
+            >
+                <Text
+                    style={[styles.streakValue, styles.emberLayer]}
+                    adjustsFontSizeToFit
+                    numberOfLines={1}
+                >
+                    {streak}
+                </Text>
+            </MotiView>
+
+            {/* Layer 2: Main Flame Body (Middle) */}
+            <MotiView
+                animate={{
+                    opacity: [0.8, 1, 0.9],
+                    scale: [1, 1.02, 1],
+                }}
+                transition={{
+                    type: 'timing',
+                    duration: 1200,
+                    loop: true,
+                    delay: 200,
+                }}
+                style={StyleSheet.absoluteFill}
+            >
+                <Text
+                    style={[styles.streakValue, styles.flameLayer]}
+                    adjustsFontSizeToFit
+                    numberOfLines={1}
+                >
+                    {streak}
+                </Text>
+            </MotiView>
+
+            {/* Layer 3: Hot Core (Top) */}
+            <MotiView
+                animate={{
+                    opacity: [1, 0.9, 1],
+                }}
+                transition={{
+                    type: 'timing',
+                    duration: 800,
+                    loop: true,
+                }}
+            >
+                <Text
+                    style={[styles.streakValue, styles.coreLayer]}
+                    adjustsFontSizeToFit
+                    numberOfLines={1}
+                >
+                    {streak}
+                </Text>
+            </MotiView>
+        </View>
+    );
+});
+
+export const PetDisplay = memo(({ streak, stage, currentStage, onNextStage, onPrevStage }: PetDisplayProps) => {
     const { isDarkMode } = useTheme();
-    const colors = getThemeColors(isDarkMode);
 
-    // On golden gradient - dark text in light mode, white in dark mode
-    const textOnGradient = isDarkMode ? '#FFFFFF' : '#000000';
-    const textSecondaryOnGradient = isDarkMode ? '#FFFFFF' : '#333333';
+    const textSecondaryOnGradient = useMemo(() =>
+        isDarkMode ? '#FFFFFF' : '#333333'
+        , [isDarkMode]);
 
-    // Determine if this stage is unlocked
     const isUnlocked = stage <= currentStage;
 
-    // Get the appropriate image - silhouette for locked stages, full-view for unlocked
-    const petImage = isUnlocked ? PET_FULL_VIEW_IMAGES[stage] : PET_SILHOUETTE_IMAGES[stage];
+    // Fixed source to prevent re-mounting during Prop passes
+    const stage2Source = useMemo(() => {
+        if (stage !== 2) return STAGE_2_SILHOUETTE;
+        return isUnlocked ? STAGE_2_FULL : STAGE_2_SILHOUETTE;
+    }, [stage, isUnlocked]);
 
     return (
         <View style={styles.container}>
-            {/* Streak Days */}
-            <View style={styles.streakContainer}>
+            <View
+                style={styles.streakContainer}
+                accessibilityLabel={`Your current streak is ${streak} days`}
+                accessibilityRole="text"
+            >
                 <Text style={[styles.streakLabel, { color: textSecondaryOnGradient }]}>
                     Streak days
                 </Text>
-                <Text style={[styles.streakValue, { color: textOnGradient }]}>
-                    {streak}
-                </Text>
+
+                <FieryStreakNumber streak={streak} />
             </View>
 
             <View style={styles.petCharacterContainer}>
                 <MotiView
-                    from={{ scale: 1 }}
                     animate={{ scale: [1, 1.05, 1] }}
                     transition={{
                         type: 'timing',
                         duration: 2000,
                         loop: true,
                         repeatReverse: true,
-                        delay: 0,
                     }}
                     style={styles.petEmojiContainer}
                 >
-                    {/* 
-                        DUAL RENDER STRATEGY: 
-                        We keep both stages mounted to prevent "flashing" or re-decoding.
-                        This ensures Stage 1 never accidentally takes the Stage 2 scale during transition.
-                    */}
-
-                    {/* Stage 1 Render */}
+                    {/* Stage 1 Render - Always mounted, toggle opacity */}
                     <View style={[styles.imageWrapper, { opacity: stage === 1 ? 1 : 0 }]}>
                         <Image
-                            source={PET_FULL_VIEW_IMAGES[1]}
+                            source={STAGE_1_FULL}
                             style={styles.petImage}
                             resizeMode="contain"
                             fadeDuration={0}
                         />
                     </View>
 
-                    {/* Stage 2 Render (Silhouette or Full) */}
+                    {/* Stage 2 Render - Always mounted, toggle opacity */}
                     <View
                         style={[
                             styles.imageWrapper,
@@ -91,7 +157,7 @@ export function PetDisplay({ streak, stage, currentStage, onNextStage, onPrevSta
                         ]}
                     >
                         <Image
-                            source={stage === 2 ? petImage : PET_SILHOUETTE_IMAGES[2]}
+                            source={stage2Source}
                             style={[
                                 styles.petImage,
                                 { transform: [{ scale: 1.2 }] }
@@ -103,7 +169,6 @@ export function PetDisplay({ streak, stage, currentStage, onNextStage, onPrevSta
                 </MotiView>
             </View>
 
-            {/* Stage 2 Preview Arrow - Show if on Stage 1 and next stage handler provided */}
             {stage === 1 && onNextStage && (
                 <TouchableOpacity
                     style={styles.navigationArrow}
@@ -114,7 +179,6 @@ export function PetDisplay({ streak, stage, currentStage, onNextStage, onPrevSta
                 </TouchableOpacity>
             )}
 
-            {/* Back to Stage 1 Arrow - Show if on Stage 2 and prev stage handler provided */}
             {stage === 2 && onPrevStage && (
                 <TouchableOpacity
                     style={[styles.navigationArrow, { right: undefined, left: 0 }]}
@@ -126,7 +190,7 @@ export function PetDisplay({ streak, stage, currentStage, onNextStage, onPrevSta
             )}
         </View >
     );
-}
+});
 
 const styles = StyleSheet.create({
     container: {
@@ -146,20 +210,40 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     streakValue: {
-        fontSize: 56,
-        fontWeight: 'bold',
-        letterSpacing: -2,
+        fontSize: 72,
+        fontWeight: '900',
+        letterSpacing: -3,
+    },
+    fieryTextContainer: {
+        height: 80,
+        justifyContent: 'center',
+        position: 'relative',
+    },
+    emberLayer: {
+        color: '#FF4500',
+        textShadowColor: '#EA580C',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 15, // Reduced slightly for perf
+    },
+    flameLayer: {
+        color: '#FFCC00',
+        textShadowColor: '#FFD700',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 8, // Reduced slightly for perf
+    },
+    coreLayer: {
+        color: '#FFF9E5',
     },
     petCharacterContainer: {
         alignItems: 'center',
         paddingVertical: 12,
-        position: 'relative', // For absolute positioning of arrow
+        position: 'relative',
     },
     navigationArrow: {
         position: 'absolute',
         right: 0,
         top: '50%',
-        marginTop: 20, // Push it down a bit
+        marginTop: 20,
         zIndex: 10,
         padding: 8,
     },
@@ -168,7 +252,6 @@ const styles = StyleSheet.create({
         height: 250,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 0,
     },
     petImage: {
         width: '100%',
