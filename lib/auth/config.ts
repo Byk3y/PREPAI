@@ -20,19 +20,22 @@ export function getOAuthRedirectUri(): string {
 /**
  * OAuth Provider Configuration
  * Defines settings for each OAuth provider (Google, Apple, etc.)
+ *
+ * Note: Apple now uses native authentication (expo-apple-authentication)
+ * and doesn't require this OAuth config. This is maintained for Google OAuth only.
  */
 export const OAuthConfig = {
-  /** Common redirect URI used by all OAuth providers */
+  /** Redirect URI used by Google OAuth (Apple uses native auth) */
   redirectUri: getOAuthRedirectUri(),
 
   /** Provider-specific settings */
   providers: {
     google: {
-      // Google-specific OAuth settings can be added here
+      // Google-specific OAuth settings
       scopes: ['openid', 'email', 'profile'],
     },
+    // Apple config kept for reference only - native auth doesn't use OAuth flow
     apple: {
-      // Apple-specific OAuth settings can be added here
       scopes: ['email', 'name'],
     },
   },

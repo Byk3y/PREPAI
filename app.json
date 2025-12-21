@@ -18,6 +18,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.brigo.app",
       "buildNumber": "1",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "This app needs access to your camera to take photos of study materials.",

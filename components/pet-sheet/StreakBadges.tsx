@@ -25,15 +25,14 @@ export function StreakBadges({ streak }: StreakBadgesProps) {
     const inactiveIconColor = isDarkMode ? 'rgba(255,255,255,0.3)' : '#D4D4D4';
     const inactiveLabelColor = isDarkMode ? 'rgba(255,255,255,0.5)' : '#A3A3A3';
     const inactiveLineColor = isDarkMode ? 'rgba(255,255,255,0.2)' : '#E5E5E5';
-    const activeLineColor = isDarkMode ? '#FDBA74' : '#FDBA74';
+    const activeLineColor = '#EA580C'; // Consistent orange for progress
 
     return (
         <View style={[
-            styles.container, 
-            { 
+            styles.container,
+            {
                 backgroundColor: cardBg,
                 borderWidth: 0,
-                shadowOpacity: isDarkMode ? 0 : 0.05,
             }
         ]}>
             <Text style={[styles.title, { color: cardTextColor }]}>Your Streak badges</Text>
@@ -43,19 +42,32 @@ export function StreakBadges({ streak }: StreakBadgesProps) {
                     const isUnlocked = streak >= milestone;
                     const isLast = index === MILESTONES.length - 1;
 
+                    // Calculate progress to next milestone for the connecting line
+                    let progress = 0;
+                    if (!isLast) {
+                        const nextMilestone = MILESTONES[index + 1];
+                        if (streak >= nextMilestone) {
+                            progress = 1;
+                        } else if (streak >= milestone) {
+                            progress = (streak - milestone) / (nextMilestone - milestone);
+                        }
+                    }
+
                     return (
-                        <View key={milestone} style={styles.badgeWrapper}>
+                        <View key={milestone} style={[styles.badgeWrapper, isLast && { flex: 0 }]}>
                             <View style={styles.badgeContent}>
                                 {/* Icon */}
-                                {isUnlocked ? (
-                                    <View style={styles.iconContainer}>
-                                        <Ionicons name="flame" size={28} color="#EA580C" />
-                                    </View>
-                                ) : (
-                                    <View style={[styles.iconContainer, styles.iconInactive]}>
-                                        <Ionicons name="flame" size={28} color={inactiveIconColor} />
-                                    </View>
-                                )}
+                                <View style={[
+                                    styles.iconContainer,
+                                    !isUnlocked && styles.iconInactive,
+                                    isUnlocked && styles.iconActive
+                                ]}>
+                                    <Ionicons
+                                        name="flame"
+                                        size={28}
+                                        color={isUnlocked ? "#EA580C" : inactiveIconColor}
+                                    />
+                                </View>
 
                                 {/* Label */}
                                 <Text style={[
@@ -69,10 +81,22 @@ export function StreakBadges({ streak }: StreakBadgesProps) {
                             {/* Connecting Line (except for last item) */}
                             {!isLast && (
                                 <View style={styles.lineContainer}>
+                                    {/* Background Line */}
                                     <View style={[
                                         styles.line,
-                                        { backgroundColor: streak >= MILESTONES[index + 1] ? activeLineColor : inactiveLineColor }
+                                        { backgroundColor: inactiveLineColor }
                                     ]} />
+                                    {/* Progress Overlay */}
+                                    {progress > 0 && (
+                                        <View style={[
+                                            styles.line,
+                                            {
+                                                backgroundColor: activeLineColor,
+                                                width: `${progress * 100}%`,
+                                                zIndex: 1
+                                            }
+                                        ]} />
+                                    )}
                                 </View>
                             )}
                         </View>
@@ -86,60 +110,63 @@ export function StreakBadges({ streak }: StreakBadgesProps) {
 const styles = StyleSheet.create({
     container: {
         marginHorizontal: 16,
-        marginBottom: 32, // Extra space at bottom of sheet
-        padding: 24,
+        marginBottom: 32,
+        padding: 20,
         borderRadius: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowRadius: 8,
-        elevation: 2,
     },
     title: {
-        fontSize: 18,
-        fontWeight: 'bold',
+        fontSize: 16,
+        fontWeight: '700',
         marginBottom: 20,
     },
     badgesContainer: {
         flexDirection: 'row',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
+        paddingHorizontal: 4,
     },
     badgeWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        flex: 1, // Distribute space
+        flex: 1,
     },
     badgeContent: {
         alignItems: 'center',
-        zIndex: 2, // Ensure badge sits on top of line if overlapping (though flex layout separates them)
+        zIndex: 2,
     },
     iconContainer: {
-        width: 48, // Slightly larger touch target look
+        width: 48,
         height: 48,
+        borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 8,
+        backgroundColor: 'rgba(0,0,0,0.05)',
+    },
+    iconActive: {
+        backgroundColor: 'rgba(234, 88, 12, 0.1)',
     },
     iconInactive: {
-        opacity: 0.8,
+        opacity: 0.6,
+        backgroundColor: 'transparent',
     },
     label: {
-        fontSize: 14,
-        fontWeight: '600',
+        fontSize: 11,
+        fontWeight: '700',
     },
     labelActive: {
-        color: '#EA580C', // Deep Orange
+        color: '#EA580C',
     },
     lineContainer: {
         flex: 1,
-        height: 48, // Match icon container height to center line
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: -26, // Pull up to align with icon center (48 height + 8 margin + text height roughly)
+        height: 6, // Thickness
+        marginHorizontal: -10, // Overlap with icons for seamless look
+        marginTop: -24, // Lift up to align with icon center (48/2 + small label/margin offset)
     },
     line: {
-        height: 2,
+        height: 6, // Thickness
+        borderRadius: 3,
+        position: 'absolute',
         width: '100%',
-        borderRadius: 1,
     },
 });

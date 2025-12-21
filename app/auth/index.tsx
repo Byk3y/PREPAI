@@ -11,6 +11,7 @@ import {
   Alert,
   StyleSheet,
   Image,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -21,8 +22,10 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 import { signInWithGoogle } from '@/lib/auth/googleSignIn';
+import { signInWithApple, isAppleAuthAvailable } from '@/lib/auth/appleSignIn';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { OAuthConfig } from '@/lib/auth/config';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 // Colorful Google G icon
 const GoogleIcon = () => (
@@ -65,10 +68,33 @@ export default function AuthScreen() {
   const colors = getThemeColors(isDarkMode);
   const { handleError } = useErrorHandler();
   const [loading, setLoading] = useState(false);
+  const [isAppleAvailable, setIsAppleAvailable] = useState(false);
+
+  // Check if Apple Authentication is available (iOS 13+)
+  useEffect(() => {
+    isAppleAuthAvailable().then(setIsAppleAvailable);
+  }, []);
 
   const handleEmailAuth = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/auth/magic-link');
+  };
+
+  // Helper to save Apple user name to profile
+  const saveAppleUserName = async (userId: string, fullName: string) => {
+    try {
+      const nameParts = fullName.split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ');
+
+      await supabase.from('profiles').update({
+        first_name: firstName,
+        last_name: lastName || '',
+      }).eq('id', userId);
+    } catch (error) {
+      console.error('Failed to save Apple user name:', error);
+      // Don't block authentication if name save fails
+    }
   };
 
   const handleSocialLogin = async (provider: 'google' | 'apple') => {
@@ -89,27 +115,29 @@ export default function AuthScreen() {
           // via the onAuthStateChange callback, ensuring single source of truth
         }
       } else {
-        // Apple - use OAuth flow for now (will implement native later)
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: 'apple',
-          options: {
-            redirectTo: OAuthConfig.redirectUri,
-          },
-        });
+        // Use native Apple sign-in
+        const { data, userInfo, canceled } = await signInWithApple();
 
-        if (error) {
-          await handleError(error, {
-            operation: 'social_login',
-            component: 'auth-index',
-            metadata: { provider }
-          });
+        if (canceled) {
+          // User cancelled - don't show error, just return
+          setLoading(false);
           return;
         }
 
-        // OAuth will redirect, handled by callback
+        if (data?.user) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+          // CRITICAL: Apple only provides name on FIRST sign-in
+          // Save it immediately or it will be lost forever
+          if (userInfo?.fullName) {
+            await saveAppleUserName(data.user.id, userInfo.fullName);
+          }
+
+          // Navigation handled by auth state listener
+        }
       }
     } catch (error: any) {
-      // Handle cancellation gracefully (user cancelled Google sign-in)
+      // Handle cancellation gracefully (user cancelled sign-in)
       if (error.message?.includes('cancelled') || error.message?.includes('Sign in was cancelled')) {
         // User cancelled - don't show error, just return
         setLoading(false);
@@ -146,23 +174,37 @@ export default function AuthScreen() {
         <View style={styles.mainContent}>
           {/* Auth Method Buttons */}
           <View style={styles.authMethodsContainer}>
-            {/* Apple */}
-            <TouchableOpacity
-              onPress={() => handleSocialLogin('apple')}
-              style={[
-                styles.authMethodButton,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: colors.surfaceElevated,
-                },
-              ]}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="logo-apple" size={24} color={colors.text} />
-              <Text style={[styles.authMethodText, { color: colors.text }]}>
-                Continue with Apple
-              </Text>
-            </TouchableOpacity>
+            {/* Apple - Native button on iOS, custom button elsewhere */}
+            {isAppleAvailable ? (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                buttonStyle={
+                  isDarkMode
+                    ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                    : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                }
+                cornerRadius={12}
+                style={styles.appleButton}
+                onPress={() => handleSocialLogin('apple')}
+              />
+            ) : (
+              <TouchableOpacity
+                onPress={() => handleSocialLogin('apple')}
+                style={[
+                  styles.authMethodButton,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.surfaceElevated,
+                  },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="logo-apple" size={24} color={colors.text} />
+                <Text style={[styles.authMethodText, { color: colors.text }]}>
+                  Continue with Apple
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {/* Google */}
             <TouchableOpacity
@@ -275,6 +317,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     // backgroundColor will be set inline based on theme
     gap: 8,
+  },
+  appleButton: {
+    width: '100%',
+    height: 50,
   },
   authMethodText: {
     fontSize: 16,
