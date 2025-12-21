@@ -13,6 +13,8 @@ export interface UserSlice {
   flashcardsStudied: number;
   setUser: (user: Partial<User>) => void;
   loadUserProfile: () => Promise<void>;
+  hydrateUserProfileFromCache: () => void;
+  resetUserProfile: () => void;
   hasCreatedNotebook: boolean;
   setHasCreatedNotebook: (value: boolean) => void;
 }
@@ -44,7 +46,7 @@ export const createUserSlice: StateCreator<
 
     try {
       const profile = await userService.loadUserProfile(authUser.id);
-      
+
       // Calculate flashcard completions count
       const flashcardsStudied = await userService.getFlashcardsStudiedCount(authUser.id);
 
@@ -79,6 +81,28 @@ export const createUserSlice: StateCreator<
     } catch (error) {
       console.error('Error loading user profile:', error);
     }
+  },
+  hydrateUserProfileFromCache: () => {
+    const { authUser, userProfileUserId, user } = get();
+    if (authUser && userProfileUserId === authUser.id && user.id === authUser.id) {
+      // Cache matches current user, keep it
+      // No need to set state as it's already there from hydration
+    }
+  },
+  resetUserProfile: () => {
+    set({
+      user: {
+        id: '',
+        name: '',
+        first_name: '',
+        last_name: '',
+        streak: 0,
+        coins: 0,
+      },
+      userProfileSyncedAt: null,
+      userProfileUserId: null,
+      flashcardsStudied: 0,
+    });
   },
   hasCreatedNotebook: false,
   setHasCreatedNotebook: (value) => set({ hasCreatedNotebook: value }),

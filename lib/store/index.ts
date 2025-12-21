@@ -85,6 +85,11 @@ export const useStore = create<StoreWithHydration>()(
         dailyTasks: state.dailyTasks,
         taskProgress: state.taskProgress,
         themeMode: state.themeMode,
+        // User profile persistence
+        user: state.user,
+        userProfileUserId: state.userProfileUserId,
+        userProfileSyncedAt: state.userProfileSyncedAt,
+        flashcardsStudied: state.flashcardsStudied,
         // Add other persistent state here as needed
       }),
       migrate: (persistedState: any, version: number) => {

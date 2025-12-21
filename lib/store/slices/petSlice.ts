@@ -25,6 +25,7 @@ export interface PetSlice {
   updatePetName: (newName: string) => Promise<void>;
   hydratePetStateFromCache: () => void;
   resetPetState: () => void;
+  clearPetCache: () => void;
 }
 
 export const createPetSlice: StateCreator<
@@ -46,7 +47,6 @@ export const createPetSlice: StateCreator<
   cachedPetSyncedAt: null,
   cachedPetUserId: null,
 
-  // Renamed from setPetState to handle simple updates, but specific actions like name update should use updatePetName
   setPetState: async (updates) => {
     const { authUser } = get();
     if (!authUser) return;
@@ -148,7 +148,7 @@ export const createPetSlice: StateCreator<
           name: 'Nova',
           mood: 'happy' as const,
         };
-        
+
         try {
           await petService.savePetState(authUser.id, defaultPetState);
           set({
@@ -193,7 +193,8 @@ export const createPetSlice: StateCreator<
   },
 
   resetPetState: () => {
-    // Reset pet state to defaults (used when user logs out or switches accounts)
+    // Reset active UI state to defaults
+    // BUT preserve cache and cachedUserId so we can hydrate instantly on login
     set({
       petState: {
         stage: 1,
@@ -204,6 +205,13 @@ export const createPetSlice: StateCreator<
       petStateReady: false,
       petStateSyncedAt: null,
       petStateUserId: null,
+      // We explicitly DO NOT clear cachedPetState here
+      // It acts as a persistent cache for the last known state of this device's users
+    });
+  },
+
+  clearPetCache: () => {
+    set({
       cachedPetState: undefined,
       cachedPetSyncedAt: null,
       cachedPetUserId: null,
