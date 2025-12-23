@@ -23,6 +23,25 @@ export default function AuthCallbackScreen() {
 
     const handleAuthCallback = async () => {
       try {
+        if (__DEV__) console.log('[Auth Callback] Screen mounted, checking auth state...');
+
+        // Check if user is already authenticated (e.g., from googleSignIn.ts OAuth flow)
+        // This prevents duplicate setSession() calls that interrupt data fetching
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
+        const alreadyAuthenticated = !!existingSession?.user;
+
+        if (__DEV__) {
+          console.log('[Auth Callback] Auth check:', {
+            alreadyAuthenticated,
+            hasSession: !!existingSession,
+            userId: existingSession?.user?.id?.substring(0, 8)
+          });
+        }
+
+        if (alreadyAuthenticated) {
+          if (__DEV__) console.log('[Auth Callback] Skipping duplicate setSession, proceeding to routing...');
+        }
+
         // Handle deep link URL if app was opened via magic link or OAuth callback
         const url = await Linking.getInitialURL();
         if (url) {
@@ -55,7 +74,7 @@ export default function AuthCallbackScreen() {
             }
           }
 
-          if (accessToken && refreshToken) {
+          if (accessToken && refreshToken && !alreadyAuthenticated) {
             // Validate tokens before using them (security - prevents injection attacks)
             const validation = validateTokens(accessToken, refreshToken);
             if (!validation.isValid) {
@@ -82,7 +101,7 @@ export default function AuthCallbackScreen() {
           const accessToken = params.access_token as string | undefined;
           const refreshToken = params.refresh_token as string | undefined;
 
-          if (accessToken && refreshToken) {
+          if (accessToken && refreshToken && !alreadyAuthenticated) {
             // Validate tokens before using them (security - prevents injection attacks)
             const validation = validateTokens(accessToken, refreshToken);
             if (!validation.isValid) {
@@ -332,11 +351,12 @@ export default function AuthCallbackScreen() {
           // Check if onboarding is incomplete
           if (currentOnboardingScreen >= 3 && currentOnboardingScreen < 9) {
             // Resume onboarding at saved screen (after auth break at screen 3)
-            console.log('Resuming onboarding at screen', currentOnboardingScreen);
+            if (__DEV__) console.log('[Auth Callback] Resuming onboarding at screen', currentOnboardingScreen);
             if (!mounted) return;
             router.replace('/onboarding');
           } else {
             // Onboarding complete, go to home
+            if (__DEV__) console.log('[Auth Callback] Onboarding complete, routing to home');
             if (!mounted) return;
             router.replace('/');
           }

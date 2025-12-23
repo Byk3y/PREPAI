@@ -49,7 +49,8 @@ export function useRoutingLogic(fontsLoaded: boolean) {
       if (!hasCompletedOnboarding && !inOnboardingGroup && !inAuthGroup) {
         if (__DEV__) console.log('→ Routing to /onboarding (first time)');
         router.replace('/onboarding');
-      } else if (hasCompletedOnboarding && !inAuthGroup) {
+      } else if (hasCompletedOnboarding && !inAuthGroup && !inOnboardingGroup) {
+        // In DEV, we allow staying on onboarding if manually navigated there
         if (__DEV__) console.log('→ Routing to /auth (returning user)');
         router.replace('/auth');
       }
@@ -66,8 +67,8 @@ export function useRoutingLogic(fontsLoaded: boolean) {
           if (__DEV__) console.log('→ Routing to /onboarding (new user)');
           router.replace('/onboarding');
         }
-      } else if (inAuthGroup || inOnboardingGroup) {
-        // User logged in and onboarding complete - go home
+      } else if (inAuthGroup || (inOnboardingGroup && !__DEV__)) {
+        // User logged in and onboarding complete - go home (unless in DEV on onboarding)
         if (__DEV__) console.log('→ Routing to / (persisted complete)');
         router.replace('/');
       }

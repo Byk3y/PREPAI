@@ -42,7 +42,7 @@ export default function MagicLinkScreen() {
   const getHeading = () => {
     switch (flowStep) {
       case 'email':
-        return 'Welcome to Brigo';
+        return 'Continue with Email';
       case 'otp':
         return 'Enter verification code';
       case 'names':
@@ -54,7 +54,7 @@ export default function MagicLinkScreen() {
   const getDescription = () => {
     switch (flowStep) {
       case 'email':
-        return 'Create an account to start your learning journey and unlock your potential.';
+        return "Enter your email and we'll send you a verification code.";
       case 'otp':
         return `We sent a code to ${email}. Enter it below to continue.`;
       case 'names':
@@ -114,16 +114,8 @@ export default function MagicLinkScreen() {
           <View style={styles.topBar}>
             <TouchableOpacity
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.back();
-              }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={[styles.backButton, { color: colors.text }]}>←</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
                 if (flowStep === 'otp' || flowStep === 'names') {
+                  // Go back to email step instead of leaving the screen
                   resetToEmail();
                 } else {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -132,10 +124,17 @@ export default function MagicLinkScreen() {
               }}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Text style={styles.loginLink}>
-                {flowStep === 'email' ? 'Log in' : 'Start over'}
-              </Text>
+              <Text style={[styles.backButton, { color: colors.text }]}>←</Text>
             </TouchableOpacity>
+            {/* Show "Start over" only on OTP/Names steps */}
+            {(flowStep === 'otp' || flowStep === 'names') && (
+              <TouchableOpacity
+                onPress={resetToEmail}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.startOverLink}>Start over</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Heading */}
@@ -174,7 +173,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: 'SpaceGrotesk-Regular',
   },
-  loginLink: {
+  startOverLink: {
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'SpaceGrotesk-SemiBold',

@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, BackHandler } from 'react-native';
+import { View, StyleSheet, BackHandler, TouchableOpacity, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
@@ -209,7 +209,8 @@ export default function OnboardingScreen() {
       setIsNavigating(true);
       try {
         await markOnboardingComplete();
-        router.replace('/');
+        // Redirect to trial offer payment screen
+        router.replace('/paywall?source=onboarding');
       } catch (error) {
         console.error('Failed to mark onboarding complete:', error);
         router.replace('/');
@@ -232,7 +233,7 @@ export default function OnboardingScreen() {
       case SCREEN_INDICES.SCREEN_4_RESULTS:
         return "Let's personalize my experience →";
       case SCREEN_INDICES.SCREEN_4_PET_NAMING:
-        return "Let's meet my study companion →";
+        return "Meet my new mentor →";
       case SCREEN_INDICES.SCREEN_7_TRIAL_OFFER: // Last screen
         return "I'm ready to study smarter";
       default:
@@ -312,6 +313,7 @@ export default function OnboardingScreen() {
           />
         </View>
       )}
+
     </SafeAreaView>
   );
 }

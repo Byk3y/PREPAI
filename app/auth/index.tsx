@@ -154,10 +154,7 @@ export default function AuthScreen() {
     }
   };
 
-  const handleLogin = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/auth/magic-link');
-  };
+
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -245,18 +242,27 @@ export default function AuthScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Login Link */}
-          <View style={styles.loginLinkContainer}>
-            <Text style={[styles.loginLinkText, { color: colors.textSecondary }]}>
-              Already have an account?{' '}
-              <Text
-                style={[styles.loginLink, { color: colors.primaryLight }]}
-                onPress={handleLogin}
-              >
-                Log in
+          {/* Note: No separate login link needed - magic link works for both signup and login */}
+
+          {/* Debug: Force Onboarding - ONLY IN DEV */}
+          {__DEV__ && (
+            <TouchableOpacity
+              onPress={() => router.replace('/onboarding')}
+              style={{
+                marginTop: 20,
+                padding: 10,
+                borderRadius: 8,
+                backgroundColor: colors.surfaceElevated,
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderStyle: 'dashed',
+              }}
+            >
+              <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk-Medium' }}>
+                👨‍💻 Debug: Enter Onboarding Flow
               </Text>
-            </Text>
-          </View>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </SafeAreaView>
@@ -284,9 +290,11 @@ const styles = StyleSheet.create({
   appIcon: {
     width: 120,
     height: 120,
+    borderRadius: 24,
     backgroundColor: 'transparent',
     // Ensure transparency is preserved
     tintColor: undefined,
+    overflow: 'hidden',
   },
   heading: {
     fontSize: 28,
@@ -327,18 +335,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontFamily: 'SpaceGrotesk-Medium',
     textAlign: 'left',
-  },
-  loginLinkContainer: {
-    paddingTop: 8,
-  },
-  loginLinkText: {
-    fontSize: 15,
-    fontFamily: 'SpaceGrotesk-Regular',
-    textAlign: 'center',
-  },
-  loginLink: {
-    // color will be set inline based on theme
-    fontFamily: 'SpaceGrotesk-SemiBold',
-    fontWeight: '600',
   },
 });

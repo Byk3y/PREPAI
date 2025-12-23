@@ -123,38 +123,27 @@ export const createSubscriptionSlice: StateCreator<
       }
 
       if (data) {
-        // 1. Check RevenueCat first (Source of truth for purchases)
-        const isProRC = await checkProEntitlement();
-
-        // 2. Combine with Supabase data
+        // Use Supabase data FIRST for quick initial render (non-blocking)
+        // RevenueCat check will happen in background and update if needed
         const now = new Date();
         const trialEnds = data.trial_ends_at ? new Date(data.trial_ends_at) : null;
 
-        // If RC says Pro, or Supabase says Premium, then user is Premium
-        let finalTier = (isProRC || data.tier === 'premium') ? 'premium' : 'trial';
+        // Initially use database tier (fast, non-blocking)
+        const initialTier: 'trial' | 'premium' = data.tier === 'premium' ? 'premium' : 'trial';
 
-        // SELF-HEALING: If database says trial but RevenueCat says Pro, update database
-        if (isProRC && data.tier !== 'premium') {
-          console.log('Self-healing: Updating Supabase to premium based on RevenueCat');
-          await supabase
-            .from('user_subscriptions')
-            .update({ tier: 'premium', status: 'active', updated_at: new Date().toISOString() })
-            .eq('user_id', userId);
-          finalTier = 'premium';
-        }
-
-        const isExpired =
-          finalTier !== 'premium' && (
+        const isExpiredInitial: boolean =
+          initialTier !== 'premium' && (
             data.status === 'expired' ||
-            (finalTier === 'trial' && trialEnds && now > trialEnds)
+            (initialTier === 'trial' && trialEnds !== null && now > trialEnds)
           );
 
         // Set quota limits based on tier
-        const studioJobsLimit = finalTier === 'premium' ? Infinity : 5;
-        const audioJobsLimit = finalTier === 'premium' ? Infinity : 3;
+        const studioJobsLimit = initialTier === 'premium' ? Infinity : 5;
+        const audioJobsLimit = initialTier === 'premium' ? Infinity : 3;
 
+        // Set initial state immediately (allows auth flow to proceed)
         set({
-          tier: finalTier,
+          tier: initialTier,
           status: data.status as 'active' | 'canceled' | 'expired',
           trialEndsAt: data.trial_ends_at,
           trialStartedAt: data.trial_started_at,
@@ -162,33 +151,60 @@ export const createSubscriptionSlice: StateCreator<
           audioJobsUsed: data.trial_audio_jobs_used || 0,
           studioJobsLimit,
           audioJobsLimit,
-          isExpired,
+          isExpired: isExpiredInitial,
           subscriptionSyncedAt: Date.now(),
         });
 
-        // Update Mixpanel user properties
-        const trialDaysRemaining = finalTier === 'trial' && data.trial_ends_at
+        // Update Mixpanel with initial state
+        const trialDaysRemaining = initialTier === 'trial' && data.trial_ends_at
           ? getDaysUntilExpiration(data.trial_ends_at)
           : null;
 
         const userProps: Record<string, any> = {
-          tier: finalTier,
+          tier: initialTier,
           subscription_status: data.status,
-          is_expired: isExpired,
-          is_revenuecat_pro: isProRC,
+          is_expired: isExpiredInitial,
+          is_revenuecat_pro: false, // Will update in background
         };
 
-        // Only include trial_days_remaining if it's not null
         if (trialDaysRemaining !== null) {
           userProps.trial_days_remaining = trialDaysRemaining;
         }
 
         setUserProperties(userProps);
-
-        // Set super properties (included in all events)
         setSuperProperties({
-          tier: finalTier,
-          is_expired: isExpired,
+          tier: initialTier,
+          is_expired: isExpiredInitial,
+        });
+
+        // BACKGROUND: Check RevenueCat and update if different (non-blocking)
+        checkProEntitlement().then(async (isProRC) => {
+          if (isProRC && initialTier !== 'premium') {
+            // RevenueCat says Pro but DB says trial - update both
+            if (__DEV__) console.log('Self-healing: Updating to premium based on RevenueCat');
+
+            set({
+              tier: 'premium',
+              isExpired: false,
+              studioJobsLimit: Infinity,
+              audioJobsLimit: Infinity,
+            });
+
+            // Update database
+            await supabase
+              .from('user_subscriptions')
+              .update({ tier: 'premium', status: 'active', updated_at: new Date().toISOString() })
+              .eq('user_id', userId);
+
+            // Update analytics
+            setUserProperties({ tier: 'premium', is_revenuecat_pro: true, is_expired: false });
+            setSuperProperties({ tier: 'premium', is_expired: false });
+          } else if (isProRC) {
+            // Already premium, just update the RC flag in analytics
+            setUserProperties({ is_revenuecat_pro: true });
+          }
+        }).catch((err) => {
+          if (__DEV__) console.warn('[Subscription] Background RevenueCat check failed:', err);
         });
       }
     } catch (error) {

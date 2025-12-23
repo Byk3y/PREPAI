@@ -1,14 +1,13 @@
-/**
- * Screen 4: Assessment Results (Part 2)
- * Shows personalized insights based on assessment answers
- * Displays recommended methods and pet companion message
- */
-
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { MotiView, MotiText } from 'moti';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, Image, Dimensions, ScrollView } from 'react-native';
+import { MotiView } from 'moti';
 import { getThemeColors } from '@/lib/ThemeContext';
 import { useStore } from '@/lib/store';
+import { TypewriterText } from '../components/TypewriterText';
+import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
+
+const { width } = Dimensions.get('window');
 
 interface Screen4ResultsProps {
   colors: ReturnType<typeof getThemeColors>;
@@ -22,187 +21,236 @@ export function Screen4_Results({ colors }: Screen4ResultsProps) {
     petMessage,
   } = useStore();
 
+  const [headlineComplete, setHeadlineComplete] = useState(false);
+
+  const handleHeadlineComplete = useCallback(() => {
+    setHeadlineComplete(true);
+  }, []);
+
   // Generate recommendations when component mounts
   useEffect(() => {
     generateRecommendations();
   }, [generateRecommendations]);
 
   return (
-    <View style={styles.screenContainer}>
-      {/* Success icon */}
-      <MotiText
-        from={{ opacity: 0, scale: 0 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'spring', damping: 12, stiffness: 100 }}
-        style={styles.successIcon}
-      >
-        ✨
-      </MotiText>
+    <ScrollView
+      style={styles.screenContainer}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.scrollContent}
+    >
+      {/* Top Section: Character + Speech Bubble */}
+      <View style={styles.topSection}>
+        <MotiView
+          from={{ opacity: 0, scale: 0.5, translateY: 20 }}
+          animate={{ opacity: 1, scale: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 15, delay: 300 } as any}
+          style={styles.characterContainer}
+        >
+          <MotiView
+            animate={{ translateY: [-8, 8, -8] }}
+            transition={{ loop: true, type: 'timing', duration: 3000 } as any}
+          >
+            <Image
+              source={require('@/assets/first-screen/success_brain.png')}
+              style={styles.characterImage}
+              resizeMode="contain"
+            />
+          </MotiView>
+        </MotiView>
 
-      {/* Headline */}
-      <MotiText
-        from={{ opacity: 0, translateY: 20 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        delay={200}
-        transition={{ type: 'timing', duration: 400 }}
-        style={[styles.headline, { color: colors.text }]}
-      >
-        Your Learning Profile
-      </MotiText>
+        <MotiView
+          from={{ opacity: 0, scale: 0.8, translateY: 10 }}
+          animate={{ opacity: 1, scale: 1, translateY: 0 }}
+          transition={{ type: 'spring', damping: 12, delay: 600 } as any}
+          style={[styles.bubbleContainer, { backgroundColor: colors.surfaceElevated }]}
+        >
+          <TypewriterText
+            text="I've got it! I've built your custom learning strategy."
+            style={[styles.headline, { color: colors.text }]}
+            speed={35}
+            delay={1000}
+            onComplete={handleHeadlineComplete}
+          />
+          <View style={styles.bubbleTail}>
+            <Svg width="24" height="16" viewBox="0 0 24 16">
+              <Path d="M12 16L0 0H24L12 16Z" fill={colors.surfaceElevated} />
+            </Svg>
+          </View>
+        </MotiView>
+      </View>
 
-      {/* Personalized message */}
+      {/* Results Content */}
       <MotiView
-        from={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        delay={400}
-        transition={{ type: 'timing', duration: 400 }}
-        style={[styles.messageCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-      >
-        <Text style={[styles.messageText, { color: colors.textSecondary }]}>
-          {personalizedMessage}
-        </Text>
-      </MotiView>
-
-      {/* Recommended methods */}
-      <MotiView
         from={{ opacity: 0, translateY: 20 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        delay={600}
-        transition={{ type: 'timing', duration: 400 }}
-        style={styles.methodsContainer}
+        animate={{ opacity: headlineComplete ? 1 : 0, translateY: headlineComplete ? 0 : 20 }}
+        transition={{ type: 'timing', duration: 600, delay: 200 } as any}
+        style={styles.resultsWrapper}
       >
-        <Text style={[styles.methodsHeading, { color: colors.text }]}>
-          Your Personalized Tools
-        </Text>
-        <View style={styles.methodsList}>
-          {recommendedMethods.map((method, index) => (
-            <MotiView
-              key={method}
-              from={{ opacity: 0, translateX: -20 }}
-              animate={{ opacity: 1, translateX: 0 }}
-              delay={700 + index * 100}
-              transition={{ type: 'spring', damping: 15, stiffness: 100 }}
-              style={[styles.methodItem, { backgroundColor: colors.surfaceAlt }]}
-            >
-              <Text style={[styles.methodIcon, { color: colors.success }]}>✓</Text>
-              <Text style={[styles.methodText, { color: colors.text }]}>{method}</Text>
-            </MotiView>
-          ))}
+        {/* Strategy Summary Card */}
+        <View style={[styles.strategyCard, { backgroundColor: colors.surfaceElevated }]}>
+          <View style={styles.cardHeader}>
+            <View style={[styles.iconCircle, { backgroundColor: '#F97316' }]}>
+              <Ionicons name="sparkles" size={20} color="white" />
+            </View>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>YOUR STRATEGY</Text>
+          </View>
+
+          <Text style={[styles.messageText, { color: colors.textSecondary }]}>
+            {personalizedMessage}
+          </Text>
+
+          <View style={styles.divider} />
+
+          <View style={styles.methodsGrid}>
+            {recommendedMethods.map((method, index) => (
+              <View key={method} style={styles.methodTag}>
+                <Ionicons name="checkmark-circle" size={16} color="#F97316" />
+                <Text style={[styles.methodText, { color: colors.text }]}>{method}</Text>
+              </View>
+            ))}
+          </View>
         </View>
-      </MotiView>
 
-      {/* Pet companion message */}
-      <MotiView
-        from={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        delay={1000}
-        transition={{ type: 'spring', damping: 12, stiffness: 100 }}
-        style={[
-          styles.petMessageCard,
-          { backgroundColor: `${colors.primary}10`, borderColor: colors.primary },
-        ]}
-      >
-        <Text style={styles.petMessageIcon}>🐾</Text>
-        <Text style={[styles.petMessageHeading, { color: colors.primary }]}>
-          Your Study Companion Says:
-        </Text>
-        <Text style={[styles.petMessageText, { color: colors.text }]}>
-          {petMessage}
-        </Text>
+        {/* Pet Companion Note */}
+        <MotiView
+          from={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', delay: 800 } as any}
+          style={[styles.petNote, { backgroundColor: '#F9731610', borderColor: '#F9731630' }]}
+        >
+          <Text style={[styles.petNoteText, { color: colors.text }]}>
+            <Text style={{ fontWeight: '700', color: '#F97316' }}>Pro Tip: </Text>
+            {petMessage}
+          </Text>
+        </MotiView>
       </MotiView>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
+    backgroundColor: 'transparent',
+  },
+  scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingBottom: 140, // Space for the bottom button
+  },
+  topSection: {
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  characterContainer: {
+    width: width * 0.4,
+    height: width * 0.4,
+    zIndex: 1,
+  },
+  characterImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bubbleContainer: {
+    marginTop: -10,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 20,
+    width: '100%',
+    zIndex: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  bubbleTail: {
+    position: 'absolute',
+    bottom: -15,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  headline: {
+    fontSize: 17,
+    fontWeight: '700',
+    fontFamily: 'SpaceGrotesk-Bold',
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  resultsWrapper: {
+  },
+  strategyCard: {
+    padding: 24,
+    borderRadius: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 5,
+    marginBottom: 20,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  successIcon: {
-    fontSize: 48,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  headline: {
-    fontSize: 26,
-    fontWeight: '700',
+  cardTitle: {
+    fontSize: 13,
     fontFamily: 'SpaceGrotesk-Bold',
-    textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 32,
-  },
-  messageCard: {
-    width: '100%',
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginBottom: 20,
+    letterSpacing: 1,
+    opacity: 0.6,
   },
   messageText: {
     fontSize: 15,
-    fontFamily: 'SpaceGrotesk-Regular',
+    fontFamily: 'SpaceGrotesk-Medium',
     lineHeight: 22,
-    textAlign: 'center',
-  },
-  methodsContainer: {
-    width: '100%',
     marginBottom: 20,
   },
-  methodsHeading: {
-    fontSize: 17,
-    fontWeight: '600',
-    fontFamily: 'SpaceGrotesk-SemiBold',
-    marginBottom: 12,
-    textAlign: 'center',
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    marginBottom: 20,
   },
-  methodsList: {
-    gap: 8,
-  },
-  methodItem: {
+  methodsGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    flexWrap: 'wrap',
     gap: 10,
   },
-  methodIcon: {
-    fontSize: 16,
-    // Color will be set inline using colors.success
-    fontWeight: '700',
+  methodTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: 'white',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.03)',
   },
   methodText: {
-    fontSize: 15,
-    fontFamily: 'SpaceGrotesk-Medium',
-    flex: 1,
-  },
-  petMessageCard: {
-    width: '100%',
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 2,
-    alignItems: 'center',
-  },
-  petMessageIcon: {
-    fontSize: 28,
-    marginBottom: 6,
-  },
-  petMessageHeading: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 13,
     fontFamily: 'SpaceGrotesk-SemiBold',
-    marginBottom: 8,
-    textAlign: 'center',
   },
-  petMessageText: {
-    fontSize: 14,
-    fontFamily: 'SpaceGrotesk-Regular',
-    lineHeight: 20,
+  petNote: {
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  petNoteText: {
+    fontSize: 13,
+    fontFamily: 'SpaceGrotesk-Medium',
+    lineHeight: 18,
     textAlign: 'center',
   },
 });
+

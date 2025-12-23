@@ -54,7 +54,7 @@ export function ProgressBar({ current, total, onBack }: ProgressBarProps) {
               damping: 15,
               stiffness: 100,
             }}
-            style={[styles.progressBarFill, { backgroundColor: colors.accent }]}
+            style={[styles.progressBarFill, { backgroundColor: '#F97316' }]}
           />
         </View>
       </View>

@@ -44,6 +44,14 @@ export function useAuthSetup() {
       setAuthUser(session?.user ?? null);
 
       if (session?.user) {
+        // Reset initialization flag when auth state changes
+        // This prevents routing logic from running with stale user data
+        // Will be set back to true after data fetch completes
+        if (userIdChanged || event === 'SIGNED_IN') {
+          if (__DEV__) console.log('[Auth] Resetting isInitialized to false, fetching user data...');
+          setIsInitialized(false);
+        }
+
         try {
           const {
             resetPetState,
@@ -58,7 +66,11 @@ export function useAuthSetup() {
           // Identify user in Mixpanel (only on new sign-in or user change)
           if (userIdChanged || event === 'SIGNED_IN') {
             identify(session.user.id);
-            identifyPurchaser(session.user.id);
+            // Run RevenueCat login in background - don't block auth flow
+            // The subscription check will use database tier initially
+            identifyPurchaser(session.user.id).catch((err) => {
+              if (__DEV__) console.warn('[RevenueCat] Background login error:', err);
+            });
           }
 
           // Logic for state clearing/preservation on login:
@@ -99,11 +111,14 @@ export function useAuthSetup() {
             const hasCompleted = isOnboardingComplete(meta);
             setHasCompletedOnboarding(hasCompleted);
 
+            if (__DEV__) console.log('[Auth] User data fetched, setting isInitialized to true', { hasCompleted });
+
             // Mark initialization as complete ONLY after we have correct onboarding status
             setIsInitialized(true);
           }
         } catch (error) {
           // Error already handled by centralized system
+          if (__DEV__) console.log('[Auth] Error fetching user data, setting isInitialized to true anyway', error);
           if (mounted) setIsInitialized(true); // Ensure initialization happens even on error
         }
       } else {
