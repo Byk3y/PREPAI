@@ -13,3 +13,7 @@ export function getPetBubbleImage(stage: number): ImageSourcePropType {
 
 
 
+
+
+
+
