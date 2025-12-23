@@ -72,3 +72,4 @@ yarn-error.*
 # Test coverage
 coverage/
 *.lcov
+destinations.txt
