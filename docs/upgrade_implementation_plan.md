@@ -852,3 +852,7 @@ const handleUpgrade = () => {
 **Bottom Line**: Capture Duolingo's conversion tactics, avoid their brand damage, build sustainable growth.
 
 
+
+
+
+

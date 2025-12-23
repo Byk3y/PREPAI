@@ -93,3 +93,7 @@ When you're ready to test on Android:
 - Check that "Skip nonce check" is enabled in Supabase
 - Verify Web Client ID is added to Supabase dashboard
 
+
+
+
+
