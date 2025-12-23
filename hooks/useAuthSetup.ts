@@ -7,6 +7,8 @@ import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useStore } from '@/lib/store';
 import { identify, clearUser } from '@/lib/services/analyticsService';
+import { identifyPurchaser, logoutPurchaser } from '@/lib/purchases';
+import { isOnboardingComplete } from '@/lib/auth/onboardingStatus';
 
 export function useAuthSetup() {
   const {
@@ -56,6 +58,7 @@ export function useAuthSetup() {
           // Identify user in Mixpanel (only on new sign-in or user change)
           if (userIdChanged || event === 'SIGNED_IN') {
             identify(session.user.id);
+            identifyPurchaser(session.user.id);
           }
 
           // Logic for state clearing/preservation on login:
@@ -71,14 +74,9 @@ export function useAuthSetup() {
             resetUserProfile();
           }
 
-          // Hydrate from cache immediately for instant UI response
+          // HYDRATION: Hydrate from cache immediately for instant UI response
           hydratePetStateFromCache();
           hydrateUserProfileFromCache();
-
-          // Mark initialization as complete as soon as we have local hydration ready
-          if (mounted) {
-            setIsInitialized(true);
-          }
 
           // Fetch all user data in parallel in the background
           const [profileResult] = await Promise.all([
@@ -97,15 +95,12 @@ export function useAuthSetup() {
           const meta = profile?.meta as any;
 
           if (mounted) {
-            if (meta?.has_created_notebook) {
-              setHasCreatedNotebook(true);
-            } else {
-              setHasCreatedNotebook(false);
-            }
-
-            // Load onboarding completion flag
-            const hasCompleted = meta?.has_completed_onboarding ?? false;
+            // CORRECT: Use centralized helper that handles legacy 'has_created_notebook' logic
+            const hasCompleted = isOnboardingComplete(meta);
             setHasCompletedOnboarding(hasCompleted);
+
+            // Mark initialization as complete ONLY after we have correct onboarding status
+            setIsInitialized(true);
           }
         } catch (error) {
           // Error already handled by centralized system
@@ -118,6 +113,7 @@ export function useAuthSetup() {
           resetPetState();
           resetUserProfile();
           clearUser();
+          logoutPurchaser();
         }
 
         // Mark initialization complete for non-auth state

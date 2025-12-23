@@ -31,6 +31,15 @@ export const SUBSCRIPTION_CONSTANTS = {
   TRIAL_EXPIRED_MODAL_SHOWN_KEY: 'trial_expired_modal_shown',
 } as const;
 
+/**
+ * RevenueCat Configuration
+ */
+export const REVENUECAT_CONFIG = {
+  APPLE_KEY: process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY || '',
+  GOOGLE_KEY: process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY || '',
+  ENTITLEMENT_ID: 'brigo_pro',
+} as const;
+
 
 
 

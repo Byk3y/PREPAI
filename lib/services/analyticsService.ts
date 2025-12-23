@@ -67,7 +67,7 @@ export function initMixpanel() {
       .then((instance: any) => {
         mixpanelInstance = instance;
         isInitialized = true;
-        
+
         if (__DEV__) {
           console.log('[Mixpanel] Initialized successfully');
         }
@@ -90,26 +90,25 @@ export function initMixpanel() {
  * Track an event with optional properties
  */
 export function track(event: string, properties?: Record<string, any>): void {
-  if (!isInitialized || !mixpanelInstance) {
+  if (!mixpanelInstance) {
     if (__DEV__) {
-      console.log('[Mixpanel] Track (not initialized):', event, properties);
+      console.log('[Mixpanel] Track (instance not ready):', event, properties);
     }
     return;
   }
 
   try {
-    // Don't track in development mode (or use Mixpanel's dev mode)
-    // Uncomment the line below if you want to track in dev mode
-    // if (__DEV__) return;
-
     mixpanelInstance.track(event, properties);
-    
+
     if (__DEV__) {
-      console.log('[Mixpanel] Track:', event, properties);
+      if (!isInitialized) {
+        console.log('[Mixpanel] Track (queued, still initializing):', event, properties);
+      } else {
+        console.log('[Mixpanel] Track:', event, properties);
+      }
     }
   } catch (error) {
     console.error('[Mixpanel] Track error:', error);
-    // Don't crash the app if tracking fails
   }
 }
 
@@ -118,21 +117,24 @@ export function track(event: string, properties?: Record<string, any>): void {
  * Call this when user logs in
  */
 export function identify(userId: string): void {
-  if (!isInitialized || !mixpanelInstance) {
+  if (!mixpanelInstance) {
     if (__DEV__) {
-      console.log('[Mixpanel] Identify (not initialized):', userId);
+      console.log('[Mixpanel] Identify (instance not ready):', userId);
     }
     return;
   }
 
   try {
-    // identify() is async but we don't need to await it
-    mixpanelInstance.identify(userId).catch((error) => {
+    mixpanelInstance.identify(userId).catch((error: any) => {
       console.error('[Mixpanel] Identify error:', error);
     });
-    
+
     if (__DEV__) {
-      console.log('[Mixpanel] Identify:', userId);
+      if (!isInitialized) {
+        console.log('[Mixpanel] Identify (queued, still initializing):', userId);
+      } else {
+        console.log('[Mixpanel] Identify:', userId);
+      }
     }
   } catch (error) {
     console.error('[Mixpanel] Identify error:', error);
@@ -144,18 +146,22 @@ export function identify(userId: string): void {
  * Call this when user properties change (tier, subscription status, etc.)
  */
 export function setUserProperties(properties: Record<string, any>): void {
-  if (!isInitialized || !mixpanelInstance) {
+  if (!mixpanelInstance) {
     if (__DEV__) {
-      console.log('[Mixpanel] Set user properties (not initialized):', properties);
+      console.log('[Mixpanel] Set user properties (instance not ready):', properties);
     }
     return;
   }
 
   try {
     mixpanelInstance.getPeople().set(properties);
-    
+
     if (__DEV__) {
-      console.log('[Mixpanel] Set user properties:', properties);
+      if (!isInitialized) {
+        console.log('[Mixpanel] Set user properties (queued, still initializing):', properties);
+      } else {
+        console.log('[Mixpanel] Set user properties:', properties);
+      }
     }
   } catch (error) {
     console.error('[Mixpanel] Set user properties error:', error);
@@ -167,18 +173,22 @@ export function setUserProperties(properties: Record<string, any>): void {
  * Useful for common data like tier, is_expired that should be on every event
  */
 export function setSuperProperties(properties: Record<string, any>): void {
-  if (!isInitialized || !mixpanelInstance) {
+  if (!mixpanelInstance) {
     if (__DEV__) {
-      console.log('[Mixpanel] Set super properties (not initialized):', properties);
+      console.log('[Mixpanel] Set super properties (instance not ready):', properties);
     }
     return;
   }
 
   try {
     mixpanelInstance.registerSuperProperties(properties);
-    
+
     if (__DEV__) {
-      console.log('[Mixpanel] Set super properties:', properties);
+      if (!isInitialized) {
+        console.log('[Mixpanel] Set super properties (queued, still initializing):', properties);
+      } else {
+        console.log('[Mixpanel] Set super properties:', properties);
+      }
     }
   } catch (error) {
     console.error('[Mixpanel] Set super properties error:', error);
@@ -189,14 +199,13 @@ export function setSuperProperties(properties: Record<string, any>): void {
  * Clear user data (call on logout)
  */
 export function clearUser(): void {
-  // Silently return if not initialized - no need to log this
-  if (!isInitialized || !mixpanelInstance) {
+  if (!mixpanelInstance) {
     return;
   }
 
   try {
     mixpanelInstance.reset();
-    
+
     if (__DEV__) {
       console.log('[Mixpanel] User cleared');
     }
@@ -211,4 +220,3 @@ export function clearUser(): void {
 export function isMixpanelInitialized(): boolean {
   return isInitialized && mixpanelInstance !== null;
 }
-

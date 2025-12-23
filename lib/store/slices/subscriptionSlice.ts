@@ -7,6 +7,7 @@ import type { StateCreator } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { setUserProperties, setSuperProperties } from '@/lib/services/analyticsService';
 import { getDaysUntilExpiration } from '@/lib/services/subscriptionService';
+import { checkProEntitlement } from '@/lib/purchases';
 
 export interface SubscriptionSlice {
   tier: 'trial' | 'premium' | null;
@@ -72,14 +73,14 @@ export const createSubscriptionSlice: StateCreator<
             isExpired: false,
             subscriptionSyncedAt: Date.now(),
           });
-          
+
           // Set default Mixpanel user properties (omit null values)
           setUserProperties({
             tier: 'trial',
             subscription_status: 'active',
             is_expired: false,
           });
-          
+
           // Set super properties (included in all events)
           setSuperProperties({
             tier: 'trial',
@@ -105,14 +106,14 @@ export const createSubscriptionSlice: StateCreator<
           isExpired: true,
           subscriptionSyncedAt: Date.now(),
         });
-        
+
         // Set default Mixpanel user properties (omit null values)
         setUserProperties({
           tier: 'trial',
           subscription_status: 'expired',
           is_expired: true,
         });
-        
+
         // Set super properties (included in all events)
         setSuperProperties({
           tier: 'trial',
@@ -122,19 +123,38 @@ export const createSubscriptionSlice: StateCreator<
       }
 
       if (data) {
-        // Calculate if expired
+        // 1. Check RevenueCat first (Source of truth for purchases)
+        const isProRC = await checkProEntitlement();
+
+        // 2. Combine with Supabase data
         const now = new Date();
         const trialEnds = data.trial_ends_at ? new Date(data.trial_ends_at) : null;
+
+        // If RC says Pro, or Supabase says Premium, then user is Premium
+        let finalTier = (isProRC || data.tier === 'premium') ? 'premium' : 'trial';
+
+        // SELF-HEALING: If database says trial but RevenueCat says Pro, update database
+        if (isProRC && data.tier !== 'premium') {
+          console.log('Self-healing: Updating Supabase to premium based on RevenueCat');
+          await supabase
+            .from('user_subscriptions')
+            .update({ tier: 'premium', status: 'active', updated_at: new Date().toISOString() })
+            .eq('user_id', userId);
+          finalTier = 'premium';
+        }
+
         const isExpired =
-          data.status === 'expired' ||
-          (data.tier === 'trial' && trialEnds && now > trialEnds);
+          finalTier !== 'premium' && (
+            data.status === 'expired' ||
+            (finalTier === 'trial' && trialEnds && now > trialEnds)
+          );
 
         // Set quota limits based on tier
-        const studioJobsLimit = data.tier === 'premium' ? Infinity : 5;
-        const audioJobsLimit = data.tier === 'premium' ? Infinity : 3;
+        const studioJobsLimit = finalTier === 'premium' ? Infinity : 5;
+        const audioJobsLimit = finalTier === 'premium' ? Infinity : 3;
 
         set({
-          tier: data.tier as 'trial' | 'premium',
+          tier: finalTier,
           status: data.status as 'active' | 'canceled' | 'expired',
           trialEndsAt: data.trial_ends_at,
           trialStartedAt: data.trial_started_at,
@@ -146,27 +166,28 @@ export const createSubscriptionSlice: StateCreator<
           subscriptionSyncedAt: Date.now(),
         });
 
-        // Update Mixpanel user properties (omit null values)
-        const trialDaysRemaining = data.tier === 'trial' && data.trial_ends_at 
-          ? getDaysUntilExpiration(data.trial_ends_at) 
+        // Update Mixpanel user properties
+        const trialDaysRemaining = finalTier === 'trial' && data.trial_ends_at
+          ? getDaysUntilExpiration(data.trial_ends_at)
           : null;
-        
+
         const userProps: Record<string, any> = {
-          tier: data.tier,
+          tier: finalTier,
           subscription_status: data.status,
           is_expired: isExpired,
+          is_revenuecat_pro: isProRC,
         };
-        
+
         // Only include trial_days_remaining if it's not null
         if (trialDaysRemaining !== null) {
           userProps.trial_days_remaining = trialDaysRemaining;
         }
-        
+
         setUserProperties(userProps);
-        
+
         // Set super properties (included in all events)
         setSuperProperties({
-          tier: data.tier,
+          tier: finalTier,
           is_expired: isExpired,
         });
       }
@@ -187,14 +208,14 @@ export const createSubscriptionSlice: StateCreator<
         isExpired: true,
         subscriptionSyncedAt: Date.now(),
       });
-      
+
       // Set default Mixpanel user properties (omit null values)
       setUserProperties({
         tier: 'trial',
         subscription_status: 'expired',
         is_expired: true,
       });
-      
+
       // Set super properties (included in all events)
       setSuperProperties({
         tier: 'trial',

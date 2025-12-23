@@ -1,8 +1,4 @@
-/**
- * Root layout - Sets up Expo Router, NativeWind, and theme provider
- */
-
-// Initialize Sentry as early as possible (before React renders)
+import { useEffect } from 'react';
 import { initSentry } from '@/lib/sentry';
 
 initSentry();
@@ -11,20 +7,18 @@ initSentry();
 if (typeof console !== 'undefined' && console.error) {
   const originalError = console.error;
   console.error = (...args: any[]) => {
-    const message = args[0]?.toString() || '';
+    const error = args[0];
+    const message = (typeof error === 'string' ? error : error?.message || error?.toString()) || '';
+
     // Suppress expected auth errors when logged out
     if (
       message.includes('Invalid Refresh Token') ||
       message.includes('Refresh Token Not Found') ||
       message.includes('refresh_token_not_found') ||
-      (message.includes('AuthApiError') && message.includes('Refresh Token')) ||
-      (message.includes('Request rate limit reached') && message.includes('AuthApiError'))
+      message.includes('AuthApiError') ||
+      (message.includes('rate limit') && message.includes('Auth'))
     ) {
-      // Don't log these expected errors - they're harmless when logged out or during rapid reloads
-      if (__DEV__) {
-        // Only log in dev mode for debugging, but silently
-        return;
-      }
+      if (__DEV__) return;
       return;
     }
     // Log all other errors normally
@@ -62,6 +56,9 @@ import { useAppStateMonitoring } from '@/hooks/useAppStateMonitoring';
 import { useRoutingLogic } from '@/hooks/useRoutingLogic';
 import { useStreakCheck } from '@/hooks/useStreakCheck';
 
+// Initialize RevenueCat SDK
+import { initializePurchases } from '@/lib/purchases';
+
 // Inner layout component that uses the theme context
 function RootLayoutInner() {
   // Load fonts
@@ -79,6 +76,11 @@ function RootLayoutInner() {
   useAssetPreloading();
   useAppStateMonitoring();
   useStreakCheck();
+
+  // Initialize RevenueCat
+  useEffect(() => {
+    initializePurchases();
+  }, []);
 
   // Handle routing logic (waits for fonts and hydration)
   const isRoutingReady = useRoutingLogic(fontsLoaded);
@@ -120,6 +122,13 @@ function RootLayoutInner() {
             presentation: 'transparentModal',
             animation: 'none',
             contentStyle: { backgroundColor: 'transparent' },
+          }}
+        />
+        <Stack.Screen
+          name="paywall"
+          options={{
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
           }}
         />
       </Stack>
