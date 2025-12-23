@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Alert, Linking } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 import { useStore } from '@/lib/store';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
+import { APP_URLS } from '@/lib/constants';
 
 export default function SettingsScreen() {
     const { isDarkMode } = useTheme();
@@ -24,10 +26,24 @@ export default function SettingsScreen() {
 
     const daysLeft = getDaysLeft();
     const subscriptionSubtext = tier === 'premium'
-        ? 'Premium • Active'
+        ? 'Pro • Active'
         : isExpired
             ? 'Trial expired'
             : `Trial • ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`;
+
+    const handleOpenURL = async (url: string) => {
+        try {
+            const supported = await Linking.canOpenURL(url);
+            if (supported) {
+                await Linking.openURL(url);
+            } else {
+                Alert.alert("Error", `Cannot open URL: ${url}`);
+            }
+        } catch (error) {
+            console.error('Error opening URL:', error);
+            Alert.alert("Error", "Something went wrong while trying to open the link.");
+        }
+    };
 
     const handleSignOut = async () => {
         Alert.alert(
@@ -133,9 +149,13 @@ export default function SettingsScreen() {
 
                 {/* Legal Links */}
                 <View style={styles.footer}>
-                    <TouchableOpacity><Text style={[styles.footerText, { color: colors.textMuted }]}>Terms of Service</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleOpenURL(APP_URLS.TERMS)}>
+                        <Text style={[styles.footerText, { color: colors.textMuted }]}>Terms of Service</Text>
+                    </TouchableOpacity>
                     <View style={[styles.footerDivider, { backgroundColor: colors.textMuted }]} />
-                    <TouchableOpacity><Text style={[styles.footerText, { color: colors.textMuted }]}>Privacy Policy</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleOpenURL(APP_URLS.PRIVACY)}>
+                        <Text style={[styles.footerText, { color: colors.textMuted }]}>Privacy Policy</Text>
+                    </TouchableOpacity>
                 </View>
 
                 <Text style={[styles.versionText, { color: colors.textMuted }]}>Version 1.0.0 (2025)</Text>
