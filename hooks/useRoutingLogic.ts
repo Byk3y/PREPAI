@@ -61,8 +61,9 @@ export function useRoutingLogic(fontsLoaded: boolean) {
             if (__DEV__) console.log('→ Routing to /onboarding (persisted resume)');
             router.replace('/onboarding');
           }
-        } else if (currentOnboardingScreen === 0 && (inAuthGroup || inOnboardingGroup)) {
-          if (__DEV__) console.log('→ Routing to /onboarding (persisted new user)');
+        } else if (currentOnboardingScreen === 0 && !inOnboardingGroup) {
+          // New user just logged in - send to onboarding (but only if not already there)
+          if (__DEV__) console.log('→ Routing to /onboarding (new user)');
           router.replace('/onboarding');
         }
       } else if (inAuthGroup || inOnboardingGroup) {
