@@ -1,0 +1,46 @@
+/**
+ * Playful, concise loading messages for generation stages
+ */
+
+export const LOADING_MESSAGES = {
+    flashcards: [
+        'Synthesizing...',
+        'Summarizing...',
+        'Shuffling...',
+        'Organizing...',
+        'Indexing...',
+        'Refining...',
+        'Drafting...',
+        'Finalizing...'
+    ],
+    quiz: [
+        'Analyzing...',
+        'Questioning...',
+        'Extracting...',
+        'Evaluating...',
+        'Validating...',
+        'Brainstorming...',
+        'Curating...',
+        'Polishing...'
+    ],
+    audio: [
+        'Scripting...',
+        'Synthesizing...',
+        'Recording...',
+        'Vocalizing...',
+        'Translating...',
+        'Directing...',
+        'Mixing...',
+        'Reviewing...'
+    ],
+    general: [
+        'Thinking...',
+        'Generating...',
+        'Processing...',
+        'Working...',
+        'Nearly there...',
+        'Reviewing...',
+        'Improving...',
+        'Refining...'
+    ]
+} as const;

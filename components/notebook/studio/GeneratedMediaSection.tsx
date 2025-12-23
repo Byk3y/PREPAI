@@ -11,6 +11,7 @@ import { TikTokLoader } from '@/components/TikTokLoader';
 import { StudioMediaItem } from './StudioMediaItem';
 import { StudioEmptyState } from './StudioEmptyState';
 import { formatDuration, getTimeAgo } from '@/lib/utils/studio';
+import { LOADING_MESSAGES } from '@/lib/constants/loadingMessages';
 import type { StudioFlashcard, Quiz, AudioOverview } from '@/lib/store/types';
 
 type GeneratingType = 'flashcards' | 'quiz' | 'audio' | null;
@@ -168,7 +169,7 @@ export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
               title="Flashcards"
               isGenerating={true}
               loadingColor="#2563eb"
-              loadingText="Generating..."
+              loadingText={LOADING_MESSAGES.flashcards}
             />
           )}
 
@@ -179,7 +180,7 @@ export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
               title="Quiz"
               isGenerating={true}
               loadingColor="#2563eb"
-              loadingText="Generating..."
+              loadingText={LOADING_MESSAGES.quiz}
             />
           )}
 
@@ -190,7 +191,7 @@ export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
               title="Podcast"
               isGenerating={true}
               loadingColor="#4f46e5"
-              loadingText={audioProgressStage}
+              loadingText={LOADING_MESSAGES.audio}
             />
           )}
 

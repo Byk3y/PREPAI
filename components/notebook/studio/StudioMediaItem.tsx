@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { TikTokLoader } from '@/components/TikTokLoader';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import { useDynamicMessage } from '@/lib/hooks/useDynamicMessage';
 
 interface StudioMediaItemProps {
     onPress?: () => void;
@@ -14,7 +15,7 @@ interface StudioMediaItemProps {
     onDelete?: () => void;
     isGenerating?: boolean;
     loadingColor?: string;
-    loadingText?: string;
+    loadingText?: string | readonly string[];
 }
 
 export const StudioMediaItem: React.FC<StudioMediaItemProps> = ({
@@ -30,6 +31,11 @@ export const StudioMediaItem: React.FC<StudioMediaItemProps> = ({
 }) => {
     const { isDarkMode } = useTheme();
     const colors = getThemeColors(isDarkMode);
+
+    const displayLoadingText = typeof loadingText === 'string'
+        ? loadingText
+        : useDynamicMessage(loadingText || ['Generating...']);
+
 
     // Get icon background color based on icon type
     const getIconBgColor = () => {
@@ -58,7 +64,7 @@ export const StudioMediaItem: React.FC<StudioMediaItemProps> = ({
             activeOpacity={0.7}
         >
             {/* Icon with background */}
-            <View style={{ 
+            <View style={{
                 marginRight: 14,
                 width: 42,
                 height: 42,
@@ -69,13 +75,13 @@ export const StudioMediaItem: React.FC<StudioMediaItemProps> = ({
             }}>
                 <Ionicons name={icon} size={22} color={iconColor} />
             </View>
-            
+
             {/* Content */}
             <View style={{ flex: 1 }}>
-                <Text 
-                    style={{ 
-                        fontSize: 15, 
-                        fontWeight: '600', 
+                <Text
+                    style={{
+                        fontSize: 15,
+                        fontWeight: '600',
                         color: colors.text,
                         letterSpacing: -0.2,
                     }}
@@ -88,13 +94,13 @@ export const StudioMediaItem: React.FC<StudioMediaItemProps> = ({
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                         <TikTokLoader size={10} color={loadingColor} containerWidth={50} />
                         <Text style={{ fontSize: 13, marginLeft: 8, color: loadingColor }}>
-                            {loadingText}
+                            {displayLoadingText}
                         </Text>
                     </View>
                 ) : (
-                    <Text style={{ 
-                        fontSize: 13, 
-                        color: colors.textSecondary, 
+                    <Text style={{
+                        fontSize: 13,
+                        color: colors.textSecondary,
                         marginTop: 4,
                         letterSpacing: -0.1,
                     }}>
@@ -102,7 +108,7 @@ export const StudioMediaItem: React.FC<StudioMediaItemProps> = ({
                     </Text>
                 )}
             </View>
-            
+
             {/* Chevron */}
             {!isGenerating && onPress && (
                 <View style={{ marginLeft: 8 }}>
