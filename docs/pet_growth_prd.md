@@ -68,7 +68,7 @@ List of Foundational Tasks
 Task	Description	Points
 Name your pet	User edits pet name	+1
 Add your first study material	Add PDF, image, text, or link	+1
-Generate your first audio overview	Use Studio → Audio Overview	+2
+Generate your first podcast	Use Studio → Podcast	+2
 
 Completion Behavior:
 	•	Once a foundational task is completed, it disappears permanently.
@@ -91,7 +91,7 @@ Daily Task Pool (MVP)
 Task	Description	Points
 Study 5 flashcards	User completes 5 flashcards from any set	+1
 Study for 15 minutes	Timer tracks continuous study	+2
-Listen to an audio overview	User plays generated audio	+1
+Listen to a podcast	User plays generated audio	+1
 Maintain daily streak	Awarded automatically when streak increments	+4
 
 Rules
@@ -176,10 +176,10 @@ Each task links to a trigger event in the app:
 Task	Trigger
 Name your pet	update_pet_name() mutation
 Add study material	Material row created
-Generate audio overview	Audio overview completed
+Generate podcast	Podcast completed
 Study flashcards	Flashcard completion count increments
 Study for 15 minutes	Study timer reaches 15m
-Listen to audio overview	Audio playback event fired
+Listen to podcast	Audio playback event fired
 Maintain streak	Streak table increments
 
 When a trigger occurs →

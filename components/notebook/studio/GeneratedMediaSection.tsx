@@ -1,5 +1,5 @@
 /**
- * GeneratedMediaSection - Displays generated flashcards, quizzes, and audio overviews
+ * GeneratedMediaSection - Displays generated flashcards, quizzes, and podcasts
  */
 
 import React, { useMemo } from 'react';
@@ -123,7 +123,7 @@ export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
       );
     }
 
-    // Audio overview
+    // Podcast
     return (
       <StudioMediaItem
         key={item.data.id}
@@ -187,7 +187,7 @@ export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
             <StudioMediaItem
               icon="stats-chart"
               iconColor="#737373"
-              title="Audio Overview"
+              title="Podcast"
               isGenerating={true}
               loadingColor="#4f46e5"
               loadingText={audioProgressStage}
@@ -201,6 +201,10 @@ export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
     </View>
   );
 };
+
+
+
+
 
 
 

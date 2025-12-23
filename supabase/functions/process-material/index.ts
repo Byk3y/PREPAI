@@ -224,7 +224,7 @@ IMPORTANT: Use markdown formatting for emphasis IN THE OVERVIEW ONLY:
     let trimmedOverview = response.overview.trim();
     // Replace multiple newlines/paragraph breaks with a single space
     trimmedOverview = trimmedOverview.replace(/\n\s*\n/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-    
+
     if (trimmedOverview.length === 0) {
       throw new Error('Overview cannot be empty');
     }
@@ -400,7 +400,7 @@ Deno.serve(async (req) => {
     // QUOTA NOTE: Preview generation is unlimited for all users (trial + premium)
     // Quota enforcement only applies to:
     //   - Studio jobs (flashcards/quiz generation) - 5 for trial
-    //   - Audio jobs (audio overview generation) - 3 for trial
+    //   - Audio jobs (podcast generation) - 3 for trial
     // Quota check will be added in Phase 3 (Studio) and Phase 4 (Audio)
 
     // Update notebook status to 'extracting' for processing

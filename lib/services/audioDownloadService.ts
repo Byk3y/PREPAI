@@ -1,6 +1,6 @@
 /**
  * Audio Download Service
- * Handles downloading and sharing audio overview files
+ * Handles downloading and sharing podcast files
  */
 
 import * as FileSystem from 'expo-file-system/legacy';
@@ -36,7 +36,7 @@ function sanitizeFilename(filename: string): string {
 
   // Ensure at least some content remains
   if (!sanitized || sanitized.length === 0) {
-    sanitized = 'audio_overview';
+    sanitized = 'podcast';
   }
 
   return sanitized;
@@ -54,7 +54,7 @@ function extractFileExtension(storagePath?: string): string {
 }
 
 /**
- * Download and share an audio file
+ * Download and share a podcast file
  *
  * @param audioUrl - Signed URL to the audio file in Supabase Storage
  * @param title - Title of the audio overview (will be sanitized for filename)
@@ -151,7 +151,7 @@ export async function downloadAudioFile(
     try {
       await Sharing.shareAsync(uri, {
         mimeType: extension === '.wav' ? 'audio/wav' : 'audio/mpeg',
-        dialogTitle: 'Save Audio Overview',
+        dialogTitle: 'Save Podcast',
         UTI: extension === '.wav' ? 'public.wav-audio' : 'public.mp3',
       });
     } catch (shareError: any) {
@@ -159,7 +159,7 @@ export async function downloadAudioFile(
       // Some platforms throw on cancellation, others return cancelled status
       const errorMsg = shareError?.message?.toLowerCase() || '';
       const errorCode = shareError?.code?.toLowerCase() || '';
-      
+
       // Common cancellation indicators across platforms
       if (
         errorMsg.includes('cancel') ||

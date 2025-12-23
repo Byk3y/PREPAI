@@ -1,6 +1,6 @@
 /**
  * Audio Service
- * Handles audio overview database operations
+ * Handles podcast database operations
  */
 
 import { supabase } from '@/lib/supabase';
@@ -16,7 +16,7 @@ export interface AudioOverviewStatus {
 
 export const audioService = {
   /**
-   * Get status of an audio overview (for polling during generation)
+   * Get status of a podcast (for polling during generation)
    */
   getStatus: async (overviewId: string): Promise<AudioOverviewStatus> => {
     try {
@@ -60,7 +60,7 @@ export const audioService = {
   },
 
   /**
-   * Fetch all audio overviews for a notebook
+   * Fetch all podcasts for a notebook
    */
   fetchByNotebook: async (notebookId: string): Promise<AudioOverview[]> => {
     try {
@@ -102,7 +102,7 @@ export const audioService = {
   },
 
   /**
-   * Get a single audio overview by ID
+   * Get a single podcast by ID
    * Refreshes signed URL if needed
    */
   getById: async (overviewId: string): Promise<AudioOverview | null> => {
@@ -115,7 +115,7 @@ export const audioService = {
 
       if (error || !data) {
         if (__DEV__) {
-          console.error('[Audio Service] Audio overview not found:', error);
+          console.error('[Audio Service] Podcast not found:', error);
         }
         return null;
       }
@@ -186,7 +186,7 @@ export const audioService = {
   },
 
   /**
-   * Delete an audio overview
+   * Delete a podcast
    */
   delete: async (overviewId: string): Promise<void> => {
     try {
@@ -209,7 +209,7 @@ export const audioService = {
           component: 'audio-service',
           metadata: { overviewId },
         });
-        throw new Error(`Failed to delete audio overview: ${deleteError.message}`);
+        throw new Error(`Failed to delete podcast: ${deleteError.message}`);
       }
 
       // Delete from storage
@@ -228,7 +228,7 @@ export const audioService = {
   },
 
   /**
-   * Find pending/generating audio overviews for a notebook
+   * Find pending/generating podcasts for a notebook
    */
   findPending: async (notebookId: string): Promise<{ id: string; status: string } | null> => {
     try {
@@ -262,7 +262,7 @@ export const audioService = {
   },
 
   /**
-   * Check if user has any completed audio overviews
+   * Check if user has any completed podcasts
    */
   hasCompleted: async (userId: string): Promise<boolean> => {
     try {
@@ -328,12 +328,12 @@ function isUrlExpired(url: string): boolean {
       const payload = parts[1];
       const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
       const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-      
+
       // Decode base64 to string using atob (available in React Native/Expo)
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore - atob is available in React Native/Expo runtime
       const decodedString = atob(padded);
-      
+
       // Parse JSON payload
       const decoded = JSON.parse(decodedString);
 
@@ -342,7 +342,7 @@ function isUrlExpired(url: string): boolean {
         const expirationTime = decoded.exp * 1000; // Convert to milliseconds
         const now = Date.now();
         const bufferTime = 60 * 60 * 1000; // 1 hour buffer before expiration
-        
+
         // Return true if expired or will expire within 1 hour
         return now >= (expirationTime - bufferTime);
       }

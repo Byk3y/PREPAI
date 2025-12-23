@@ -50,7 +50,7 @@ export const AudioReadyNotification: React.FC<AudioReadyNotificationProps> = ({
       if (autoDismissTimer.current) {
         clearTimeout(autoDismissTimer.current);
       }
-      
+
       // Set new auto-dismiss timer
       autoDismissTimer.current = setTimeout(() => {
         handleDismiss();
@@ -200,7 +200,7 @@ export const AudioReadyNotification: React.FC<AudioReadyNotificationProps> = ({
                 <Ionicons name="headset" size={20} color="#4F5BD5" />
               </View>
               <View style={styles.textContainer}>
-                <Text style={styles.title}>Audio Ready!</Text>
+                <Text style={styles.title}>Podcast Ready!</Text>
                 <Text style={styles.message} numberOfLines={1}>
                   {notebookName} is ready to play
                 </Text>

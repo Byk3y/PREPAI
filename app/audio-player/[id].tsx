@@ -34,8 +34,8 @@ export default function AudioPlayerScreen() {
             const overview = await audioService.getById(id);
 
             if (!overview) {
-                setError('Audio overview not found');
-                Alert.alert('Error', 'Audio overview not found', [
+                setError('Podcast not found');
+                Alert.alert('Error', 'Podcast not found', [
                     { text: 'OK', onPress: () => router.back() }
                 ]);
                 return;
@@ -43,9 +43,9 @@ export default function AudioPlayerScreen() {
 
             setAudioOverview(overview);
         } catch (err: any) {
-            console.error('Failed to load audio overview:', err);
-            setError(err.message || 'Failed to load audio overview');
-            Alert.alert('Error', 'Failed to load audio overview', [
+            console.error('Failed to load podcast:', err);
+            setError(err.message || 'Failed to load podcast');
+            Alert.alert('Error', 'Failed to load podcast', [
                 { text: 'OK', onPress: () => router.back() }
             ]);
         } finally {
@@ -106,7 +106,7 @@ export default function AudioPlayerScreen() {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', padding: 20 }}>
                 <Text style={{ fontSize: 16, color: '#ef4444', textAlign: 'center' }}>
-                    {error || 'Audio overview not found'}
+                    {error || 'Podcast not found'}
                 </Text>
             </View>
         );

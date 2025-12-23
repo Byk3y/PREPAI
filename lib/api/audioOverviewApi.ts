@@ -1,5 +1,5 @@
 /**
- * Audio Overview API Client
+ * Podcast API Client
  * Handles communication with the generate-audio-overview Edge Function
  * 
  * Note: Database operations are handled by audioService
@@ -24,7 +24,7 @@ export interface GenerateAudioOverviewResponse {
 }
 
 /**
- * Trigger audio overview generation for a notebook
+ * Trigger podcast generation for a notebook
  * Returns immediately with overview_id for status polling
  */
 export async function generateAudioOverview(
@@ -60,7 +60,7 @@ export async function generateAudioOverview(
       }
 
       // Create error with quota details preserved
-      const error: any = new Error(errorData.error || 'Failed to generate audio overview');
+      const error: any = new Error(errorData.error || 'Failed to generate podcast');
 
       // Preserve quota information for better error handling
       if (errorData.remaining !== undefined) {
@@ -90,8 +90,8 @@ export async function generateAudioOverview(
     // For network/parsing errors, check if generation actually started on the server
     // This prevents false positive error logs when the server successfully started
     // generation but the client couldn't read the response
-    const isNetworkOrParseError = 
-      (error as any)?.isNetworkError || 
+    const isNetworkOrParseError =
+      (error as any)?.isNetworkError ||
       error instanceof TypeError ||
       (error as Error)?.message?.includes('Malformed response') ||
       (error as Error)?.message?.includes('Failed to fetch') ||
@@ -101,22 +101,22 @@ export async function generateAudioOverview(
       try {
         // Check for pending audio generation - if found, generation started successfully
         const pendingAudio = await audioService.findPending(notebookId);
-        
+
         if (pendingAudio) {
           // Generation actually started! Don't log as error, just log info
           if (__DEV__) {
             console.info(
-              '[Audio Overview API] Network/parsing error but generation started successfully',
+              '[Podcast API] Network/parsing error but generation started successfully',
               { overviewId: pendingAudio.id, status: pendingAudio.status }
             );
           }
-          
+
           // Mark error as recovered so it doesn't show in UI
           const enhancedError: any = error;
           enhancedError.isNetworkError = true;
           enhancedError.generationStarted = true;
           enhancedError.overviewId = pendingAudio.id;
-          
+
           // Re-throw without logging as error (recovery flow will handle it)
           throw enhancedError;
         }

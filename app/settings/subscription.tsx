@@ -1,16 +1,47 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 import { useStore } from '@/lib/store';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { restorePurchases } from '@/lib/purchases';
+import { usePaywall } from '@/lib/hooks/usePaywall';
 
 export default function SubscriptionScreen() {
     const { isDarkMode } = useTheme();
     const colors = getThemeColors(isDarkMode);
     const router = useRouter();
-    const { tier, trialEndsAt, isExpired } = useStore();
+    const { tier, trialEndsAt, isExpired, loadSubscription, authUser } = useStore();
+    const { showPaywall } = usePaywall({ source: 'settings_subscription' });
+
+    const handleRestore = async () => {
+        try {
+            const { isPro } = await restorePurchases();
+            if (isPro) {
+                if (authUser) loadSubscription(authUser.id);
+                Alert.alert("Success", "Your purchases have been restored.");
+            } else {
+                Alert.alert("Notice", "No active subscriptions found to restore.");
+            }
+        } catch (error) {
+            Alert.alert("Error", "Failed to restore purchases. Please try again later.");
+        }
+    };
+
+    const handlePresentPaywall = () => {
+        showPaywall();
+    };
+
+    const handleOpenCustomerCenter = () => {
+        // Open native subscription management
+        if (Platform.OS === 'ios') {
+            Linking.openURL('https://apps.apple.com/account/subscriptions');
+        } else {
+            Linking.openURL('https://play.google.com/store/account/subscriptions');
+        }
+    };
+
 
     // Calculate subscription status
     const getDaysLeft = () => {
@@ -29,8 +60,11 @@ export default function SubscriptionScreen() {
             ? 'Trial expired'
             : `Trial • ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`;
 
-    const badgeText = tier === 'premium' ? 'PREMIUM' : 'TRIAL';
-    const planTitle = tier === 'premium' ? 'Brigo Plus' : 'Brigo Trial';
+    const badgeText = tier === 'premium' ? 'PRO' : 'TRIAL';
+    const planTitle = tier === 'premium' ? 'Brigo Pro' : 'Trial';
+    const planTagline = tier === 'premium'
+        ? 'Unlimited notebooks • Priority AI • No Ads'
+        : `${daysLeft} days remaining in your pro trial`;
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -60,25 +94,42 @@ export default function SubscriptionScreen() {
                     </View>
 
                     <Text style={styles.planTitle}>{planTitle}</Text>
-                    <Text style={styles.planTagline}>Unlimited notebooks • Priority AI • No Ads</Text>
+                    <Text style={styles.planTagline}>{planTagline}</Text>
 
                     <View style={styles.featuresList}>
                         <View style={styles.featureItem}>
                             <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-                            <Text style={styles.featureText}>Unlimited Studio generation</Text>
+                            <Text style={styles.featureText}>
+                                {tier === 'premium' ? 'Unlimited Studio generation' : '5 Studio generations'}
+                            </Text>
+                        </View>
+                        <View style={styles.featureItem}>
+                            <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                            <Text style={styles.featureText}>
+                                {tier === 'premium' ? 'Unlimited Podcasts' : '3 Podcasts'}
+                            </Text>
                         </View>
                         <View style={styles.featureItem}>
                             <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
                             <Text style={styles.featureText}>Advanced AI tutoring mode</Text>
                         </View>
-                        <View style={styles.featureItem}>
-                            <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-                            <Text style={styles.featureText}>Exclusive pet customization</Text>
-                        </View>
                     </View>
                 </LinearGradient>
 
-                <TouchableOpacity style={[styles.manageButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                {tier !== 'premium' && (
+                    <TouchableOpacity
+                        style={[styles.upgradeButton, { backgroundColor: colors.primary }]}
+                        onPress={handlePresentPaywall}
+                    >
+                        <Text style={styles.upgradeButtonText}>UPGRADE TO PRO</Text>
+                        <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+                    </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                    style={[styles.manageButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                    onPress={handleOpenCustomerCenter}
+                >
                     <View style={styles.manageButtonLeft}>
                         <Ionicons name="card-outline" size={22} color={colors.textSecondary} />
                         <Text style={[styles.manageButtonText, { color: colors.text }]}>Manage Billing</Text>
@@ -86,7 +137,7 @@ export default function SubscriptionScreen() {
                     <Ionicons name="open-outline" size={18} color={colors.textMuted} />
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.restoreButton}>
+                <TouchableOpacity style={styles.restoreButton} onPress={handleRestore}>
                     <Text style={[styles.restoreButtonText, { color: colors.primary }]}>RESTORE PURCHASES</Text>
                 </TouchableOpacity>
 
@@ -180,6 +231,26 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontFamily: 'Nunito-Medium',
         color: '#FFFFFF',
+    },
+    upgradeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 18,
+        borderRadius: 20,
+        marginBottom: 16,
+        gap: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 4,
+    },
+    upgradeButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontFamily: 'Nunito-Bold',
+        letterSpacing: 0.5,
     },
     manageButton: {
         flexDirection: 'row',

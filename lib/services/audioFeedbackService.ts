@@ -1,6 +1,6 @@
 /**
  * Audio Feedback Service
- * Handles like/dislike operations for audio overviews
+ * Handles like/dislike operations for podcasts
  */
 
 import { supabase } from '@/lib/supabase';
@@ -62,7 +62,7 @@ export const audioFeedbackService = {
   },
 
   /**
-   * Save or update user's feedback for an audio overview
+   * Save or update user's feedback for a podcast
    * Uses upsert pattern: inserts if new, updates if exists
    * @param userId - The user's ID
    * @param audioOverviewId - The audio overview's ID
@@ -108,7 +108,7 @@ export const audioFeedbackService = {
   },
 
   /**
-   * Remove user's feedback for an audio overview
+   * Remove user's feedback for a podcast
    * @param userId - The user's ID
    * @param audioOverviewId - The audio overview's ID
    */
@@ -143,6 +143,10 @@ export const audioFeedbackService = {
     }
   },
 };
+
+
+
+
 
 
 

@@ -168,7 +168,7 @@ export interface Notebook {
   materials: Material[]; // Track source materials (for backward compatibility, but MVP is 1:1)
   meta?: {
     preview?: {
-      overview: string; // Comprehensive narrative overview (150-200 words, NotebookLM style)
+      overview: string; // Comprehensive narrative overview (150-200 words, Podcast style)
       // Backward compatibility: support old format
       tl_dr?: string; // DEPRECATED: Use overview instead
       bullets?: string[]; // DEPRECATED: No longer used

@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { ProgressSummary } from './ProgressSummary';
 import { useUpgrade } from '@/lib/hooks/useUpgrade';
 import type { LimitReason } from '@/lib/services/subscriptionService';
+import { usePaywall } from '@/lib/hooks/usePaywall';
 
 interface UpgradeModalProps {
   visible: boolean;
@@ -40,6 +41,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
   const colors = getThemeColors(isDarkMode);
   const router = useRouter();
   const { trackUpgradeButtonClicked } = useUpgrade();
+  const { showPaywall } = usePaywall({ source });
 
   const getMessage = () => {
     // For create_attempt source, show specific message based on limit reason
@@ -62,9 +64,9 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
         case 'quota_audio_exhausted':
           return {
             emoji: '🎧',
-            title: 'Audio limit reached',
+            title: 'Podcast limit reached',
             message:
-              "You've used all 3 audio overviews in your trial. Upgrade to Premium for unlimited audio summaries!",
+              "You've used all 3 podcasts in your trial. Upgrade to Premium for unlimited podcast summaries!",
           };
         case 'subscription_expired':
           return {
@@ -117,21 +119,8 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
 
   const handleUpgrade = () => {
     trackUpgradeButtonClicked(source);
-    // Temporary fallback until payment integration is ready
-    Alert.alert(
-      'Premium Coming Soon!',
-      "We're finalizing Premium subscriptions. Leave your email and we'll notify you when it's ready!",
-      [
-        {
-          text: 'Notify Me',
-          onPress: () => {
-            onDismiss();
-            router.push('/upgrade');
-          },
-        },
-        { text: 'Maybe Later', style: 'cancel' },
-      ]
-    );
+    onDismiss();
+    showPaywall();
   };
 
   const content = getMessage();

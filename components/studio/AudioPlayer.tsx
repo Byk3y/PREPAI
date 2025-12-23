@@ -71,7 +71,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audio }) => {
     } else {
       await sound.playAsync();
 
-      // Trigger "Listen to an audio overview" task (only once per session)
+      // Trigger "Listen to a podcast" task (only once per session)
       if (checkAndAwardTask && !hasTriggeredTaskRef.current) {
         hasTriggeredTaskRef.current = true;
         checkAndAwardTask('listen_audio_overview');

@@ -1,5 +1,5 @@
 /**
- * StudioTab - Generate flashcards, quizzes, and audio overviews
+ * StudioTab - Generate flashcards, quizzes, and podcasts
  * Orchestrates the studio generation UI and displays generated content
  */
 
@@ -35,7 +35,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
 
-  // Fetch studio content (flashcards, quizzes, audio overviews)
+  // Fetch studio content (flashcards, quizzes, podcasts)
   const {
     flashcards,
     quizzes,

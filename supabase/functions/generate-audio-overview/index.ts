@@ -1,6 +1,6 @@
 /**
- * Generate Audio Overview Edge Function
- * Creates NotebookLM-style podcast audio overviews using:
+ * Generate Podcast Edge Function
+ * Creates NotebookLM-style podcast audio using:
  * - Gemini 2.5 Pro for script generation
  * - Gemini 2.5 Flash TTS for audio generation
  */
@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Generating audio overview for notebook ${notebook_id}`);
+    console.log(`Generating podcast for notebook ${notebook_id}`);
 
     // 4. Fetch notebook and AUTHORIZE (verify ownership)
     const { data: notebook, error: notebookError } = await supabase
@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
     if (!rateLimitResult.allowed) {
       return new Response(
         JSON.stringify({
-          error: 'Too many requests. Please wait before generating more audio overviews.',
+          error: 'Too many requests. Please wait before generating more podcasts.',
           retryAfter: rateLimitResult.retryAfter,
           remaining: 0,
           resetAt: rateLimitResult.resetAt,
@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 5. CHECK QUOTA (trial users: 3 audio overviews)
+    // 5. CHECK QUOTA (trial users: 3 podcasts)
     const quotaCheck = await checkQuota(supabase, user.id, 'audio');
     if (!quotaCheck.allowed) {
       console.warn('Quota exceeded:', quotaCheck);
@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
       .insert({
         notebook_id,
         user_id: user.id,
-        title: `${notebook.title} - Audio Overview`,
+        title: `${notebook.title} - Podcast`,
         duration: 0, // Will be updated after generation
         storage_path: '', // Will be updated after upload
         script: '', // Will be updated after generation
@@ -212,17 +212,17 @@ Deno.serve(async (req) => {
       .single();
 
     if (createError || !overview) {
-      console.error('Failed to create audio overview record:', createError);
+      console.error('Failed to create podcast record:', createError);
       return new Response(
         JSON.stringify({
-          error: 'Failed to create audio overview record',
+          error: 'Failed to create podcast record',
           details: createError?.message || 'Unknown error'
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Created audio overview record: ${overview.id} (version ${nextVersion})`);
+    console.log(`Created podcast record: ${overview.id} (version ${nextVersion})`);
 
     // 10. GENERATE SCRIPT (Gemini 2.5 Pro - two-stage)
     let scriptResult;
@@ -368,7 +368,7 @@ Deno.serve(async (req) => {
       })
       .eq('id', overview.id);
 
-    console.log(`Audio overview completed: ${overview.id} (${totalCostCents}¢)`);
+    console.log(`Podcast completed: ${overview.id} (${totalCostCents}¢)`);
 
     // 15. INCREMENT QUOTA (atomic)
     await incrementQuota(supabase, user.id, 'audio');
@@ -394,7 +394,7 @@ Deno.serve(async (req) => {
       success: true,
       overview_id: overview.id,
       status: 'completed',
-      message: `Successfully generated ${actualDuration.toFixed(1)}-second audio overview`,
+      message: `Successfully generated ${actualDuration.toFixed(1)}-second podcast`,
     };
 
     return new Response(
@@ -403,7 +403,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error('Error generating audio overview:', error);
+    console.error('Error generating podcast:', error);
 
     // Log failed attempt
     try {

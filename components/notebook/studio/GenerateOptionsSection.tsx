@@ -46,7 +46,7 @@ export const GenerateOptionsSection: React.FC<GenerateOptionsSectionProps> = ({
         type="audio"
         icon="stats-chart"
         color="#4f46e5"
-        label="Audio Overview"
+        label="Podcast"
         bgColor="bg-indigo-50"
         textColor="text-indigo-600"
         isGenerating={generatingType === 'audio'}
@@ -82,6 +82,10 @@ export const GenerateOptionsSection: React.FC<GenerateOptionsSectionProps> = ({
     </View>
   );
 };
+
+
+
+
 
 
 

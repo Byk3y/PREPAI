@@ -103,27 +103,27 @@ testing_checklist:
 
 ⸻
 
-🟦 Task 3 — Generate Your First Audio Overview
+🟦 Task 3 — Generate Your First Podcast
 
 task_key: generate_audio_overview
 task_type: foundational
-title: Generate your first audio overview
-description: Use the Studio to generate an audio overview for any notebook.
+title: Generate your first podcast
+description: Use the Studio to generate a podcast for any notebook.
 points: 2 points
 trigger_event: audio_overview_completed
 display_order: 30
 validation_logic:
 	•	When an audio overview job enters completed status
 	•	Only first completion counts for this task
-	•	Server checks audio_overview_jobs table for user's first completed job
+	•	Server checks podcast_jobs table for user's first completed job
 
 appearance_rules:
 	•	Visible only if incomplete
 
 testing_checklist:
-	•	Simulate: Generate audio overview, wait for job completion
+	•	Simulate: Generate podcast, wait for job completion
 	•	Assert: Task marked complete, 2 points awarded
-	•	Simulate: Generate second audio overview
+	•	Simulate: Generate second podcast
 	•	Assert: Task remains completed, no additional points
 	•	Simulate: Job fails or is cancelled
 	•	Assert: Task not completed, no points awarded
@@ -205,17 +205,17 @@ testing_checklist:
 
 ⸻
 
-🟩 Task 6 — Listen to an Audio Overview
+🟩 Task 6 — Listen to a Podcast
 
 task_key: listen_audio_overview
 task_type: daily
-title: Listen to an audio overview
-description: Play any generated audio overview.
+title: Listen to a podcast
+description: Play any generated podcast.
 points: 1 point
 trigger_event: audio_playback_started
 display_order: 40
 validation_logic:
-	•	When user presses play on any audio overview (first play of the day)
+	•	When user presses play on any podcast (first play of the day)
 	•	No minimum seconds required for MVP
 	•	Server records first playback event per day (completion_date = today)
 	•	Future enhancement: Configurable minimum play duration (e.g., 30 seconds) can be added later
@@ -226,7 +226,7 @@ appearance_rules:
 	•	Shows as incomplete or complete only
 
 testing_checklist:
-	•	Simulate: Press play on audio overview
+	•	Simulate: Press play on podcast
 	•	Assert: Task marked complete immediately, 1 point awarded
 	•	Simulate: Press play again same day
 	•	Assert: Task remains completed, no duplicate points
@@ -312,10 +312,10 @@ Canonical Trigger Events:
 trigger_event	Fired When…
 pet_name_updated	User edits pet name (new value ≠ old value)
 material_created	A material row is created for any notebook (user has at least one material)
-audio_overview_completed	Audio overview job enters completed status
+podcast_completed	Podcast job enters completed status
 flashcard_completed	User completes a flashcard (counted in flashcard_completions)
 study_session_updated	Study timer records session duration (summed for daily total)
-audio_playback_started	User presses play on any audio overview (first play of day)
+podcast_playback_started	User presses play on any podcast (first play of day)
 streak_incremented	User opens app & streak increases by exactly 1 (not reset)
 
 The engineering guide will map these to functions (File 3).

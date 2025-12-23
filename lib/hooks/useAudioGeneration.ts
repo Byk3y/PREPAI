@@ -43,7 +43,7 @@ export const useAudioGeneration = (
                     setCompletedAudioId(overviewId);
                     setShowAudioNotification(true);
 
-                    // Trigger "Generate first audio overview" task
+                    // Trigger "Generate first podcast" task
                     if (checkAndAwardTask) {
                         checkAndAwardTask('generate_audio_overview');
                     }
@@ -55,7 +55,7 @@ export const useAudioGeneration = (
                     setGeneratingAudioId(null);
 
                     // Show error via centralized system
-                    const error = new Error(status.error_message || 'Failed to generate audio overview');
+                    const error = new Error(status.error_message || 'Failed to generate podcast');
                     await handleError(error, {
                         operation: 'audio_generation_failed',
                         component: 'audio-generation',
@@ -108,11 +108,11 @@ export const useAudioGeneration = (
                 setGeneratingAudioId(pendingAudio.id);
                 startAudioPolling(pendingAudio.id);
             } else {
-                // Recovery: Check for completed audio overviews that might have missed task award
+                // Recovery: Check for completed podcasts that might have missed task award
                 // This handles cases where the app was backgrounded or component unmounted
                 // before the polling detected completion.
                 // Note: We check for ANY completed audio overview for the user (not just this notebook)
-                // since the task is awarded once per user for their first completed audio overview.
+                // since the task is awarded once per user for their first completed podcast.
                 const { data: { user } } = await supabase.auth.getUser();
                 if (user && checkAndAwardTask) {
                     const hasCompleted = await audioService.hasCompleted(user.id);

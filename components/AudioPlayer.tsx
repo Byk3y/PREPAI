@@ -48,7 +48,7 @@ export function AudioPlayer({
     audioUrl,
     audioOverviewId,
     notebookId,
-    title = 'Audio Overview',
+    title = 'Podcast',
     duration = 0,
     onClose,
     onDownload,
