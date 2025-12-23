@@ -13,13 +13,16 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { APP_URLS } from '@/lib/constants';
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
+import { useStore } from '@/lib/store';
 
 interface Screen3Props {
   colors: ReturnType<typeof getThemeColors>;
+  onContinue: () => void;
 }
 
-export function Screen3({ colors }: Screen3Props) {
+export function Screen3({ colors, onContinue }: Screen3Props) {
   const router = useRouter();
+  const { authUser } = useStore();
   const { handleError } = useErrorHandler();
   const [termsAccepted, setTermsAccepted] = useState(false);
 
@@ -30,12 +33,22 @@ export function Screen3({ colors }: Screen3Props) {
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.replace('/auth');
+
+    if (authUser) {
+      // User is already signed in (returning from Google Auth skip), just advance
+      onContinue();
+    } else {
+      router.replace('/auth');
+    }
   };
 
   const handleLogin = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.replace('/auth');
+    if (authUser) {
+      onContinue();
+    } else {
+      router.replace('/auth');
+    }
   };
 
   const handleTermsPress = () => {

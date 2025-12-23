@@ -97,7 +97,7 @@ export default function OnboardingScreen() {
           // See docs/ZUSTAND_GETSTATE_PATTERN.md for details
           const store = useStore.getState();
           const loadedName = store.petState.name;
-          
+
           // Only set if we got a valid custom name
           if (loadedName && loadedName !== 'Nova' && loadedName.trim() !== '') {
             // Use function update to get the latest petName state
@@ -142,7 +142,7 @@ export default function OnboardingScreen() {
     // Pet Naming Screen - Save pet name before advancing
     if (currentScreen === SCREEN_INDICES.SCREEN_4_PET_NAMING) {
       const trimmedName = petName.trim();
-      
+
       // Validate pet name is not empty
       if (!trimmedName) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -151,7 +151,7 @@ export default function OnboardingScreen() {
 
       setIsNavigating(true);
       let saveSuccess = false;
-      
+
       try {
         if (authUser) {
           // User is logged in - save directly to database
@@ -180,12 +180,12 @@ export default function OnboardingScreen() {
           console.log('Pet name saved to pendingPetName:', trimmedName);
           saveSuccess = true;
         }
-        
+
         // Save progress for both logged-in and non-logged-in users
         // Use next screen index to ensure consistency
         const nextScreen = getNextScreen(currentScreen);
         setCurrentOnboardingScreen(nextScreen);
-        
+
         // Only advance if save was successful
         if (saveSuccess) {
           setCurrentScreen(nextScreen);
@@ -251,7 +251,7 @@ export default function OnboardingScreen() {
       case SCREEN_INDICES.SCREEN_2_SCIENCE:
         return <Screen2 colors={colors} />;
       case SCREEN_INDICES.SCREEN_3_SOLUTION:
-        return <Screen3 colors={colors} />;
+        return <Screen3 colors={colors} onContinue={handleContinue} />;
       case SCREEN_INDICES.SCREEN_4_ASSESSMENT:
         return (
           <Screen4_Assessment
@@ -277,8 +277,8 @@ export default function OnboardingScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       {/* Progress bar with milestones */}
-      <ProgressBar 
-        current={currentScreen + 1} 
+      <ProgressBar
+        current={currentScreen + 1}
         total={TOTAL_SCREENS}
         onBack={() => {
           if (!isFirstScreen(currentScreen)) {
@@ -294,7 +294,7 @@ export default function OnboardingScreen() {
           from={{ opacity: 0, translateX: 50 }}
           animate={{ opacity: 1, translateX: 0 }}
           exit={{ opacity: 0, translateX: -50 }}
-          transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+          transition={{ type: 'spring', damping: 20, stiffness: 100 } as any}
           style={styles.screenContent}
         >
           {renderScreen()}
