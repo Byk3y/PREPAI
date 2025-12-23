@@ -43,7 +43,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isFlipped, setIsFlipped] = useState(false);
-  
+
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
   const { play, haptic } = useFeedback();
@@ -219,16 +219,27 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 16, position: 'relative' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
         <TouchableOpacity
           onPress={onClose}
-          style={{ position: 'absolute', left: 24 }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Ionicons name="arrow-back" size={24} color={colors.icon} />
         </TouchableOpacity>
-        <Text style={{ fontSize: 18, fontFamily: 'Nunito-Medium', color: colors.text }} numberOfLines={1}>
-          {title} Flashcards
-        </Text>
+        <View style={{ flex: 1, marginHorizontal: 16 }}>
+          <Text
+            style={{
+              fontSize: 18,
+              fontFamily: 'Nunito-Medium',
+              color: colors.text,
+              textAlign: 'center'
+            }}
+            numberOfLines={1}
+          >
+            {title} Flashcards
+          </Text>
+        </View>
+        <View style={{ width: 24 }} /> {/* Spacer to balance the back arrow for centering */}
       </View>
 
       {/* Card Container */}
