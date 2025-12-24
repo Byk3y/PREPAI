@@ -21,7 +21,7 @@ interface FirstScreenProps {
 }
 
 export function FirstScreen({
-  imageSrc = require('@/assets/first-screen/splash.png'),
+  imageSrc = require('@/assets/onboarding/splash.png'),
   backgroundColor = '#faf9f6',
   textColor = '#ffffff',
   showAppName = true,

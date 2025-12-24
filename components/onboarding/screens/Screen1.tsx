@@ -31,7 +31,7 @@ export function Screen1({ colors }: Screen1Props) {
             transition={{ loop: true, type: 'timing', duration: 3000 } as any}
           >
             <Image
-              source={require('@/assets/first-screen/overwhelmed_brain.png')}
+              source={require('@/assets/onboarding/overwhelmed_brain.png')}
               style={styles.characterImage}
               resizeMode="contain"
             />

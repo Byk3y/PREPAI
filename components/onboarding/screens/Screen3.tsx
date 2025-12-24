@@ -104,7 +104,7 @@ export function Screen3({ colors, onContinue }: Screen3Props) {
             transition={{ loop: true, type: 'timing', duration: 4000 } as any}
           >
             <Image
-              source={require('@/assets/first-screen/buddy_brain.png')}
+              source={require('@/assets/onboarding/buddy_brain.png')}
               style={styles.characterImage}
               resizeMode="contain"
             />

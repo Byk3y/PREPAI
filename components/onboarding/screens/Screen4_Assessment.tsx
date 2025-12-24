@@ -190,7 +190,7 @@ export function Screen4_Assessment({ colors, onComplete }: Screen4AssessmentProp
             transition={{ loop: true, type: 'timing', duration: 3500 } as any}
           >
             <Image
-              source={require('@/assets/first-screen/thinking_brain.png')}
+              source={require('@/assets/onboarding/thinking_brain.png')}
               style={styles.characterImage}
               resizeMode="contain"
             />

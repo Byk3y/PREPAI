@@ -31,7 +31,7 @@ export function Screen2({ colors }: Screen2Props) {
             transition={{ loop: true, type: 'timing', duration: 3000 } as any}
           >
             <Image
-              source={require('@/assets/first-screen/smart_brain.png')}
+              source={require('@/assets/onboarding/smart_brain.png')}
               style={styles.characterImage}
               resizeMode="contain"
             />

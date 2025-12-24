@@ -51,7 +51,7 @@ export function Screen4_Results({ colors }: Screen4ResultsProps) {
             transition={{ loop: true, type: 'timing', duration: 3000 } as any}
           >
             <Image
-              source={require('@/assets/first-screen/success_brain.png')}
+              source={require('@/assets/onboarding/success_brain.png')}
               style={styles.characterImage}
               resizeMode="contain"
             />
