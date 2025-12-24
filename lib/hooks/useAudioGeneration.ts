@@ -12,7 +12,7 @@ export const useAudioGeneration = (
     onGenerationComplete: () => void
 ) => {
     const router = useRouter();
-    const { checkAndAwardTask } = useStore();
+    const { checkAndAwardTask, notify } = useStore();
     const { handleError } = useErrorHandler();
     const [generatingType, setGeneratingType] = useState<'flashcards' | 'quiz' | 'audio' | null>(null);
     const [generatingAudioId, setGeneratingAudioId] = useState<string | null>(null);
@@ -42,6 +42,14 @@ export const useAudioGeneration = (
                     setGeneratingAudioId(null);
                     setCompletedAudioId(overviewId);
                     setShowAudioNotification(true);
+
+                    // Global notification
+                    notify({
+                        type: 'audio',
+                        title: 'Podcast Ready!',
+                        message: `${notebookName} is ready to play`,
+                        data: { overviewId, notebookId }
+                    });
 
                     // Trigger "Generate first podcast" task
                     if (checkAndAwardTask) {

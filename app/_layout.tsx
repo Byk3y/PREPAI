@@ -43,6 +43,7 @@ import { ThemeProvider, useTheme, getThemeColors } from '@/lib/ThemeContext';
 import { ErrorNotificationProvider } from '@/lib/contexts/ErrorNotificationContext';
 import { ErrorNotificationContainer } from '@/components/ErrorNotificationContainer';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { InAppNotification } from '@/components/InAppNotification';
 import '../global.css';
 
 // Custom hooks for modular functionality
@@ -154,6 +155,7 @@ function RootLayoutInner() {
         style={{ width: 300, height: 300, opacity: 0, position: 'absolute', top: -9999, left: -9999 }}
         fadeDuration={0}
       />
+      <InAppNotification />
     </View>
   );
 }

@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { studioService } from '@/lib/services/studioService';
 import { audioService } from '@/lib/services/audioService';
-import type { StudioFlashcard, Quiz, AudioOverview } from '@/lib/store/types';
+import type { StudioFlashcard, Quiz, AudioOverview, FlashcardSet } from '@/lib/store/types';
 
 export const useStudioContent = (notebookId: string) => {
-    const [flashcards, setFlashcards] = useState<StudioFlashcard[]>([]);
+    const [flashcard_sets, setFlashcardSets] = useState<FlashcardSet[]>([]);
     const [quizzes, setQuizzes] = useState<Quiz[]>([]);
     const [audioOverviews, setAudioOverviews] = useState<AudioOverview[]>([]);
     const [loading, setLoading] = useState(true);
@@ -34,7 +34,7 @@ export const useStudioContent = (notebookId: string) => {
 
             clearTimeout(timeoutId);
 
-            setFlashcards(studioContent.flashcards);
+            setFlashcardSets(studioContent.flashcard_sets);
             setQuizzes(studioContent.quizzes);
             setAudioOverviews(audioOverviewsData);
         } catch (error) {
@@ -63,7 +63,7 @@ export const useStudioContent = (notebookId: string) => {
     }, [fetchContent]);
 
     return {
-        flashcards,
+        flashcard_sets,
         quizzes,
         audioOverviews,
         setAudioOverviews,

@@ -5,9 +5,17 @@
 import type { SubscriptionSlice } from '@/lib/store/slices/subscriptionSlice';
 
 /**
+ * Essential subscription data fields needed for checks
+ * (excludes store methods like loadSubscription/setSubscription)
+ */
+export type SubscriptionData = Pick<SubscriptionSlice,
+  'tier' | 'status' | 'isExpired' | 'trialEndsAt' | 'trialStartedAt' | 'studioJobsUsed' | 'audioJobsUsed' | 'studioJobsLimit' | 'audioJobsLimit' | 'subscriptionSyncedAt'
+>;
+
+/**
  * Check if trial is active (not expired and tier='trial')
  */
-export function isTrialActive(subscription: SubscriptionSlice): boolean {
+export function isTrialActive(subscription: SubscriptionData): boolean {
   return (
     subscription.tier === 'trial' &&
     subscription.status === 'active' &&
@@ -33,9 +41,9 @@ export function getDaysUntilExpiration(trialEndsAt: string | null): number {
 /**
  * Limit reason types
  */
-export type LimitReason = 
-  | 'trial_expired' 
-  | 'quota_studio_exhausted' 
+export type LimitReason =
+  | 'trial_expired'
+  | 'quota_studio_exhausted'
   | 'quota_audio_exhausted'
   | 'subscription_expired'
   | null;
@@ -126,7 +134,7 @@ export interface QuotaCheck {
  */
 export function checkQuotaRemaining(
   jobType: 'studio' | 'audio',
-  subscription: SubscriptionSlice
+  subscription: SubscriptionData
 ): QuotaCheck {
   // Premium users have unlimited quota (unless status is 'expired')
   if (subscription.tier === 'premium' && subscription.status !== 'expired') {
@@ -140,8 +148,8 @@ export function checkQuotaRemaining(
 
   // If trial expired, no quota available
   if (subscription.isExpired) {
-    const daysRemaining = subscription.trialEndsAt 
-      ? getDaysUntilExpiration(subscription.trialEndsAt) 
+    const daysRemaining = subscription.trialEndsAt
+      ? getDaysUntilExpiration(subscription.trialEndsAt)
       : 0;
     return { hasQuota: false, reason: 'trial_expired', daysRemaining };
   }
@@ -151,8 +159,8 @@ export function checkQuotaRemaining(
     const used = subscription.studioJobsUsed || 0;
     const limit = subscription.studioJobsLimit || 5;
     if (used >= limit) {
-      return { 
-        hasQuota: false, 
+      return {
+        hasQuota: false,
         reason: 'quota_studio_exhausted',
         quotaUsed: used,
         quotaLimit: limit
@@ -163,8 +171,8 @@ export function checkQuotaRemaining(
     const used = subscription.audioJobsUsed || 0;
     const limit = subscription.audioJobsLimit || 3;
     if (used >= limit) {
-      return { 
-        hasQuota: false, 
+      return {
+        hasQuota: false,
         reason: 'quota_audio_exhausted',
         quotaUsed: used,
         quotaLimit: limit
@@ -183,7 +191,7 @@ export function checkQuotaRemaining(
  */
 export function hasQuotaRemaining(
   jobType: 'studio' | 'audio',
-  subscription: SubscriptionSlice
+  subscription: SubscriptionData
 ): boolean {
   return checkQuotaRemaining(jobType, subscription).hasQuota;
 }
@@ -194,7 +202,7 @@ export function hasQuotaRemaining(
  */
 export function getRemainingQuota(
   jobType: 'studio' | 'audio',
-  subscription: SubscriptionSlice
+  subscription: SubscriptionData
 ): number {
   // Premium users have unlimited quota (unless expired)
   if (subscription.tier === 'premium' && subscription.status !== 'expired' && !subscription.isExpired) {
@@ -220,7 +228,7 @@ export function getRemainingQuota(
  * Check if user should see trial reminder
  * Shows when: tier='trial', days remaining <= 3 and > 0, not expired
  */
-export function shouldShowTrialReminder(subscription: SubscriptionSlice): boolean {
+export function shouldShowTrialReminder(subscription: SubscriptionData): boolean {
   if (subscription.tier !== 'trial' || subscription.isExpired) {
     return false;
   }
@@ -233,7 +241,7 @@ export function shouldShowTrialReminder(subscription: SubscriptionSlice): boolea
  * Check if user should see limited access banner
  * Shows when: trial expired and not premium
  */
-export function shouldShowLimitedAccessBanner(subscription: SubscriptionSlice): boolean {
+export function shouldShowLimitedAccessBanner(subscription: SubscriptionData): boolean {
   return subscription.isExpired && subscription.tier !== 'premium';
 }
 

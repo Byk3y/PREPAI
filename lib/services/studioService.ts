@@ -5,25 +5,60 @@
 
 import { supabase } from '@/lib/supabase';
 import { handleError } from '@/lib/errors';
-import type { StudioFlashcard, Quiz } from '@/lib/store/types';
+import type { StudioFlashcard, Quiz, FlashcardSet } from '@/lib/store/types';
 
 export const studioService = {
   /**
-   * Fetch all flashcards for a notebook
+   * Fetch all flashcard sets for a notebook
    */
-  fetchFlashcards: async (notebookId: string): Promise<StudioFlashcard[]> => {
+  fetchFlashcardSets: async (notebookId: string): Promise<FlashcardSet[]> => {
     try {
+      // Get sets and card counts
       const { data, error } = await supabase
-        .from('studio_flashcards')
-        .select('*')
+        .from('studio_flashcard_sets')
+        .select('*, cards:studio_flashcards(count)')
         .eq('notebook_id', notebookId)
         .order('created_at', { ascending: false });
 
       if (error) {
         await handleError(error, {
-          operation: 'fetch_flashcards',
+          operation: 'fetch_flashcard_sets',
           component: 'studio-service',
           metadata: { notebookId },
+        });
+        return [];
+      }
+
+      return (data || []).map(set => ({
+        ...set,
+        total_cards: (set.cards?.[0] as any)?.count || 0,
+      }));
+    } catch (error) {
+      await handleError(error, {
+        operation: 'fetch_flashcard_sets',
+        component: 'studio-service',
+        metadata: { notebookId },
+      });
+      return [];
+    }
+  },
+
+  /**
+   * Fetch individual flashcards by set_id
+   */
+  fetchFlashcardsBySet: async (setId: string): Promise<StudioFlashcard[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('studio_flashcards')
+        .select('*')
+        .eq('set_id', setId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        await handleError(error, {
+          operation: 'fetch_flashcards_by_set',
+          component: 'studio-service',
+          metadata: { setId },
         });
         return [];
       }
@@ -31,9 +66,9 @@ export const studioService = {
       return data || [];
     } catch (error) {
       await handleError(error, {
-        operation: 'fetch_flashcards',
+        operation: 'fetch_flashcards_by_set',
         component: 'studio-service',
-        metadata: { notebookId },
+        metadata: { setId },
       });
       return [];
     }
@@ -74,46 +109,53 @@ export const studioService = {
    * Fetch flashcards and quizzes in parallel
    */
   fetchAll: async (notebookId: string): Promise<{
-    flashcards: StudioFlashcard[];
+    flashcard_sets: FlashcardSet[];
     quizzes: Quiz[];
   }> => {
     try {
-      const [flashcards, quizzes] = await Promise.all([
-        studioService.fetchFlashcards(notebookId),
+      const [flashcard_sets, quizzes] = await Promise.all([
+        studioService.fetchFlashcardSets(notebookId),
         studioService.fetchQuizzes(notebookId),
       ]);
 
-      return { flashcards, quizzes };
+      return { flashcard_sets, quizzes };
     } catch (error) {
       await handleError(error, {
         operation: 'fetch_studio_content',
         component: 'studio-service',
         metadata: { notebookId },
       });
-      return { flashcards: [], quizzes: [] };
+      return { flashcard_sets: [], quizzes: [] };
     }
   },
 
   /**
    * Fetch flashcard progress for a notebook
    */
-  fetchFlashcardProgress: async (notebookId: string, userId: string): Promise<{
+  fetchFlashcardProgress: async (notebookId: string, userId: string, setId?: string): Promise<{
     last_flashcard_id: string | null;
     last_index: number;
   } | null> => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('user_flashcard_progress')
         .select('last_flashcard_id, last_index')
         .eq('notebook_id', notebookId)
-        .eq('user_id', userId)
-        .maybeSingle();
+        .eq('user_id', userId);
+
+      if (setId) {
+        query = query.eq('set_id', setId);
+      } else {
+        query = query.is('set_id', null);
+      }
+
+      const { data, error } = await query.maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
         await handleError(error, {
           operation: 'fetch_flashcard_progress',
           component: 'studio-service',
-          metadata: { notebookId, userId },
+          metadata: { notebookId, userId, setId },
         });
         return null;
       }
@@ -123,7 +165,7 @@ export const studioService = {
       await handleError(error, {
         operation: 'fetch_flashcard_progress',
         component: 'studio-service',
-        metadata: { notebookId, userId },
+        metadata: { notebookId, userId, setId },
       });
       return null;
     }
@@ -136,20 +178,25 @@ export const studioService = {
     notebookId: string,
     userId: string,
     lastFlashcardId: string | null,
-    lastIndex: number
+    lastIndex: number,
+    setId?: string
   ): Promise<void> => {
     try {
+      const match: any = { notebook_id: notebookId, user_id: userId };
+      if (setId) match.set_id = setId;
+      else match.set_id = null;
+
       const { error } = await supabase
         .from('user_flashcard_progress')
         .upsert(
           {
-            user_id: userId,
-            notebook_id: notebookId,
+            ...match,
             last_flashcard_id: lastFlashcardId,
             last_index: lastIndex,
+            updated_at: new Date().toISOString(),
           },
           {
-            onConflict: 'user_id,notebook_id',
+            onConflict: 'user_id,notebook_id,set_id',
           }
         );
 

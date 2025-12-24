@@ -21,6 +21,11 @@ import { checkQuota } from '../_shared/quota.ts';
 import { getRequiredEnv, getOptionalEnv } from '../_shared/env.ts';
 import { getCorsHeaders, getCorsPreflightHeaders } from '../_shared/cors.ts';
 import { checkRateLimit, RATE_LIMITS } from '../_shared/ratelimit.ts';
+import { estimatePageCount } from '../_shared/pdf/utils.ts';
+
+// Large PDF thresholds - PDFs exceeding these are processed in background
+const LARGE_PDF_THRESHOLD_PAGES = 20; // Lowered from 50
+const LARGE_PDF_THRESHOLD_BYTES = 5 * 1024 * 1024; // Lowered from 10MB
 
 /**
  * Extract content based on material type
@@ -402,6 +407,123 @@ Deno.serve(async (req) => {
     //   - Studio jobs (flashcards/quiz generation) - 5 for trial
     //   - Audio jobs (podcast generation) - 3 for trial
     // Quota check will be added in Phase 3 (Studio) and Phase 4 (Audio)
+
+    // LARGE PDF DETECTION: Route large PDFs to background processing
+    if (material.kind === 'pdf' && material.storage_path) {
+      try {
+        // Get file metadata to check size
+        const { data: fileList, error: listError } = await supabase.storage
+          .from('uploads')
+          .list(material.storage_path.substring(0, material.storage_path.lastIndexOf('/')), {
+            search: material.storage_path.substring(material.storage_path.lastIndexOf('/') + 1),
+          });
+
+        let fileSizeBytes = 0;
+        if (fileList && fileList.length > 0) {
+          fileSizeBytes = fileList[0].metadata?.size || 0;
+        }
+
+        // If file is large, check page count by downloading header
+        let estimatedPages = 0;
+        const isLargeBySize = fileSizeBytes > LARGE_PDF_THRESHOLD_BYTES;
+
+        if (material.kind === 'pdf') {
+          // If file is large or we suspect it might be, check page count
+          // Range check: if > 2MB, check for page count. 
+          // 2MB is a safe threshold where even text-heavy PDFs might have many pages.
+          if (fileSizeBytes > 2 * 1024 * 1024 || fileSizeBytes === 0) {
+            try {
+              // Create a signed URL to fetch just the header using Range
+              const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+                .from('uploads')
+                .createSignedUrl(material.storage_path, 60);
+
+              if (signedUrlError) {
+                console.warn('[process-material] Failed to get signed URL for estimation:', signedUrlError);
+              } else if (signedUrlData) {
+                // Fetch only the first 1KB - enough for most PDF headers and metadata
+                const response = await fetch(signedUrlData.signedUrl, {
+                  headers: { 'Range': 'bytes=0-1024' }
+                });
+
+                if (response.ok || response.status === 206) {
+                  const buffer = new Uint8Array(await response.arrayBuffer());
+                  estimatedPages = estimatePageCount(buffer);
+                  console.log(`[process-material] Estimated pages from header: ${estimatedPages}`);
+                }
+              }
+            } catch (e) {
+              console.warn('[process-material] Error estimating pages with range request:', e);
+            }
+          } else {
+            // Small file (< 2MB), unlikely to be > 50 pages unless it's pure text
+            // We'll still do a quick estimation if we have the buffer, but usually 
+            // these are safe for synchronous processing.
+          }
+        }
+
+        const isLargePDF = isLargeBySize || estimatedPages > LARGE_PDF_THRESHOLD_PAGES;
+
+        if (isLargePDF) {
+          console.log(
+            `[process-material] Large PDF detected: ${estimatedPages} pages, ${(fileSizeBytes / 1024 / 1024).toFixed(2)}MB. ` +
+            `Routing to background processing.`
+          );
+
+          // Update notebook status to indicate background processing
+          await supabase
+            .from('notebooks')
+            .update({
+              status: 'extracting',
+              meta: {
+                background_processing: true,
+                estimated_pages: estimatedPages,
+                file_size_bytes: fileSizeBytes,
+              },
+            })
+            .eq('id', notebookId);
+
+          // Enqueue job for background processing
+          const { data: jobId, error: enqueueError } = await supabase.rpc('enqueue_processing_job', {
+            p_user_id: userId,
+            p_material_id: material_id,
+            p_notebook_id: notebookId,
+            p_job_type: 'pdf_extraction',
+            p_estimated_pages: estimatedPages,
+            p_file_size_bytes: fileSizeBytes,
+            p_priority: 0,
+          });
+
+          if (enqueueError) {
+            console.error('[process-material] Failed to enqueue job:', enqueueError);
+            // Fall through to synchronous processing as fallback
+          } else {
+            // Trigger background worker (fire-and-forget)
+            supabase.functions.invoke('process-large-pdf', {
+              body: { job_id: jobId },
+            }).catch((err: any) => {
+              console.warn('[process-material] Background worker trigger failed, job will be picked up by scheduler:', err.message);
+            });
+
+            return new Response(
+              JSON.stringify({
+                success: true,
+                material_id,
+                notebook_id: notebookId,
+                background_processing: true,
+                job_id: jobId,
+                estimated_pages: estimatedPages,
+                message: 'Large PDF queued for background processing. Check status via realtime subscription.',
+              }),
+              { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+      } catch (sizeCheckError: any) {
+        console.warn('[process-material] Could not check PDF size, proceeding with sync processing:', sizeCheckError.message);
+        // Continue with synchronous processing
+      }
+    }
 
     // Update notebook status to 'extracting' for processing
     await supabase

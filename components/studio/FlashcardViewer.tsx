@@ -29,6 +29,7 @@ interface FlashcardViewerProps {
   initialIndex?: number;
   onClose: () => void;
   title?: string;
+  setId?: string;
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -40,6 +41,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
   initialIndex = 0,
   onClose,
   title = 'Flashcards',
+  setId,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -75,7 +77,8 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
           notebookId,
           authUser.id,
           card.id,
-          indexToSave
+          indexToSave,
+          setId
         );
       } catch (err) {
         // Silently ignore; progress save failures shouldn't block UI

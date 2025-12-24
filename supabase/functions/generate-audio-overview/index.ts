@@ -1,11 +1,11 @@
 /**
  * Generate Podcast Edge Function
  * Creates NotebookLM-style podcast audio using:
- * - Gemini 2.5 Pro for script generation
+ * - Gemini 2.0 Pro for script generation
  * - Gemini 2.5 Flash TTS for audio generation
  */
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient } from 'supabase';
 import { checkQuota, incrementQuota } from '../_shared/quota.ts';
 import { generatePodcastScript, validateScript } from '../_shared/script-generator.ts';
 import { generatePodcastAudioWithRetry, getAudioDuration } from '../_shared/gemini-tts.ts';
@@ -379,7 +379,7 @@ Deno.serve(async (req) => {
       user_id: user.id,
       notebook_id,
       job_type: 'audio',
-      model_used: 'gemini-2.5-pro + gemini-2.5-flash-tts',
+      model_used: 'gemini-2.5-pro + gemini-2.5-flash-preview-tts',
       input_tokens: scriptResult.llmTokens,
       output_tokens: audioResult.audioTokens,
       total_tokens: scriptResult.llmTokens + audioResult.audioTokens,

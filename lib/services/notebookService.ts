@@ -75,12 +75,12 @@ export const notebookService = {
                     notebook.material.fileUri,
                     notebook.material.filename
                 );
-            if (uploadResult.error) {
-                // Continue with local URI in dev mode or as fallback
-                storagePath = notebook.material.fileUri;
-            } else {
-                storagePath = uploadResult.storagePath;
-            }
+                if (uploadResult.error) {
+                    // Continue with local URI in dev mode or as fallback
+                    storagePath = notebook.material.fileUri;
+                } else {
+                    storagePath = uploadResult.storagePath;
+                }
             }
 
             // Step 2: Determine upload type
@@ -182,7 +182,8 @@ export const notebookService = {
         notebookId: string,
         materialId: string,
         isFileUpload: boolean,
-        storagePath?: string
+        storagePath?: string,
+        userId?: string
     ) => {
         // Check if file upload failed and fell back to local URI
         if (isFileUpload && storagePath && storagePath.startsWith('file://')) {
@@ -200,7 +201,7 @@ export const notebookService = {
             // Trigger Edge Function asynchronously
             // Create timeout promise (60 seconds)
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Edge Function request timed out after 60s')), 60000)
+                setTimeout(() => reject(new Error('Edge Function request timed out after 120s')), 120000)
             );
 
             // Race between Edge Function invocation and timeout
@@ -227,6 +228,18 @@ export const notebookService = {
                     return { status: 'failed', error };
                 } else {
                     console.log('Edge Function triggered successfully:', data);
+
+                    // Check if this is a background processing response
+                    if (data?.background_processing && data?.job_id) {
+                        console.log('Large PDF queued for background processing:', data.job_id);
+                        return {
+                            status: 'background_processing',
+                            data,
+                            jobId: data.job_id,
+                            estimatedPages: data.estimated_pages,
+                        };
+                    }
+
                     return { status: 'success', data };
                 }
 
@@ -400,29 +413,32 @@ export const notebookService = {
                 return null;
             }
 
+            const materialsArr = Array.isArray(data.materials) ? data.materials : [];
+            const materialObj = materialsArr[0];
+
             // Transform Supabase data to Notebook format
             return {
                 id: data.id,
                 title: data.title,
-                flashcardCount: data.flashcard_count || 0,
-                lastStudied: data.last_studied,
-                progress: data.progress || 0,
-                createdAt: data.created_at,
-                color: data.color,
+                flashcardCount: (data as any).flashcard_count || 0,
+                lastStudied: (data as any).last_studied || undefined,
+                progress: (data as any).progress || 0,
+                createdAt: data.created_at || new Date().toISOString(),
+                color: (data as any).color as Notebook['color'],
                 status: data.status as Notebook['status'],
-                meta: data.meta || {},
-                materials: data.materials
+                meta: (data.meta as any) || {},
+                materials: materialObj
                     ? [
                         {
-                            id: data.materials.id,
-                            type: data.materials.kind as Material['type'],
-                            uri: data.materials.storage_path || data.materials.external_url,
-                            filename: getFilenameFromPath(data.materials.storage_path),
-                            content: data.materials.content,
-                            preview_text: data.materials.preview_text,
+                            id: materialObj.id,
+                            type: materialObj.kind as Material['type'],
+                            uri: materialObj.storage_path || materialObj.external_url || undefined,
+                            filename: getFilenameFromPath(materialObj.storage_path || undefined),
+                            content: materialObj.content || undefined,
+                            preview_text: materialObj.preview_text || undefined,
                             title: data.title,
-                            createdAt: data.materials.created_at,
-                            thumbnail: data.materials.thumbnail,
+                            createdAt: materialObj.created_at || new Date().toISOString(),
+                            thumbnail: materialObj.thumbnail || undefined,
                         },
                     ]
                     : [],

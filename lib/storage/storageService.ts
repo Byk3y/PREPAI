@@ -145,7 +145,7 @@ export const storageService = {
       if (!isValidUUID(userId)) {
         throw new Error('Invalid user ID format');
       }
-      if (!isValidUUID(materialId)) {
+      if (!isValidUUID(materialId) && !materialId.startsWith('temp-')) {
         throw new Error('Invalid material ID format');
       }
 

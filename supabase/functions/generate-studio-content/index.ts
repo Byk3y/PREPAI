@@ -3,7 +3,7 @@
  * Generates flashcards or quiz questions from material content using Grok 4.1 Fast
  */
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient } from 'supabase';
 import { callLLMWithRetry } from '../_shared/openrouter.ts';
 import { checkQuota, incrementQuota } from '../_shared/quota.ts';
 import { getRequiredEnv, getOptionalEnv } from '../_shared/env.ts';
@@ -174,9 +174,10 @@ Deno.serve(async (req) => {
 
     // 7. Calculate dynamic quantity based on word count
     const wordCount = material.content.split(/\s+/).length;
+    // Increased density and capacity (Free: ~50 cards max, ~20 quiz max)
     const quantity = content_type === 'flashcards'
-      ? Math.max(5, Math.min(20, Math.floor(wordCount / 400)))
-      : Math.max(3, Math.min(10, Math.floor(wordCount / 600)));
+      ? Math.max(10, Math.min(50, Math.floor(wordCount / 200)))
+      : Math.max(5, Math.min(20, Math.floor(wordCount / 300)));
 
     console.log(`Calculated quantity: ${quantity} ${content_type} (${wordCount} words)`);
 
@@ -221,11 +222,35 @@ Deno.serve(async (req) => {
         throw new Error('Invalid flashcards response structure');
       }
 
+      // Create a new flashcard set/deck
+      const { count } = await supabase
+        .from('studio_flashcard_sets')
+        .select('id', { count: 'exact', head: true })
+        .eq('notebook_id', notebook_id);
+
+      const setNumber = (count || 0) + 1;
+      const { data: set, error: setError } = await supabase
+        .from('studio_flashcard_sets')
+        .insert({
+          notebook_id,
+          title: parsed.title || `${notebook.title} Flashcards ${setNumber}`,
+        })
+        .select()
+        .single();
+
+      if (setError || !set) {
+        console.error('Failed to create flashcard set:', setError);
+        throw new Error(`Database error: ${setError?.message || 'Failed to create set'}`);
+      }
+
+      contentId = set.id;
+
       const { data: inserted, error: insertError } = await supabase
         .from('studio_flashcards')
         .insert(
           parsed.flashcards.map((fc: any) => ({
             notebook_id,
+            set_id: set.id,
             question: fc.question,
             answer: fc.answer,
             explanation: fc.explanation || null,
@@ -236,11 +261,13 @@ Deno.serve(async (req) => {
 
       if (insertError) {
         console.error('Failed to insert flashcards:', insertError);
+        // Clean up orphaned set
+        await supabase.from('studio_flashcard_sets').delete().eq('id', set.id);
         throw new Error(`Database error: ${insertError.message}`);
       }
 
       generatedCount = inserted?.length || 0;
-      console.log(`Inserted ${generatedCount} flashcards`);
+      console.log(`Inserted ${generatedCount} flashcards into set ${set.id}`);
     } else {
       // Quiz generation
       if (!parsed.quiz || !parsed.quiz.questions || !Array.isArray(parsed.quiz.questions)) {
@@ -252,7 +279,7 @@ Deno.serve(async (req) => {
         if (q.explanations) {
           const keys = Object.keys(q.explanations);
           if (!keys.includes('A') || !keys.includes('B') ||
-              !keys.includes('C') || !keys.includes('D')) {
+            !keys.includes('C') || !keys.includes('D')) {
             console.warn(`Question missing explanation keys: ${q.question.substring(0, 50)}...`);
             // Set to null if incomplete rather than failing
             q.explanations = null;
@@ -384,6 +411,7 @@ Your task: Create exactly ${count} flashcards from the provided material.
 
 OUTPUT FORMAT (JSON only, no markdown):
 {
+  "title": "Descriptive title for this set",
   "flashcards": [
     {
       "question": "Clear, specific question testing understanding",

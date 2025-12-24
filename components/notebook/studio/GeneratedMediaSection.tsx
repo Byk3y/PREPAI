@@ -12,20 +12,20 @@ import { StudioMediaItem } from './StudioMediaItem';
 import { StudioEmptyState } from './StudioEmptyState';
 import { formatDuration, getTimeAgo } from '@/lib/utils/studio';
 import { LOADING_MESSAGES } from '@/lib/constants/loadingMessages';
-import type { StudioFlashcard, Quiz, AudioOverview } from '@/lib/store/types';
+import type { StudioFlashcard, Quiz, AudioOverview, FlashcardSet } from '@/lib/store/types';
 
 type GeneratingType = 'flashcards' | 'quiz' | 'audio' | null;
 
 // Unified media item type for sorting
 type MediaItem =
-  | { type: 'flashcard'; data: { count: number }; createdAt: string }
+  | { type: 'flashcard_set'; data: FlashcardSet; createdAt: string }
   | { type: 'quiz'; data: Quiz; createdAt: string }
   | { type: 'audio'; data: AudioOverview; createdAt: string };
 
 interface GeneratedMediaSectionProps {
   notebookId: string;
   notebookTitle: string;
-  flashcards: StudioFlashcard[];
+  flashcard_sets: FlashcardSet[];
   quizzes: Quiz[];
   audioOverviews: AudioOverview[];
   loading: boolean;
@@ -37,7 +37,7 @@ interface GeneratedMediaSectionProps {
 export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
   notebookId,
   notebookTitle,
-  flashcards,
+  flashcard_sets,
   quizzes,
   audioOverviews,
   loading,
@@ -54,16 +54,14 @@ export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
   const sortedMediaItems = useMemo(() => {
     const items: MediaItem[] = [];
 
-    // Add flashcards (if any exist)
-    if (flashcards.length > 0) {
-      // Use the most recent flashcard's created_at as the date
-      const latestFlashcard = flashcards[0]; // Already sorted descending from query
+    // Add flashcard sets
+    flashcard_sets.forEach((set) => {
       items.push({
-        type: 'flashcard',
-        data: { count: flashcards.length },
-        createdAt: latestFlashcard.created_at,
+        type: 'flashcard_set',
+        data: set,
+        createdAt: set.created_at,
       });
-    }
+    });
 
     // Add quizzes
     quizzes.forEach((quiz) => {
@@ -89,20 +87,23 @@ export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
       const dateB = new Date(b.createdAt).getTime();
       return dateA - dateB;
     });
-  }, [flashcards, quizzes, audioOverviews]);
+  }, [flashcard_sets, quizzes, audioOverviews]);
 
   const renderMediaItem = (item: MediaItem) => {
-    if (item.type === 'flashcard') {
+    if (item.type === 'flashcard_set') {
       return (
         <StudioMediaItem
-          key="flashcards"
+          key={item.data.id}
           icon="albums-outline"
           iconColor="#dc2626"
-          title={`${notebookTitle} Flashcards`}
-          subtitle={`${item.data.count} cards • 1 source • ${getTimeAgo(item.createdAt)}`}
+          title={item.data.title}
+          subtitle={`${item.data.total_cards || 0} cards • ${getTimeAgo(item.createdAt)}`}
           onPress={() => {
             play('start');
-            router.push(`/flashcards/${notebookId}`);
+            router.push({
+              pathname: `/flashcards/${notebookId}`,
+              params: { setId: item.data.id }
+            });
           }}
         />
       );
@@ -152,7 +153,7 @@ export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
         Generated media
       </Text>
 
-      {loading ? (
+      {loading && sortedMediaItems.length === 0 ? (
         <View style={{ alignItems: 'center', paddingVertical: 48 }}>
           <TikTokLoader size={12} color="#6366f1" containerWidth={60} />
         </View>
@@ -160,6 +161,13 @@ export const GeneratedMediaSection: React.FC<GeneratedMediaSectionProps> = ({
         <>
           {/* Sorted Media Items (chronologically, newest at bottom) */}
           {sortedMediaItems.map(renderMediaItem)}
+
+          {/* Background loading indicator if needed */}
+          {loading && sortedMediaItems.length > 0 && (
+            <View style={{ alignItems: 'center', paddingVertical: 16, opacity: 0.6 }}>
+              <TikTokLoader size={8} color="#6366f1" containerWidth={40} />
+            </View>
+          )}
 
           {/* Generating States */}
           {generatingType === 'flashcards' && (

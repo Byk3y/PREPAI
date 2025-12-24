@@ -100,9 +100,20 @@ export interface Material {
 }
 
 // Studio feature types (separate from legacy exam flashcards)
+export interface FlashcardSet {
+  id: string;
+  notebook_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  cards?: StudioFlashcard[];
+  total_cards?: number;
+}
+
 export interface StudioFlashcard {
   id: string;
   notebook_id: string;
+  set_id?: string;
   question: string;
   answer: string;
   explanation?: string;
@@ -178,7 +189,7 @@ export interface Notebook {
     summary?: string | null; // Only set in Studio tab, null during upload
   };
   // Studio generated content
-  studio_flashcards?: StudioFlashcard[];
+  flashcard_sets?: FlashcardSet[];
   quizzes?: Quiz[];
   audio_overviews?: AudioOverview[];
 }

@@ -16,7 +16,6 @@ import { useStudioGeneration } from '@/lib/hooks/useStudioGeneration';
 import { useAppState } from '@/lib/hooks/useAppState';
 
 // Components
-import { AudioReadyNotification } from '@/components/AudioReadyNotification';
 import { StudioExtractingState } from './studio/StudioExtractingState';
 import { GenerateOptionsSection } from './studio/GenerateOptionsSection';
 import { GeneratedMediaSection } from './studio/GeneratedMediaSection';
@@ -37,7 +36,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
 
   // Fetch studio content (flashcards, quizzes, podcasts)
   const {
-    flashcards,
+    flashcard_sets,
     quizzes,
     audioOverviews,
     setAudioOverviews,
@@ -72,7 +71,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
     upgradeModalProps,
   } = useStudioGeneration({
     notebookId: notebook.id,
-    flashcardsCount: flashcards.length,
+    flashcardsCount: flashcard_sets.length,
     quizzesCount: quizzes.length,
     audioOverviewsCount: audioOverviews.length,
     setAudioOverviews,
@@ -138,7 +137,7 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
         <GeneratedMediaSection
           notebookId={notebook.id}
           notebookTitle={notebook.title}
-          flashcards={flashcards}
+          flashcard_sets={flashcard_sets}
           quizzes={quizzes}
           audioOverviews={audioOverviews}
           loading={loading}
@@ -148,16 +147,6 @@ export const StudioTab: React.FC<StudioTabProps> = ({ notebook, onGenerateQuiz }
         />
       </ScrollView>
 
-      {/* Audio Ready Notification */}
-      {completedAudioId && (
-        <AudioReadyNotification
-          visible={showAudioNotification}
-          notebookName={notebookName}
-          overviewId={completedAudioId}
-          onDismiss={dismissNotification}
-          onListenNow={handleListenNow}
-        />
-      )}
 
       {/* Upgrade Modal (quota exceeded) */}
       {upgradeModalSource && (

@@ -4,34 +4,16 @@
     "strict": true,
     "isolatedModules": true,
     "allowImportingTsExtensions": true,
-    "types": ["deno.ns"],
-    "lib": ["deno.ns", "dom"]
+    "types": [
+      "deno.ns"
+    ],
+    "lib": [
+      "deno.ns",
+      "dom"
+    ]
   },
   "tasks": {
-    "check": "deno check --import-map=./import_map.json generate-audio-overview/index.ts generate-studio-content/index.ts process-material/index.ts",
+    "check": "deno check --import-map=./import_map.json generate-audio-overview/index.ts generate-studio-content/index.ts process-material/index.ts process-large-pdf/index.ts",
     "lint": "deno lint"
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -8,7 +8,7 @@ import { useStore } from '@/lib/store';
 import type { AudioOverview } from '@/lib/store/types';
 import { useErrorHandler } from './useErrorHandler';
 import { checkQuotaRemaining } from '@/lib/services/subscriptionService';
-import type { LimitReason } from '@/lib/services/subscriptionService';
+import type { LimitReason, SubscriptionData } from '@/lib/services/subscriptionService';
 import { useUpgrade } from '@/lib/hooks/useUpgrade';
 
 interface UseStudioGenerationParams {
@@ -35,15 +35,15 @@ export const useStudioGeneration = ({
   setGeneratingAudioId,
   startAudioPolling,
 }: UseStudioGenerationParams) => {
-  const { checkAndAwardTask, tier, status, isExpired, studioJobsUsed, studioJobsLimit, audioJobsUsed, audioJobsLimit, trialEndsAt, trialStartedAt, subscriptionSyncedAt, user, notebooks, cachedPetState, flashcardsStudied } = useStore();
+  const { checkAndAwardTask, tier, status, isExpired, studioJobsUsed, studioJobsLimit, audioJobsUsed, audioJobsLimit, trialEndsAt, trialStartedAt, subscriptionSyncedAt, user, notebooks, cachedPetState, flashcardsStudied, notify } = useStore();
   const { handleError, withErrorHandling } = useErrorHandler();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeModalSource, setUpgradeModalSource] = useState<'create_attempt' | null>(null);
   const [limitReason, setLimitReason] = useState<LimitReason>(null);
   const { trackCreateAttemptBlocked, trackUpgradeModalShown, trackUpgradeModalDismissed, trackUpgradeButtonClicked } = useUpgrade();
-  
+
   // Memoize subscription object for quota checks to avoid unnecessary re-renders
-  const subscription = useMemo(() => ({
+  const subscription: SubscriptionData = useMemo(() => ({
     tier,
     status,
     trialEndsAt,
@@ -55,6 +55,13 @@ export const useStudioGeneration = ({
     isExpired,
     subscriptionSyncedAt,
   }), [tier, status, trialEndsAt, trialStartedAt, studioJobsUsed, audioJobsUsed, studioJobsLimit, audioJobsLimit, isExpired, subscriptionSyncedAt]);
+
+  /**
+   * Get notebook title for notifications
+   */
+  const notebookTitle = useMemo(() => {
+    return notebooks.find(n => n.id === notebookId)?.title || 'your notebook';
+  }, [notebooks, notebookId]);
 
   /**
    * Generate flashcards for the notebook
@@ -103,11 +110,12 @@ export const useStudioGeneration = ({
       // Refresh studio content
       await refreshContent();
 
-      Alert.alert(
-        'Success!',
-        `Generated ${result.generated_count} flashcards. Tap to view them below.`,
-        [{ text: 'OK' }]
-      );
+      notify({
+        type: 'flashcards',
+        title: 'Flashcards Ready!',
+        message: `Generated ${result.generated_count} cards for ${notebookTitle}`,
+        data: { notebookId: notebookId, setId: result.content_id }
+      });
     } catch (error: any) {
       // Error already handled by API layer and displayed via ErrorNotificationContext
       // No need for Alert.alert - error UI will show automatically
@@ -163,11 +171,12 @@ export const useStudioGeneration = ({
       // Refresh studio content
       await refreshContent();
 
-      Alert.alert(
-        'Success!',
-        `Generated a ${result.generated_count}-question quiz. Tap to take it below.`,
-        [{ text: 'OK' }]
-      );
+      notify({
+        type: 'quiz',
+        title: 'Quiz Ready!',
+        message: `${notebookTitle} is ready for testing`,
+        data: { quizId: result.content_id }
+      });
     } catch (error: any) {
       // Error already handled by API layer and displayed via ErrorNotificationContext
       // No need for Alert.alert - error UI will show automatically

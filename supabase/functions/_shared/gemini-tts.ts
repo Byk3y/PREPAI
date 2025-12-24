@@ -283,7 +283,7 @@ export async function generatePodcastAudio(
       // Parse sample rate from WAV header (most reliable method)
       // If we just created the WAV from PCM, we already know the sample rate
       let sampleRate = knownSampleRate;
-      
+
       if (sampleRate === null) {
         // Parse from WAV header
         const parsedRate = parseWavSampleRate(audioBytes);

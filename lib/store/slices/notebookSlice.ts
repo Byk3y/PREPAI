@@ -108,30 +108,34 @@ export const createNotebookSlice: StateCreator<
       const { newNotebook, material, isFileUpload, storagePath } = await notebookService.createNotebook(authUser.id, notebook as any);
 
       // 2. Optimistic Update
+      const materialsArr = Array.isArray(newNotebook.materials) ? newNotebook.materials : [];
+      const materialObj = materialsArr[0];
+
       const transformedNotebook: Notebook = {
         id: newNotebook.id,
         title: newNotebook.title,
-        flashcardCount: newNotebook.flashcard_count || 0,
-        lastStudied: newNotebook.last_studied,
-        progress: newNotebook.progress || 0,
-        createdAt: newNotebook.created_at,
-        color: newNotebook.color,
+        flashcardCount: (newNotebook as any).flashcard_count || 0,
+        lastStudied: (newNotebook as any).last_studied || undefined,
+        progress: (newNotebook as any).progress || 0,
+        createdAt: newNotebook.created_at || new Date().toISOString(),
+        color: (newNotebook as any).color as Notebook['color'],
         status: newNotebook.status as Notebook['status'],
-        meta: newNotebook.meta || {},
-        materials: newNotebook.materials
+        meta: (newNotebook.meta as any) || {},
+        materials: materialObj
           ? [
             {
-              id: newNotebook.materials.id,
-              type: newNotebook.materials.kind as Material['type'],
+              id: materialObj.id,
+              type: materialObj.kind as Material['type'],
               uri:
-                newNotebook.materials.storage_path ||
-                newNotebook.materials.external_url,
-              filename: getFilenameFromPath(newNotebook.materials.storage_path),
-              content: newNotebook.materials.content,
-              preview_text: newNotebook.materials.preview_text,
+                materialObj.storage_path ||
+                materialObj.external_url ||
+                undefined,
+              filename: getFilenameFromPath(materialObj.storage_path || undefined),
+              content: materialObj.content || undefined,
+              preview_text: materialObj.preview_text || undefined,
               title: newNotebook.title,
-              createdAt: newNotebook.materials.created_at,
-              thumbnail: newNotebook.materials.thumbnail,
+              createdAt: materialObj.created_at || new Date().toISOString(),
+              thumbnail: materialObj.thumbnail || undefined,
             },
           ]
           : [],
@@ -148,7 +152,7 @@ export const createNotebookSlice: StateCreator<
 
       // 3. Trigger Processing (Edge Function)
       // Run in background, don't await blocking the UI return
-      notebookService.triggerProcessing(newNotebook.id, material.id, !!isFileUpload, storagePath)
+      notebookService.triggerProcessing(newNotebook.id, material.id, !!isFileUpload, storagePath, authUser.id)
         .then((result) => {
           if (result.status === 'failed') {
             set((state) => ({

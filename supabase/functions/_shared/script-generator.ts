@@ -32,12 +32,13 @@ export interface GeneratedScript {
 function calculateTargetWordCount(materialContent: string): number {
   const wordCount = materialContent.split(/\s+/).length;
 
-  // Formula: min(5, max(2, word_count / 1500)) minutes
-  // Reduced from 8 min to 5 min max to prevent memory issues during TTS
-  const targetMinutes = Math.min(5, Math.max(2, Math.floor(wordCount / 1500)));
+  // Formula: min(3, max(2, word_count / 1500)) minutes
+  // Reduced to 3 min max for Free Plan stability (Stay under 150s total)
+  const targetMinutes = Math.min(3, Math.max(2, Math.floor(wordCount / 1500)));
 
   // Script: ~150 words/min × 2 speakers = 300 words/min dialogue
-  const targetWords = targetMinutes * 300;
+  // Target ~750-900 words total for a 3-min podcast
+  const targetWords = targetMinutes * 250;
 
   console.log(`[Script Generator] Material: ${wordCount} words → Target: ${targetMinutes}min (${targetWords} words)`);
 
@@ -114,8 +115,6 @@ Return ONLY a JSON object with this structure:
     ...
   ]
 }`;
-
-  const GEMINI_API_KEY = getRequiredEnv('GOOGLE_AI_API_KEY');
   try {
     // Use Flash model for insight extraction (faster, higher limits)
     const response = await fetch(`${GEMINI_FLASH_ENDPOINT}?key=${GEMINI_API_KEY}`, {
@@ -247,7 +246,8 @@ CRITICAL INSTRUCTIONS:
 - **FORMAT**: Authentic dialogue. Use interjections ("Whoa", "I see", "Wait...").
 - **TAKEAWAY**: End with a short summary or encouraging thought.
 
-TARGET: ${targetWordCount} words.`;
+CRITICAL LENGTH: The script MUST be between 700 and 900 words total. Do NOT exceed 900 words or the system will crash. 
+TARGET: Exactly ${targetWordCount} words.`;
 
   const userPrompt = `Topic: ${notebookTitle}
 

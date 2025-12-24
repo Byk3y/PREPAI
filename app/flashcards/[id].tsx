@@ -16,7 +16,7 @@ import { useStore } from '@/lib/store';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 export default function FlashcardsScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>(); // notebook_id
+  const { id, setId } = useLocalSearchParams<{ id: string; setId?: string }>(); // id is notebook_id
   const router = useRouter();
   const authUser = useStore((state) => state.authUser);
   const [flashcards, setFlashcards] = useState<StudioFlashcard[]>([]);
@@ -24,53 +24,66 @@ export default function FlashcardsScreen() {
   const [initialIndex, setInitialIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
 
   useEffect(() => {
     fetchFlashcards();
-  }, [id]);
+  }, [id, setId]);
 
   const fetchFlashcards = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch notebook title and flashcards in parallel
+      // Determine which cards to load
+      let activeSetId = setId;
+
+      if (!activeSetId) {
+        // Fallback: Get most recent set for this notebook
+        const sets = await studioService.fetchFlashcardSets(id);
+        if (sets && sets.length > 0) {
+          activeSetId = sets[0].id;
+        }
+      }
+
+      // Fetch notebook title and flashcards/progress in parallel
       const [notebookTitleResult, flashcardsResult, progressResult] = await Promise.all([
         notebookService.getNotebookTitle(id),
-        studioService.fetchFlashcards(id),
-        authUser ? studioService.fetchFlashcardProgress(id, authUser.id) : Promise.resolve(null),
+        activeSetId
+          ? studioService.fetchFlashcardsBySet(activeSetId)
+          : Promise.resolve([]),
+        authUser ? studioService.fetchFlashcardProgress(id, authUser.id, activeSetId) : Promise.resolve(null),
       ]);
 
       if (notebookTitleResult) {
         setNotebookTitle(notebookTitleResult);
       }
 
-      if (!flashcardsResult || flashcardsResult.length === 0) {
-        setError('No flashcards found for this notebook');
+      const targetCards = flashcardsResult || [];
+      if (targetCards.length === 0) {
+        setError('No flashcards found for this set');
         return;
       }
 
-      setFlashcards(flashcardsResult);
+      setFlashcards(targetCards);
 
-      // Determine starting card using progress (by id first, then index)
-      const cards = flashcardsResult;
+      // Determine starting card specifically for this set
       let startIndex = 0;
-      if (progressResult && cards.length > 0) {
+      if (progressResult && targetCards.length > 0) {
         if (progressResult.last_flashcard_id) {
-          const foundIndex = cards.findIndex((c) => c.id === progressResult.last_flashcard_id);
+          const foundIndex = targetCards.findIndex((c) => c.id === progressResult.last_flashcard_id);
           if (foundIndex >= 0) {
             startIndex = foundIndex;
           } else {
             startIndex = Math.min(
               Math.max(progressResult.last_index ?? 0, 0),
-              cards.length - 1
+              targetCards.length - 1
             );
           }
         } else {
-          startIndex = Math.min(Math.max(progressResult.last_index ?? 0, 0), cards.length - 1);
+          startIndex = Math.min(Math.max(progressResult.last_index ?? 0, 0), targetCards.length - 1);
         }
       }
       setInitialIndex(startIndex);
@@ -102,7 +115,7 @@ export default function FlashcardsScreen() {
           {error || 'No flashcards available'}
         </Text>
         <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
-          Generate flashcards from the Studio tab to start studying
+          {error ? 'Try generating a new set or check your connection' : 'Generate flashcards from the Studio tab to start studying'}
         </Text>
       </View>
     );
@@ -116,6 +129,7 @@ export default function FlashcardsScreen() {
           initialIndex={initialIndex}
           onClose={handleClose}
           title={notebookTitle}
+          setId={setId || undefined}
         />
       </View>
     </GestureHandlerRootView>

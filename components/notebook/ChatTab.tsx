@@ -19,6 +19,7 @@ import { MarkdownText } from '@/components/MarkdownText';
 import { PreviewSkeleton } from './PreviewSkeleton';
 import { getTopicEmoji } from '@/lib/emoji-matcher';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import { BackgroundProcessingIndicator } from '@/components/BackgroundProcessingIndicator';
 
 interface ChatTabProps {
   notebook: Notebook;
@@ -29,7 +30,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
   const [showStudyPlan, setShowStudyPlan] = useState(false);
   const materialCount = notebook.materials?.length || 0;
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  
+
   // Theme
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
@@ -55,10 +56,12 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
   }, [pulseAnim]);
 
   const handleGetStudyPlan = () => {
+    if (notebook.status === 'extracting') return;
     setShowStudyPlan(true);
   };
 
   const handleTakeQuiz = () => {
+    if (notebook.status === 'extracting') return;
     if (onTakeQuiz) {
       onTakeQuiz();
     }
@@ -90,8 +93,13 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
 Remember to take breaks and space out your study sessions for better retention!`;
   };
 
-  // Render loading state with skeleton
-  if (notebook.status === 'extracting') {
+  // Check if background processing is active
+  // Show progress indicator if extracting
+  const isExtracting = notebook.status === 'extracting';
+  const isBackgroundProcessing = (notebook.meta as any)?.background_processing === true;
+
+  // Render loading state with skeleton or background indicator
+  if (isExtracting) {
     return (
       <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
         <View style={{ paddingHorizontal: 24, paddingVertical: 24 }}>
@@ -110,8 +118,26 @@ Remember to take breaks and space out your study sessions for better retention!`
             </View>
           </View>
 
-          {/* Skeleton Preview Content */}
-          <PreviewSkeleton lines={6} />
+          {/* Background Processing Progress or Skeleton */}
+          {isBackgroundProcessing ? (
+            <View style={{ marginBottom: 24 }}>
+              <BackgroundProcessingIndicator notebookId={notebook.id} />
+
+              <View style={{ marginTop: 24, padding: 16, backgroundColor: colors.surfaceAlt, borderRadius: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+                  <Text style={{ marginLeft: 8, fontSize: 16, color: colors.text, fontFamily: 'Nunito-SemiBold' }}>
+                    Processing Large Document
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 20, fontFamily: 'Nunito-Regular' }}>
+                  This is a large file and we're processing it in the background. You can safely leave this page and come back later. We'll show the overview as soon as it's ready!
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <PreviewSkeleton lines={8} />
+          )}
         </View>
       </ScrollView>
     );
@@ -203,8 +229,16 @@ Remember to take breaks and space out your study sessions for better retention!`
               {/* Get Study Plan Pill */}
               <TouchableOpacity
                 onPress={handleGetStudyPlan}
-                style={{ backgroundColor: colors.surfaceAlt, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center' }}
-                activeOpacity={0.7}
+                style={{
+                  backgroundColor: colors.surfaceAlt,
+                  borderRadius: 999,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  opacity: isExtracting ? 0.5 : 1
+                }}
+                activeOpacity={isExtracting ? 1 : 0.7}
               >
                 <Ionicons name="bulb-outline" size={16} color={colors.iconMuted} />
                 <Text style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 6, fontFamily: 'Nunito-Medium' }}>
@@ -215,8 +249,16 @@ Remember to take breaks and space out your study sessions for better retention!`
               {/* Take Quiz Pill */}
               <TouchableOpacity
                 onPress={handleTakeQuiz}
-                style={{ backgroundColor: colors.surfaceAlt, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center' }}
-                activeOpacity={0.7}
+                style={{
+                  backgroundColor: colors.surfaceAlt,
+                  borderRadius: 999,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  opacity: isExtracting ? 0.5 : 1
+                }}
+                activeOpacity={isExtracting ? 1 : 0.7}
               >
                 <Ionicons name="help-circle-outline" size={16} color={colors.iconMuted} />
                 <Text style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 6, fontFamily: 'Nunito-Medium' }}>
@@ -230,3 +272,4 @@ Remember to take breaks and space out your study sessions for better retention!`
     </KeyboardAvoidingView>
   );
 };
+
