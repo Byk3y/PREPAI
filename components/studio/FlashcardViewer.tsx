@@ -103,7 +103,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
         'study_flashcards',
         timezone,
         5,
-        () => checkAndAwardTask('study_flashcards')
+        async () => { await checkAndAwardTask('study_flashcards'); }
       );
     } catch (e) {
       // Log but don't block - might be duplicate constraint
@@ -218,8 +218,8 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16 }}>
+        {/* Header */}
         <TouchableOpacity
           onPress={onClose}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -239,7 +239,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
             {title} Flashcards
           </Text>
         </View>
-        <View style={{ width: 24 }} /> {/* Spacer to balance the back arrow for centering */}
+        <View style={{ width: 24 }} />{/* Spacer to balance the back arrow for centering */}
       </View>
 
       {/* Card Container */}
@@ -290,7 +290,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({
                   {currentCard.answer}
                 </Text>
 
-                {currentCard.explanation && (
+                {!!currentCard.explanation && (
                   <View style={{ marginTop: 24, paddingTop: 24, borderTopWidth: 1, borderTopColor: '#525252' }}>
                     <Text style={{ fontSize: 16, color: '#d4d4d8', lineHeight: 24 }}>
                       {currentCard.explanation}
