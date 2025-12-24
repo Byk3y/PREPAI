@@ -14,6 +14,8 @@ interface Screen7Props {
   colors: ReturnType<typeof getThemeColors>;
 }
 
+import NovaFull from '../../../assets/pets/stage-1/full-view.png';
+
 export function Screen7({ colors }: Screen7Props) {
   const { dailyCommitmentMinutes, learningStyle } = useStore();
   const [headlineComplete, setHeadlineComplete] = useState(false);
@@ -59,7 +61,7 @@ export function Screen7({ colors }: Screen7Props) {
             transition={{ loop: true, type: 'timing', duration: 3000 } as any}
           >
             <Image
-              source={require('@/assets/pets/stage-1/full-view.png')}
+              source={NovaFull}
               style={styles.petImage}
               resizeMode="contain"
             />

@@ -41,6 +41,7 @@ import { Screen3 } from '@/components/onboarding/screens/Screen3';
 import { Screen4_Assessment } from '@/components/onboarding/screens/Screen4_Assessment';
 import { Screen4_Results } from '@/components/onboarding/screens/Screen4_Results';
 import { Screen4_PetNaming } from '@/components/onboarding/screens/Screen4_PetNaming';
+import { Screen4_Notifications } from '@/components/onboarding/screens/Screen4_Notifications';
 import { Screen5 } from '@/components/onboarding/screens/Screen5';
 import { Screen6 } from '@/components/onboarding/screens/Screen6';
 import { Screen7 } from '@/components/onboarding/screens/Screen7';
@@ -264,6 +265,14 @@ export default function OnboardingScreen() {
         return <Screen4_Results colors={colors} />;
       case SCREEN_INDICES.SCREEN_4_PET_NAMING:
         return <Screen4_PetNaming petName={petName} onNameChange={setPetName} colors={colors} />;
+      case SCREEN_INDICES.SCREEN_4_NOTIFICATIONS:
+        return (
+          <Screen4_Notifications
+            petName={petName}
+            colors={colors}
+            onDone={() => setCurrentScreen(SCREEN_INDICES.SCREEN_5_DREAM)}
+          />
+        );
       case SCREEN_INDICES.SCREEN_5_DREAM:
         return <Screen5 colors={colors} />;
       case SCREEN_INDICES.SCREEN_6_SOCIAL_PROOF:

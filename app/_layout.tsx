@@ -55,6 +55,7 @@ import { useAssetPreloading } from '@/hooks/useAssetPreloading';
 import { useAppStateMonitoring } from '@/hooks/useAppStateMonitoring';
 import { useRoutingLogic } from '@/hooks/useRoutingLogic';
 import { useStreakCheck } from '@/hooks/useStreakCheck';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 // Initialize RevenueCat SDK
 import { initializePurchases } from '@/lib/purchases';
@@ -76,6 +77,7 @@ function RootLayoutInner() {
   useAssetPreloading();
   useAppStateMonitoring();
   useStreakCheck();
+  usePushNotifications();
 
   // Initialize RevenueCat
   useEffect(() => {

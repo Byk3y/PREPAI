@@ -72,7 +72,9 @@
       "@sentry/react-native",
       "expo-secure-store",
       "@react-native-google-signin/google-signin",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-notifications",
+      "expo-localization"
     ],
     "scheme": "brigo",
     "owner": "francis.dev",

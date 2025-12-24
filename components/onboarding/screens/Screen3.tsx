@@ -34,6 +34,8 @@ interface Screen3Props {
   onContinue: () => void;
 }
 
+import BuddyBrain from '../../../assets/onboarding-ui/buddy_brain.png';
+
 export function Screen3({ colors, onContinue }: Screen3Props) {
   const router = useRouter();
   const { authUser } = useStore();
@@ -104,7 +106,7 @@ export function Screen3({ colors, onContinue }: Screen3Props) {
             transition={{ loop: true, type: 'timing', duration: 4000 } as any}
           >
             <Image
-              source={require('@/assets/onboarding/buddy_brain.png')}
+              source={BuddyBrain}
               style={styles.characterImage}
               resizeMode="contain"
             />

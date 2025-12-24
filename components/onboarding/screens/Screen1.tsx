@@ -12,6 +12,8 @@ interface Screen1Props {
   colors: ReturnType<typeof getThemeColors>;
 }
 
+import OverwhelmedBrain from '../../../assets/onboarding-ui/overwhelmed_brain.png';
+
 export function Screen1({ colors }: Screen1Props) {
   const [headlineComplete, setHeadlineComplete] = useState(false);
 
@@ -31,7 +33,7 @@ export function Screen1({ colors }: Screen1Props) {
             transition={{ loop: true, type: 'timing', duration: 3000 } as any}
           >
             <Image
-              source={require('@/assets/onboarding/overwhelmed_brain.png')}
+              source={OverwhelmedBrain}
               style={styles.characterImage}
               resizeMode="contain"
             />

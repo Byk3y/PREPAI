@@ -12,6 +12,8 @@ interface Screen2Props {
   colors: ReturnType<typeof getThemeColors>;
 }
 
+import SmartBrain from '../../../assets/onboarding-ui/smart_brain.png';
+
 export function Screen2({ colors }: Screen2Props) {
   const [headlineComplete, setHeadlineComplete] = useState(false);
 
@@ -31,7 +33,7 @@ export function Screen2({ colors }: Screen2Props) {
             transition={{ loop: true, type: 'timing', duration: 3000 } as any}
           >
             <Image
-              source={require('@/assets/onboarding/smart_brain.png')}
+              source={SmartBrain}
               style={styles.characterImage}
               resizeMode="contain"
             />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
@@ -10,7 +10,61 @@ export default function PreferencesScreen() {
     const { isDarkMode } = useTheme();
     const colors = getThemeColors(isDarkMode);
     const router = useRouter();
-    const { themeMode, setThemeMode } = useStore();
+    const { themeMode, setThemeMode, authUser } = useStore();
+    const [notificationsEnabled, setNotificationsEnabled] = React.useState(false);
+    const [isUpdating, setIsUpdating] = React.useState(false);
+
+    React.useEffect(() => {
+        const checkStatus = async () => {
+            const { notificationService } = await import('@/lib/services/notificationService');
+            const status = await notificationService.checkRegistrationStatus();
+            setNotificationsEnabled(status === 'granted');
+        };
+        checkStatus();
+    }, []);
+
+    const handleToggleNotifications = async () => {
+        setIsUpdating(true);
+        const { notificationService } = await import('@/lib/services/notificationService');
+
+        if (notificationsEnabled) {
+            // Disable notifications - clear token from database
+            try {
+                const { supabase } = await import('@/lib/supabase');
+                if (authUser?.id) {
+                    await supabase
+                        .from('profiles')
+                        .update({ expo_push_token: null })
+                        .eq('id', authUser.id);
+
+                    setNotificationsEnabled(false);
+                    Alert.alert(
+                        'Notifications Disabled',
+                        'You will no longer receive push notifications from Brigo.',
+                        [{ text: 'OK' }]
+                    );
+                }
+            } catch (error) {
+                console.error('Failed to disable notifications:', error);
+                Alert.alert('Error', 'Failed to update notification settings.');
+            }
+            setIsUpdating(false);
+            return;
+        }
+
+        try {
+            const token = await notificationService.registerForPushNotificationsAsync(true);
+            if (token && authUser?.id) {
+                await notificationService.saveTokenToProfile(authUser.id, token);
+                setNotificationsEnabled(true);
+                Alert.alert('Success', 'Push notifications enabled!');
+            }
+        } catch (error) {
+            console.error('Failed to enable notifications:', error);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
 
     const options = [
         { label: 'System', value: 'system', icon: 'settings-outline', description: 'Match your device settings' },
@@ -73,6 +127,34 @@ export default function PreferencesScreen() {
                             </TouchableOpacity>
                         );
                     })}
+                </View>
+
+                {/* Notifications Section */}
+                <Text style={[styles.sectionTitle, { color: colors.textSecondary, marginTop: 32 }]}>NOTIFICATIONS</Text>
+
+                <View style={[styles.optionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <View style={styles.optionLeft}>
+                        <View style={[styles.iconWrapper, { backgroundColor: colors.surfaceAlt }]}>
+                            <Ionicons
+                                name="notifications-outline"
+                                size={22}
+                                color={colors.primary}
+                            />
+                        </View>
+                        <View>
+                            <Text style={[styles.optionLabel, { color: colors.text }]}>Push Notifications</Text>
+                            <Text style={[styles.optionDesc, { color: colors.textMuted }]}>
+                                {notificationsEnabled ? 'Enabled' : 'Keep up with your streak'}
+                            </Text>
+                        </View>
+                    </View>
+                    <Switch
+                        value={notificationsEnabled}
+                        onValueChange={handleToggleNotifications}
+                        trackColor={{ false: colors.border, true: colors.primary }}
+                        thumbColor={Platform.OS === 'ios' ? '#FFFFFF' : (notificationsEnabled ? colors.primary : '#f4f3f4')}
+                        disabled={isUpdating}
+                    />
                 </View>
 
                 <View style={[styles.infoBox, { backgroundColor: colors.primary + '05', borderColor: colors.primary + '20' }]}>

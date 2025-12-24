@@ -16,6 +16,8 @@ interface Screen4AssessmentProps {
   onComplete: () => void;
 }
 
+import ThinkingBrain from '../../../assets/onboarding-ui/thinking_brain.png';
+
 export function Screen4_Assessment({ colors, onComplete }: Screen4AssessmentProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [headlineComplete, setHeadlineComplete] = useState(false);
@@ -190,7 +192,7 @@ export function Screen4_Assessment({ colors, onComplete }: Screen4AssessmentProp
             transition={{ loop: true, type: 'timing', duration: 3500 } as any}
           >
             <Image
-              source={require('@/assets/onboarding/thinking_brain.png')}
+              source={ThinkingBrain}
               style={styles.characterImage}
               resizeMode="contain"
             />

@@ -14,15 +14,16 @@ export const SCREEN_INDICES = {
   SCREEN_4_ASSESSMENT: 3,
   SCREEN_4_RESULTS: 4,
   SCREEN_4_PET_NAMING: 5,
-  SCREEN_5_DREAM: 6,
-  SCREEN_6_SOCIAL_PROOF: 7,
-  SCREEN_7_TRIAL_OFFER: 8,
+  SCREEN_4_NOTIFICATIONS: 6,
+  SCREEN_5_DREAM: 7,
+  SCREEN_6_SOCIAL_PROOF: 8,
+  SCREEN_7_TRIAL_OFFER: 9,
 } as const;
 
 /**
  * Total number of screens in the onboarding flow
  */
-export const TOTAL_SCREENS = 9;
+export const TOTAL_SCREENS = 10;
 
 /**
  * First screen index (always 0)
@@ -67,7 +68,8 @@ export const isFirstScreen = (currentScreen: number): boolean => {
 export const shouldHideFooter = (currentScreen: number): boolean => {
   return (
     currentScreen === SCREEN_INDICES.SCREEN_3_SOLUTION ||
-    currentScreen === SCREEN_INDICES.SCREEN_4_ASSESSMENT
+    currentScreen === SCREEN_INDICES.SCREEN_4_ASSESSMENT ||
+    currentScreen === SCREEN_INDICES.SCREEN_4_NOTIFICATIONS
   );
 };
 

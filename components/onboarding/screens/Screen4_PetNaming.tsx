@@ -8,6 +8,8 @@ import Svg, { Path } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 
+import NovaFull from '../../../assets/pets/stage-1/full-view.png';
+
 interface Screen4PetNamingProps {
   petName: string;
   onNameChange: (name: string) => void;
@@ -41,7 +43,7 @@ export function Screen4_PetNaming({ petName, onNameChange, colors }: Screen4PetN
             transition={{ loop: true, type: 'timing', duration: 3000 } as any}
           >
             <Image
-              source={require('@/assets/pets/stage-1/full-view.png')}
+              source={NovaFull}
               style={styles.petImage}
               resizeMode="contain"
             />

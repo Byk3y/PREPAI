@@ -13,6 +13,8 @@ interface Screen4ResultsProps {
   colors: ReturnType<typeof getThemeColors>;
 }
 
+import SuccessBrain from '../../../assets/onboarding-ui/success_brain.png';
+
 export function Screen4_Results({ colors }: Screen4ResultsProps) {
   const {
     generateRecommendations,
@@ -51,7 +53,7 @@ export function Screen4_Results({ colors }: Screen4ResultsProps) {
             transition={{ loop: true, type: 'timing', duration: 3000 } as any}
           >
             <Image
-              source={require('@/assets/onboarding/success_brain.png')}
+              source={SuccessBrain}
               style={styles.characterImage}
               resizeMode="contain"
             />

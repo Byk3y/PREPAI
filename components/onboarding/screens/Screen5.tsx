@@ -12,6 +12,8 @@ interface Screen5Props {
   colors: ReturnType<typeof getThemeColors>;
 }
 
+import NovaBubble from '../../../assets/pets/stage-1/bubble.png';
+
 export function Screen5({ colors }: Screen5Props) {
   const [headlineComplete, setHeadlineComplete] = useState(false);
 
@@ -38,7 +40,7 @@ export function Screen5({ colors }: Screen5Props) {
             transition={{ loop: true, type: 'timing', duration: 3200 } as any}
           >
             <Image
-              source={require('@/assets/pets/stage-1/bubble.png')}
+              source={NovaBubble}
               style={styles.petImage}
               resizeMode="contain"
             />
