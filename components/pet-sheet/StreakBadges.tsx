@@ -10,11 +10,12 @@ import { useTheme } from '@/lib/ThemeContext';
 
 interface StreakBadgesProps {
     streak: number;
+    showSafetyNet?: boolean;
 }
 
 const MILESTONES = [3, 10, 30, 100, 200];
 
-export function StreakBadges({ streak }: StreakBadgesProps) {
+export function StreakBadges({ streak, showSafetyNet = false }: StreakBadgesProps) {
     const { isDarkMode } = useTheme();
 
     // Semi-transparent white card for glass effect on golden gradient
@@ -105,19 +106,23 @@ export function StreakBadges({ streak }: StreakBadgesProps) {
             </View>
 
             {/* Safety Net Info */}
-            <View style={[styles.divider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]} />
+            {showSafetyNet && (
+                <>
+                    <View style={[styles.divider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]} />
 
-            <View style={styles.safetyNetContainer}>
-                <View style={[styles.safetyIconContainer, { backgroundColor: isDarkMode ? 'rgba(56, 189, 248, 0.15)' : '#E0F2FE' }]}>
-                    <Ionicons name="shield-checkmark" size={16} color="#0284C7" />
-                </View>
-                <View style={styles.safetyTextContainer}>
-                    <Text style={[styles.safetyTitle, { color: cardTextColor }]}>Safety Net</Text>
-                    <Text style={[styles.safetyDesc, { color: isDarkMode ? 'rgba(255,255,255,0.5)' : '#64748B' }]}>
-                        You have 3 streak restores every month. They refill automatically!
-                    </Text>
-                </View>
-            </View>
+                    <View style={styles.safetyNetContainer}>
+                        <View style={[styles.safetyIconContainer, { backgroundColor: isDarkMode ? 'rgba(56, 189, 248, 0.15)' : '#E0F2FE' }]}>
+                            <Ionicons name="shield-checkmark" size={16} color="#0284C7" />
+                        </View>
+                        <View style={styles.safetyTextContainer}>
+                            <Text style={[styles.safetyTitle, { color: cardTextColor }]}>Safety Net</Text>
+                            <Text style={[styles.safetyDesc, { color: isDarkMode ? 'rgba(255,255,255,0.5)' : '#64748B' }]}>
+                                You have 3 streak restores every month. They refill automatically!
+                            </Text>
+                        </View>
+                    </View>
+                </>
+            )}
         </View>
     );
 }

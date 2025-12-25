@@ -37,9 +37,10 @@ const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 export default function PetSheetScreen() {
   const router = useRouter();
-  const { user, petState, updatePetName } = useStore();
+  const { user, petState, updatePetName, restoreStreak } = useStore();
   const scrollY = useRef(0);
   const scrollViewRef = useRef<ScrollView>(null);
+  const [hasJustRestored, setHasJustRestored] = useState(false);
 
   // Theme
   const { isDarkMode } = useTheme();
@@ -56,6 +57,20 @@ export default function PetSheetScreen() {
   React.useEffect(() => {
     setPreviewStage(currentStage);
   }, [currentStage]);
+
+  // Streak restoration logic
+  // A streak is "lost" if it's 0 but there's a recoverable streak in meta
+  const recoverableStreak = user.meta?.last_recoverable_streak ?? 0;
+  const isStreakLost = user.streak === 0 && recoverableStreak > 0;
+  const canRestore = isStreakLost && user.streak_restores > 0;
+
+  const handleRestore = async () => {
+    if (!canRestore) return;
+    const result = await restoreStreak();
+    if (result.success) {
+      setHasJustRestored(true);
+    }
+  };
 
   // Gesture handling hook
   const { translateY, handleBarPanResponder, contentPanResponder, dismiss } = usePetSheetGestures({
@@ -149,6 +164,9 @@ export default function PetSheetScreen() {
                     currentStage={currentStage}
                     onNextStage={previewStage === 1 ? () => setPreviewStage(2) : undefined}
                     onPrevStage={previewStage === 2 ? () => setPreviewStage(1) : undefined}
+                    canRestore={canRestore}
+                    onRestore={handleRestore}
+                    showBalance={hasJustRestored}
                   />
                 </View>
 
@@ -166,7 +184,10 @@ export default function PetSheetScreen() {
                     activeColor={previewStage === 1 ? '#FBBF24' : '#FB923C'} // Gold for Stage 1, Orange for Stage 2
                   />
 
-                  <StreakBadges streak={user.streak} />
+                  <StreakBadges
+                    streak={user.streak}
+                    showSafetyNet={isStreakLost || hasJustRestored}
+                  />
 
                   {/* Powered by Brigo footer */}
                   <View style={styles.poweredByContainer}>

@@ -6,6 +6,7 @@ import React, { memo, useMemo } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ImageSourcePropType } from 'react-native';
 import { MotiViewCompat as MotiView } from '@/components/MotiViewCompat';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Easing } from 'react-native-reanimated';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
@@ -21,6 +22,9 @@ interface PetDisplayProps {
     currentStage: 1 | 2;
     onNextStage?: () => void;
     onPrevStage?: () => void;
+    canRestore?: boolean;
+    onRestore?: () => void;
+    showBalance?: boolean;
 }
 
 /**
@@ -99,7 +103,17 @@ const FieryStreakNumber = memo(({ streak }: { streak: number }) => {
     );
 });
 
-export const PetDisplay = memo(({ streak, restores = 0, stage, currentStage, onNextStage, onPrevStage }: PetDisplayProps) => {
+export const PetDisplay = memo(({
+    streak,
+    restores = 0,
+    stage,
+    currentStage,
+    onNextStage,
+    onPrevStage,
+    canRestore,
+    onRestore,
+    showBalance = false
+}: PetDisplayProps) => {
     const { isDarkMode } = useTheme();
 
     const textSecondaryOnGradient = useMemo(() =>
@@ -123,21 +137,43 @@ export const PetDisplay = memo(({ streak, restores = 0, stage, currentStage, onN
             >
                 <View style={styles.labelRow}>
                     <Text style={[styles.streakLabel, { color: textSecondaryOnGradient }]}>
-                        Streak days
+                        {streak === 0 && (canRestore || restores === 0) ? 'Streak lost' : 'Streak days'}
                     </Text>
 
-                    {/* Restore Shield Badge */}
-                    {restores > 0 && (
-                        <MotiView
-                            from={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            style={styles.restoreBadge}
+                    {/* Restore Action or Balance Badge */}
+                    {canRestore ? (
+                        <TouchableOpacity
+                            onPress={onRestore}
+                            activeOpacity={0.7}
+                            style={styles.restoreButton}
                         >
-                            <View style={styles.shieldBackground}>
-                                <Ionicons name="shield-checkmark" size={14} color="#38BDF8" />
-                                <Text style={styles.restoreCountText}>{restores}</Text>
+                            <LinearGradient
+                                colors={['#38BDF8', '#0284C7']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.restoreButtonGradient}
+                            >
+                                <Ionicons name="flash" size={14} color="white" />
+                                <Text style={styles.restoreButtonText}>Restore</Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    ) : (
+                        showBalance && restores > 0 ? (
+                            <MotiView
+                                from={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                style={styles.restoreBadge}
+                            >
+                                <View style={styles.shieldBackground}>
+                                    <Ionicons name="shield-checkmark" size={14} color="#38BDF8" />
+                                    <Text style={styles.restoreCountText}>{restores} saves</Text>
+                                </View>
+                            </MotiView>
+                        ) : streak === 0 && restores === 0 && (
+                            <View style={styles.noRestoresBadge}>
+                                <Text style={styles.noRestoresText}>0 restores left</Text>
                             </View>
-                        </MotiView>
+                        )
                     )}
                 </View>
 
@@ -250,6 +286,33 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '700',
         color: '#38BDF8',
+    },
+    restoreButton: {
+        borderRadius: 16,
+        overflow: 'hidden',
+    },
+    restoreButtonGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        gap: 6,
+    },
+    restoreButtonText: {
+        color: 'white',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    noRestoresBadge: {
+        backgroundColor: 'rgba(0, 0, 0, 0.05)',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    noRestoresText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: 'rgba(0, 0, 0, 0.4)',
     },
     streakValue: {
         fontSize: 72,
