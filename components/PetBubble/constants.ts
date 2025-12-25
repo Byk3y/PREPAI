@@ -48,7 +48,7 @@ export const ANIMATION_CONFIG = {
   movementThreshold: 3, // pixels for pan responder activation
   movementDetectionThreshold: 2, // pixels for hasMoved flag
   // Initial position offset from top (percentage)
-  initialTopOffset: 0.2, // 20% from top
+  initialTopOffset: 0.4, // 40% from top (changed from 0.2 for better reachability)
 } as const;
 
 
