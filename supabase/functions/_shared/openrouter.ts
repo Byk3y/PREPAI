@@ -44,6 +44,12 @@ const MODELS: Record<string, ModelConfig> = {
     costPer1kInput: 0.003,
     costPer1kOutput: 0.015,
   },
+  notebook_chat: {
+    name: 'x-ai/grok-4.1-fast', // User request
+    maxTokens: 2000,
+    costPer1kInput: 0.0,
+    costPer1kOutput: 0.0,
+  },
 };
 
 // Fallback models if primary fails
@@ -51,18 +57,20 @@ const FALLBACK_MODELS: Record<string, string[]> = {
   preview: ['deepseek/deepseek-chat', 'qwen/qwen-2.5-7b-instruct', 'mistralai/mistral-small'],
   studio: ['anthropic/claude-3.5-sonnet', 'openai/gpt-4o', 'google/gemini-2.0-flash-exp'],
   audio_script: ['openai/gpt-4o-mini'],
+  notebook_chat: ['google/gemini-2.0-flash-exp', 'anthropic/claude-3.5-haiku'],
 };
 
 /**
  * Call LLM model via OpenRouter with automatic cost tracking
  */
 export async function callLLM(
-  jobType: 'preview' | 'studio' | 'audio_script',
+  jobType: 'preview' | 'studio' | 'audio_script' | 'notebook_chat',
   systemPrompt: string,
   userPrompt: string,
   options: {
     temperature?: number;
     model?: string; // Optional: override default model
+    stream?: boolean; // Enable streaming
   } = {}
 ): Promise<LLMResponse> {
   const config = MODELS[jobType];
@@ -88,6 +96,7 @@ export async function callLLM(
         ],
         max_tokens: config.maxTokens,
         temperature: options.temperature ?? 0.7,
+        stream: options.stream ?? false,
       }),
     });
 
@@ -107,7 +116,7 @@ export async function callLLM(
     // Calculate cost in cents
     const costCents = Math.ceil(
       (inputTokens / 1000) * config.costPer1kInput * 100 +
-        (outputTokens / 1000) * config.costPer1kOutput * 100
+      (outputTokens / 1000) * config.costPer1kOutput * 100
     );
 
     // Extract content
@@ -146,10 +155,10 @@ export async function callLLM(
  * Simple retry wrapper with exponential backoff
  */
 export async function callLLMWithRetry(
-  jobType: 'preview' | 'studio' | 'audio_script',
+  jobType: 'preview' | 'studio' | 'audio_script' | 'notebook_chat',
   systemPrompt: string,
   userPrompt: string,
-  options?: { temperature?: number; maxRetries?: number }
+  options?: { temperature?: number; maxRetries?: number; stream?: boolean }
 ): Promise<LLMResponse> {
   const maxRetries = options?.maxRetries || 3;
   let lastError: Error | null = null;

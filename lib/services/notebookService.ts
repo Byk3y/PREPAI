@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { storageService } from '@/lib/storage/storageService';
 import { getFilenameFromPath } from '@/lib/utils';
-import type { Notebook, Material } from '@/lib/store/types';
+import type { Notebook, Material, ChatMessage } from '@/lib/store/types';
 import { handleError } from '@/lib/errors';
 
 export const notebookService = {
@@ -152,7 +152,7 @@ export const notebookService = {
 
             // Update user profile - set has_created_notebook flag (non-blocking)
             try {
-                await supabase.rpc('merge_profile_meta', {
+                await (supabase as any).rpc('merge_profile_meta', {
                     p_user_id: userId,
                     p_new_meta: { has_created_notebook: true },
                 });
@@ -306,7 +306,8 @@ export const notebookService = {
                 return;
             }
 
-            const material = notebook.materials;
+            const materials = notebook.materials as any;
+            const material = Array.isArray(materials) ? materials[0] : materials;
 
             // Step 2: Delete storage file if it exists
             if (material?.storage_path) {
@@ -483,6 +484,41 @@ export const notebookService = {
                 metadata: { notebookId },
             });
             return null;
+        }
+    },
+
+    /**
+     * Fetch chat messages for a notebook
+     */
+    fetchChatMessages: async (notebookId: string): Promise<ChatMessage[]> => {
+        try {
+            const { data, error } = await supabase
+                .from('notebook_chat_messages')
+                .select('*')
+                .eq('notebook_id', notebookId)
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                await handleError(error, {
+                    operation: 'fetch_chat_messages',
+                    component: 'notebook-service',
+                    metadata: { notebookId },
+                });
+                return [];
+            }
+
+            return (data || []).map(msg => ({
+                ...msg,
+                role: msg.role as 'user' | 'assistant',
+                sources: Array.isArray(msg.sources) ? msg.sources : [],
+            })) as ChatMessage[];
+        } catch (error) {
+            await handleError(error, {
+                operation: 'fetch_chat_messages',
+                component: 'notebook-service',
+                metadata: { notebookId },
+            });
+            return [];
         }
     },
 };

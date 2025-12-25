@@ -242,6 +242,44 @@ export type Database = {
         }
         Relationships: []
       }
+      notebook_chat_messages: {
+        Row: {
+          id: string
+          notebook_id: string
+          user_id: string
+          role: string
+          content: string
+          sources: Json | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          notebook_id: string
+          user_id: string
+          role: string
+          content: string
+          sources?: Json | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          notebook_id?: string
+          user_id?: string
+          role?: string
+          content?: string
+          sources?: Json | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notebook_chat_messages_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       processing_queue: {
         Row: {
           attempts: number | null

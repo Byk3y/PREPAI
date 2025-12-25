@@ -48,7 +48,7 @@ export default function AuthCallbackScreen() {
           const parsed = Linking.parse(url);
           console.log('Deep link URL:', url);
           console.log('Parsed URL:', parsed);
-          
+
           // Extract tokens from query params, hash fragment, or route params
           const queryParams = parsed.queryParams || {};
           let accessToken = (queryParams.access_token || params.access_token) as string | undefined;
@@ -172,18 +172,18 @@ export default function AuthCallbackScreen() {
                 console.error('Error checking profile:', profileError);
               } else if (profile) {
                 // Check if names are missing or invalid (empty, null, or email-like)
-                const hasValidFirstName = profile.first_name && 
-                  profile.first_name.trim() !== '' && 
+                const hasValidFirstName = profile.first_name &&
+                  profile.first_name.trim() !== '' &&
                   !profile.first_name.includes('@');
-                const hasValidLastName = profile.last_name && 
+                const hasValidLastName = profile.last_name &&
                   profile.last_name.trim() !== '';
 
                 // Only update if names are missing or invalid
                 if (!hasValidFirstName || !hasValidLastName) {
                   // Extract name from OAuth metadata
-                  const oauthName = user.user_metadata?.name || 
-                                   user.user_metadata?.full_name ||
-                                   user.raw_user_meta_data?.name;
+                  const oauthName = user.user_metadata?.name ||
+                    user.user_metadata?.full_name ||
+                    user.raw_user_meta_data?.name;
 
                   if (oauthName && typeof oauthName === 'string' && oauthName.trim() !== '') {
                     // Parse OAuth name into first and last
@@ -239,7 +239,7 @@ export default function AuthCallbackScreen() {
             // Check if pet state already exists with a customized name
             // Default names that can be overwritten: 'Nova', 'Sparky', or empty/null
             const defaultNames = ['Nova', 'Sparky'];
-            
+
             try {
               const { data: existingPetState, error: petStateError } = await supabase
                 .from('pet_states')
@@ -281,8 +281,8 @@ export default function AuthCallbackScreen() {
               }
 
               // Check if pet already has a customized name (not default)
-              const hasCustomName = existingPetState && 
-                existingPetState.name && 
+              const hasCustomName = existingPetState &&
+                existingPetState.name &&
                 existingPetState.name.trim() !== '' &&
                 !defaultNames.includes(existingPetState.name.trim());
 

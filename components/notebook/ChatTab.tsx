@@ -12,7 +12,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  TextInput,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Alert,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import type { Notebook } from '@/lib/store';
 import { MarkdownText } from '@/components/MarkdownText';
@@ -20,20 +26,102 @@ import { PreviewSkeleton } from './PreviewSkeleton';
 import { getTopicEmoji } from '@/lib/emoji-matcher';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 import { BackgroundProcessingIndicator } from '@/components/BackgroundProcessingIndicator';
+import { SourceSelectionModal } from './SourceSelectionModal';
+import { useNotebookChat } from '@/lib/hooks/useNotebookChat';
+import { useStore } from '@/lib/store';
 
 interface ChatTabProps {
   notebook: Notebook;
   onTakeQuiz?: () => void;
 }
 
+const TypingIndicator = ({ color }: { color: string }) => {
+  const dot1 = useRef(new Animated.Value(0.4)).current;
+  const dot2 = useRef(new Animated.Value(0.4)).current;
+  const dot3 = useRef(new Animated.Value(0.4)).current;
+
+  useEffect(() => {
+    const animate = (val: Animated.Value, delay: number) => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(val, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(val, {
+            toValue: 0.4,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.delay(500 - (delay % 500)), // Adjust delay to keep cycle length consistent
+        ])
+      ).start();
+    };
+
+    animate(dot1, 0);
+    animate(dot2, 200);
+    animate(dot3, 400);
+  }, [dot1, dot2, dot3]);
+
+  return (
+    <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 8, paddingHorizontal: 4 }}>
+      <Animated.View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: color, opacity: dot1 }} />
+      <Animated.View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: color, opacity: dot2 }} />
+      <Animated.View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: color, opacity: dot3 }} />
+    </View>
+  );
+};
+
 export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
-  const [showStudyPlan, setShowStudyPlan] = useState(false);
+  const [inputText, setInputText] = useState('');
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>(
+    notebook.materials?.map(m => m.id) || []
+  );
+  const [sourceModalVisible, setSourceModalVisible] = useState(false);
+
   const materialCount = notebook.materials?.length || 0;
+  const selectedCount = selectedMaterialIds.length;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const scrollRef = useRef<ScrollView>(null);
+
+  const { sendMessage, isStreaming } = useNotebookChat(notebook.id);
+
+  // Reactively select chat messages from the store to ensure updates (like optimistic ones) are shown
+  const chatMessages = useStore(state =>
+    state.notebooks.find(n => n.id === notebook.id)?.chat_messages || []
+  );
 
   // Theme
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
+
+  // Track if we've done the initial scroll to avoid annoying "quick scroll" animation on entry
+  const hasInitiallyScrolled = useRef(false);
+
+  // Load chat messages on mount
+  useEffect(() => {
+    useStore.getState().loadChatMessages(notebook.id);
+    hasInitiallyScrolled.current = false; // Reset when notebook changes
+  }, [notebook.id]);
+
+  // Auto-scroll to bottom when messages change or streaming
+  useEffect(() => {
+    if (chatMessages.length > 0 || isStreaming) {
+      const shouldAnimate = hasInitiallyScrolled.current;
+
+      // We use a short timeout to ensure layout has finished
+      const timer = setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: shouldAnimate });
+        hasInitiallyScrolled.current = true;
+      }, 50);
+
+      return () => clearTimeout(timer);
+    }
+  }, [chatMessages, isStreaming]);
 
   // Gentle pulse animation for emoji (breathing effect)
   useEffect(() => {
@@ -55,11 +143,6 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
     return () => animation.stop();
   }, [pulseAnim]);
 
-  const handleGetStudyPlan = () => {
-    if (notebook.status === 'extracting') return;
-    setShowStudyPlan(true);
-  };
-
   const handleTakeQuiz = () => {
     if (notebook.status === 'extracting') return;
     if (onTakeQuiz) {
@@ -67,31 +150,74 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
     }
   };
 
-  // Generate a simple study plan based on material type
-  const generateStudyPlan = () => {
-    const material = notebook.materials?.[0];
-    const materialType = material?.type || 'material';
-
-    return `Based on your ${materialType}, here's a suggested study plan:
-
-1. **Review the material** (15-20 minutes)
-   - Read through the key points and concepts
-   - Highlight important sections
-
-2. **Create flashcards** (10-15 minutes)
-   - Use the Studio tab to generate AI flashcards
-   - Review cards multiple times
-
-3. **Take a practice quiz** (10 minutes)
-   - Test your understanding with the Quiz feature
-   - Review any mistakes
-
-4. **Active recall** (10 minutes)
-   - Try to explain concepts without looking
-   - Use the Feynman technique
-
-Remember to take breaks and space out your study sessions for better retention!`;
+  const handleSend = () => {
+    if (!inputText.trim() || isStreaming) return;
+    const msg = inputText.trim();
+    setInputText('');
+    Keyboard.dismiss();
+    sendMessage(msg, selectedMaterialIds);
   };
+
+  const handleLongPress = async (content: string) => {
+    if (!content) return;
+
+    // Dismiss keyboard to ensure the menu isn't obscured
+    Keyboard.dismiss();
+
+    // Initial haptic to acknowledge the long press
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    if (Platform.OS === 'ios') {
+      const { ActionSheetIOS } = require('react-native');
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Copy Message'],
+          cancelButtonIndex: 0,
+          title: 'Message Options',
+        },
+        async (buttonIndex: number) => {
+          if (buttonIndex === 1) {
+            await Clipboard.setStringAsync(content);
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        'Message Options',
+        '',
+        [
+          {
+            text: 'Copy Message',
+            onPress: async () => {
+              await Clipboard.setStringAsync(content);
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            },
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+        ],
+        { cancelable: true }
+      );
+    }
+  };
+
+  const toggleMaterial = (id: string) => {
+    setSelectedMaterialIds(prev =>
+      prev.includes(id) ? prev.filter(mId => mId !== id) : [...prev, id]
+    );
+  };
+
+  const selectAllMaterials = () => {
+    if (selectedMaterialIds.length === materialCount) {
+      setSelectedMaterialIds([]);
+    } else {
+      setSelectedMaterialIds(notebook.materials.map(m => m.id));
+    }
+  };
+
 
   // Check if background processing is active
   // Show progress indicator if extracting
@@ -146,10 +272,15 @@ Remember to take breaks and space out your study sessions for better retention!`
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={100}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 140 : 0}
     >
-      <ScrollView style={{ flex: 1, paddingHorizontal: 24, paddingVertical: 24 }} contentContainerStyle={{ flexGrow: 1 }}>
+      <ScrollView
+        ref={scrollRef}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingVertical: 24 }}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Material Icon & Title */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 }}>
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
@@ -176,10 +307,9 @@ Remember to take breaks and space out your study sessions for better retention!`
         )}
 
         {/* Chat Messages Area */}
-        {!showStudyPlan ? (
-          // Empty state with icon (only show if no overview)
-          !(notebook.meta?.preview?.overview || notebook.meta?.preview?.tl_dr) && (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ flex: 1 }}>
+          {chatMessages.length === 0 && !(notebook.meta?.preview?.overview || notebook.meta?.preview?.tl_dr) && (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
               <View style={{ width: 80, height: 80, backgroundColor: colors.surfaceAlt, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
                 <Ionicons name="chatbubble-outline" size={32} color="#6366f1" />
               </View>
@@ -191,85 +321,254 @@ Remember to take breaks and space out your study sessions for better retention!`
                 answers and insights.
               </Text>
             </View>
-          )
-        ) : (
-          // Study plan conversation
-          <View style={{ flex: 1 }}>
-            {/* User message */}
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 16 }}>
-              <View style={{ backgroundColor: '#3B82F6', borderRadius: 16, borderTopRightRadius: 4, paddingHorizontal: 16, paddingVertical: 12, maxWidth: '80%' }}>
-                <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Nunito-Medium' }}>
-                  Get study plan
-                </Text>
-              </View>
-            </View>
+          )}
 
-            {/* AI response */}
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-start', marginBottom: 16 }}>
-              <View style={{ backgroundColor: colors.surfaceAlt, borderRadius: 16, borderTopLeftRadius: 4, paddingHorizontal: 16, paddingVertical: 12, maxWidth: '85%' }}>
-                <Text style={{ color: colors.text, fontSize: 16, lineHeight: 24, fontFamily: 'Nunito-Regular' }}>
-                  {generateStudyPlan()}
-                </Text>
-              </View>
-            </View>
-
-            {/* Info note */}
-            <View style={{ backgroundColor: isDarkMode ? 'rgba(120, 53, 15, 0.3)' : '#fffbeb', borderWidth: 1, borderColor: isDarkMode ? '#92400e' : '#fde68a', borderRadius: 12, padding: 12, marginTop: 8 }}>
-              <Text style={{ fontSize: 12, color: isDarkMode ? '#fcd34d' : '#92400e', fontFamily: 'Nunito-Regular' }}>
-                💡 This is a suggested study plan. Full chat functionality coming soon!
-              </Text>
-            </View>
-          </View>
-        )}
-        {/* Suggested Chat Pills - moved inside ScrollView to sit below content */}
-        {!showStudyPlan && (
-          <View style={{ paddingTop: 24, paddingBottom: 8 }}>
-            <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 8, fontFamily: 'Nunito-Regular' }}>Suggested</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {/* Get Study Plan Pill */}
-              <TouchableOpacity
-                onPress={handleGetStudyPlan}
+          {chatMessages.map((msg, index) => (
+            <TouchableOpacity
+              key={msg.id || index}
+              activeOpacity={0.9}
+              onLongPress={() => handleLongPress(msg.content)}
+              delayLongPress={400}
+              style={{
+                flexDirection: 'row',
+                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                marginBottom: 16,
+              }}
+            >
+              <View
                 style={{
-                  backgroundColor: colors.surfaceAlt,
-                  borderRadius: 999,
+                  backgroundColor: msg.role === 'user' ? '#3B82F6' : colors.surfaceAlt,
+                  borderRadius: 18,
+                  borderTopRightRadius: msg.role === 'user' ? 4 : 18,
+                  borderTopLeftRadius: msg.role === 'assistant' ? 4 : 18,
                   paddingHorizontal: 16,
-                  paddingVertical: 10,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  opacity: isExtracting ? 0.5 : 1
+                  paddingVertical: 12,
+                  maxWidth: '85%',
                 }}
-                activeOpacity={isExtracting ? 1 : 0.7}
               >
-                <Ionicons name="bulb-outline" size={16} color={colors.iconMuted} />
-                <Text style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 6, fontFamily: 'Nunito-Medium' }}>
-                  Get study plan
-                </Text>
-              </TouchableOpacity>
+                {msg.role === 'user' ? (
+                  <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Nunito-Medium' }}>
+                    {msg.content}
+                  </Text>
+                ) : (
+                  msg.content === '' ? (
+                    <TypingIndicator color={colors.textSecondary} />
+                  ) : (
+                    <MarkdownText
+                      selectable={false}
+                      style={{
+                        fontSize: 16,
+                        color: colors.text,
+                        lineHeight: 24,
+                        fontFamily: 'Nunito-Regular',
+                      }}
+                    >
+                      {msg.content}
+                    </MarkdownText>
+                  )
+                )}
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+      </ScrollView>
+
+      {/* Bottom Interface logic (Pills + Input) */}
+      <View style={{ backgroundColor: colors.background, paddingTop: 8 }}>
+        {/* Floating Suggested Chat Pills */}
+        {chatMessages.length === 0 && (
+          <View style={{ marginBottom: 8 }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 8 }}
+            >
+              {/* AI Suggested Questions */}
+              {notebook.meta?.preview?.suggested_questions?.map((question: string, index: number) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => {
+                    setInputText('');
+                    sendMessage(question, selectedMaterialIds);
+                  }}
+                  style={{
+                    backgroundColor: isDarkMode ? '#2d2d30' : '#ffffff',
+                    borderRadius: 20,
+                    paddingHorizontal: 16,
+                    paddingVertical: 10,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    borderWidth: 1,
+                    borderColor: isDarkMode ? '#3a3a3c' : '#e5e5e7',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                    elevation: 3,
+                  }}
+                >
+                  <Ionicons name="chatbubble-outline" size={14} color={colors.primary} />
+                  <Text style={{ fontSize: 13, color: colors.text, marginLeft: 6, fontFamily: 'Nunito-Medium' }}>
+                    {question}
+                  </Text>
+                </TouchableOpacity>
+              ))}
 
               {/* Take Quiz Pill */}
               <TouchableOpacity
                 onPress={handleTakeQuiz}
                 style={{
-                  backgroundColor: colors.surfaceAlt,
-                  borderRadius: 999,
+                  backgroundColor: isDarkMode ? '#2d2d30' : '#ffffff',
+                  borderRadius: 20,
                   paddingHorizontal: 16,
                   paddingVertical: 10,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  opacity: isExtracting ? 0.5 : 1
+                  borderWidth: 1,
+                  borderColor: isDarkMode ? '#3a3a3c' : '#e5e5e7',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
                 }}
-                activeOpacity={isExtracting ? 1 : 0.7}
               >
-                <Ionicons name="help-circle-outline" size={16} color={colors.iconMuted} />
-                <Text style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 6, fontFamily: 'Nunito-Medium' }}>
+                <Ionicons name="help-circle-outline" size={16} color={colors.primary} />
+                <Text style={{ fontSize: 13, color: colors.text, marginLeft: 6, fontFamily: 'Nunito-Medium' }}>
                   Take quiz
                 </Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
         )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+        {!isInputFocused && inputText.length === 0 && (
+          <Text
+            style={{
+              fontSize: 10,
+              color: colors.textMuted,
+              textAlign: 'center',
+              marginBottom: 8,
+              fontFamily: 'Nunito-Regular',
+              opacity: 0.8,
+            }}
+          >
+            Brigo can be inaccurate, so double-check.
+          </Text>
+        )}
+
+        <TouchableWithoutFeedback onPress={() => inputRef.current?.focus()}>
+          <View
+            style={{
+              borderWidth: 1.5,
+              borderColor: isInputFocused ? colors.primary : (isDarkMode ? '#505052' : '#d1d1d6'),
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              backgroundColor: isDarkMode ? '#1e1e20' : '#ffffff',
+              minHeight: isInputFocused || inputText.length > 0 ? 80 : 60,
+              paddingHorizontal: 14,
+              paddingVertical: isInputFocused || inputText.length > 0 ? 12 : 10,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 10,
+              elevation: 2,
+              flexDirection: 'row',
+              alignItems: isInputFocused || inputText.length > 0 ? 'flex-start' : 'center',
+              borderBottomWidth: 0,
+            }}
+          >
+            <View style={{ flex: 1, flexDirection: isInputFocused || inputText.length > 0 ? 'column' : 'row', alignItems: isInputFocused || inputText.length > 0 ? 'stretch' : 'center' }}>
+              <TextInput
+                ref={inputRef}
+                placeholder={selectedCount > 0 ? `Ask ${selectedCount} source${selectedCount !== 1 ? 's' : ''}...` : "Ask a general question..."}
+                placeholderTextColor={colors.textSecondary}
+                style={{
+                  flex: 1,
+                  color: colors.text,
+                  fontSize: 16,
+                  fontFamily: 'Nunito-Medium',
+                  textAlignVertical: 'top',
+                  paddingTop: Platform.OS === 'ios' ? (isInputFocused || inputText.length > 0 ? 4 : 0) : 0,
+                  paddingBottom: isInputFocused || inputText.length > 0 ? 40 : 0,
+                }}
+                value={inputText}
+                onChangeText={setInputText}
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => setIsInputFocused(false)}
+                multiline
+              />
+
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  gap: 8,
+                  position: (isInputFocused || inputText.length > 0) ? 'absolute' : 'relative',
+                  bottom: (isInputFocused || inputText.length > 0) ? 0 : undefined,
+                  right: (isInputFocused || inputText.length > 0) ? 0 : undefined,
+                }}
+              >
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setSourceModalVisible(true)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: isDarkMode ? '#2d2d30' : '#f0f0f2',
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 14,
+                    gap: 6,
+                    borderWidth: 1.5,
+                    borderColor: isDarkMode ? '#3a3a3c' : '#e5e5e7',
+                  }}
+                >
+                  <Ionicons name="library-outline" size={14} color={colors.text} />
+                  <Text style={{ fontSize: 13, color: colors.text, fontFamily: 'Nunito-SemiBold' }}>
+                    {selectedCount}
+                  </Text>
+                  <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
+                </TouchableOpacity>
+
+                {(isInputFocused || inputText.trim().length > 0) && (
+                  <TouchableOpacity
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: (inputText.trim().length > 0 && !isStreaming) ? '#3B82F6' : (isDarkMode ? '#2d2d30' : '#f0f0f2'),
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onPress={handleSend}
+                    disabled={!inputText.trim() || isStreaming}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="arrow-up-outline"
+                      size={18}
+                      color={(inputText.trim().length > 0 && !isStreaming) ? '#FFFFFF' : colors.textMuted}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </View>
+
+      <SourceSelectionModal
+        visible={sourceModalVisible}
+        onDismiss={() => setSourceModalVisible(false)}
+        materials={notebook.materials || []}
+        selectedMaterialIds={selectedMaterialIds}
+        onToggleMaterial={toggleMaterial}
+        onSelectAll={selectAllMaterials}
+      />
+    </KeyboardAvoidingView >
   );
 };
 

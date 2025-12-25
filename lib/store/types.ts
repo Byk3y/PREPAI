@@ -166,6 +166,15 @@ export interface AudioPositionMap {
   [audioOverviewId: string]: AudioPlaybackPosition;
 }
 
+export interface ChatMessage {
+  id: string;
+  notebook_id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  sources: string[];
+  created_at: string;
+}
+
 export interface Notebook {
   id: string;
   title: string;
@@ -180,6 +189,7 @@ export interface Notebook {
   meta?: {
     preview?: {
       overview: string; // Comprehensive narrative overview (150-200 words, Podcast style)
+      suggested_questions?: string[]; // Dynamic curiosity-gap questions
       // Backward compatibility: support old format
       tl_dr?: string; // DEPRECATED: Use overview instead
       bullets?: string[]; // DEPRECATED: No longer used
@@ -192,6 +202,7 @@ export interface Notebook {
   flashcard_sets?: FlashcardSet[];
   quizzes?: Quiz[];
   audio_overviews?: AudioOverview[];
+  chat_messages?: ChatMessage[];
 }
 
 

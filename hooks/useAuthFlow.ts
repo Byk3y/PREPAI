@@ -409,7 +409,7 @@ export function useAuthFlow(): UseAuthFlowReturn {
         }
       } catch (error: any) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        
+
         // Handle cancellation gracefully (user cancelled Google sign-in)
         if (error.message?.includes('cancelled') || error.message?.includes('Sign in was cancelled')) {
           // User cancelled - don't show error, just return

@@ -13,12 +13,12 @@ import { ErrorModal } from './ErrorModal';
 export const ErrorNotificationContainer: React.FC = () => {
   // Use useContext directly with safety check
   const context = useContext(ErrorNotificationContext);
-  
+
   // If context is not available, return null (shouldn't happen, but safety check)
   if (!context) {
     return null;
   }
-  
+
   const { toasts, currentModal, dismissToast, dismissModal } = context;
 
   return (

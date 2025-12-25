@@ -6,7 +6,7 @@ import type { StateCreator } from 'zustand';
 import { supabase } from '@/lib/supabase'; // Kept for auth check in addNotebook if needed, though service might handle auth context or we pass it
 import { notebookService } from '@/lib/services/notebookService';
 import { getFilenameFromPath } from '@/lib/utils'; // Keep if needed for local transformations, otherwise remove
-import type { Notebook, Material, SupabaseUser } from '../types';
+import type { Notebook, Material, SupabaseUser, ChatMessage } from '../types';
 
 export interface NotebookSlice {
   notebooks: Notebook[];
@@ -26,6 +26,9 @@ export interface NotebookSlice {
   updateNotebook: (id: string, updates: Partial<Notebook>) => Promise<void>;
   addMaterial: (notebookId: string, material: Omit<Material, 'id' | 'createdAt'>) => void;
   deleteMaterial: (notebookId: string, materialId: string) => void;
+  loadChatMessages: (notebookId: string) => Promise<void>;
+  addChatMessage: (notebookId: string, message: ChatMessage) => void;
+  updateLastChatMessage: (notebookId: string, content: string) => void;
 }
 
 export const createNotebookSlice: StateCreator<
@@ -229,5 +232,48 @@ export const createNotebookSlice: StateCreator<
           }
           : n
       ),
+    })),
+
+  loadChatMessages: async (notebookId) => {
+    try {
+      const messages = await notebookService.fetchChatMessages(notebookId);
+      set((state) => ({
+        notebooks: state.notebooks.map((n) =>
+          n.id === notebookId ? { ...n, chat_messages: messages } : n
+        ),
+      }));
+    } catch (error) {
+      console.error('Error loading chat messages:', error);
+    }
+  },
+
+  addChatMessage: (notebookId, message) =>
+    set((state) => ({
+      notebooks: state.notebooks.map((n) =>
+        n.id === notebookId
+          ? {
+            ...n,
+            chat_messages: [...(n.chat_messages || []), message],
+          }
+          : n
+      ),
+    })),
+
+  updateLastChatMessage: (notebookId, content) =>
+    set((state) => ({
+      notebooks: state.notebooks.map((n) => {
+        if (n.id === notebookId && n.chat_messages && n.chat_messages.length > 0) {
+          const newMessages = [...n.chat_messages];
+          const lastMsg = newMessages[newMessages.length - 1];
+          if (lastMsg.role === 'assistant') {
+            newMessages[newMessages.length - 1] = {
+              ...lastMsg,
+              content: content,
+            };
+            return { ...n, chat_messages: newMessages };
+          }
+        }
+        return n;
+      }),
     })),
 });

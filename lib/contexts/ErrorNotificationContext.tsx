@@ -17,21 +17,21 @@ interface ErrorNotification {
 interface ErrorNotificationContextValue {
   // Show error notification (toast or modal based on severity)
   showError: (error: AppError) => void;
-  
+
   // Show toast notification (non-blocking)
   showToast: (error: AppError) => void;
-  
+
   // Show modal error (blocking)
   showModal: (error: AppError) => void;
-  
+
   // Current notifications
   toasts: ErrorNotification[];
   currentModal: ErrorNotification | null;
-  
+
   // Dismiss methods
   dismissToast: (id: string) => void;
   dismissModal: () => void;
-  
+
   // Clear all
   clearAll: () => void;
 }
@@ -77,11 +77,11 @@ export const ErrorNotificationProvider: React.FC<ErrorNotificationProviderProps>
     });
 
     // Auto-dismiss after delay based on severity
-    const dismissDelay = 
+    const dismissDelay =
       error.severity === ErrorSeverity.LOW ? 3000 :
-      error.severity === ErrorSeverity.MEDIUM ? 5000 :
-      error.severity === ErrorSeverity.HIGH ? 7000 :
-      4000;
+        error.severity === ErrorSeverity.MEDIUM ? 5000 :
+          error.severity === ErrorSeverity.HIGH ? 7000 :
+            4000;
 
     setTimeout(() => {
       dismissToast(notification.id);

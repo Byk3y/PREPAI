@@ -130,6 +130,7 @@ async function generateTitleAndPreview(
   title: string;
   preview: {
     overview: string;
+    suggested_questions: string[];
   };
   usage: {
     inputTokens: number;
@@ -140,57 +141,37 @@ async function generateTitleAndPreview(
   model: string;
   latency: number;
 }> {
-  const systemPrompt = `You are an expert writing coach and academic summarizer. Generate a descriptive title and concise overview for uploaded study material (60-85 words - a quick, scannable summary).
+  const systemPrompt = `You are an elite academic summarizer. Generate a scannable title, a concise narrative overview, and three curiosity-gap suggested questions for study material.
 
 Output ONLY valid JSON in this exact format:
 {
-  "title": "Concise, scannable title (max 60 characters)",
-  "overview": "A clear, concise overview (60-85 words) in a SINGLE continuous paragraph with NO paragraph breaks. It should explain what the document is about, the central themes, the author's perspective or background (if present), the purpose and context of the writing, and why the material matters. Write in a neutral, polished, professional tone. Do not write a TL;DR or bullet list. Produce a coherent narrative summary in one flowing paragraph."
+  "title": "Concise headline (max 60 characters)",
+  "overview": "A clear, narrative overview (60-85 words) as a single continuous paragraph. Explain the central themes, why it matters, and the author's key point.",
+  "suggested_questions": [
+    "A content-specific question that sparks curiosity",
+    "A practical application question",
+    "A deep-dive question about a core concept"
+  ]
 }
 
-CRITICAL RULES FOR OVERVIEW:
-- The overview MUST be 60-85 words. This is NOT optional.
-- Write exactly 1 paragraph with NO paragraph breaks, line breaks, or blank lines within it. The entire overview must be a single continuous paragraph.
-- Explain: what the document is about, central themes, author's perspective/background, purpose and context, why it matters.
-- Write in a neutral, polished, professional tone.
-- Do NOT write a TL;DR or bullet list.
-- Do NOT split into multiple paragraphs - use a single continuous paragraph only.
-- Produce a coherent narrative summary in one flowing paragraph.
-- Aim for concise but informative - a quick, scannable overview (60-85 words).
-
-FORMATTING RULES (IMPORTANT - Follow NotebookLM's style):
-- Use **bold markdown** (double asterisks) to emphasize important concepts, key themes, significant actions, and critical phrases. Examples: **dopamine acts as a hidden driver**, **managing cultural campaigns**, **formalize this literary trajectory**.
-- Use *italic markdown* (single asterisks) for titles of works, manuscripts, books, or proper nouns that are works. Examples: *Dopamine: The New Addiction*, *ShineTTW*, *Lokaa*.
-- Bold should be used strategically for 3-5 key phrases per overview to highlight the most important concepts.
-- Italic should be used for work titles and proper nouns that are creative works or platforms.
-
-Rules for title:
-- Keep titles under 60 characters - think like a newspaper headline: concise, punchy, and scannable.
-- Focus on the PRIMARY subject/topic only - avoid including secondary details that belong in the overview.
-- Prioritize the main topic over exhaustive descriptions. The overview contains all details; the title should be instantly recognizable.
-- Examples of good concise titles: "Cognitive Psychology Fundamentals", "Industrial Revolution", "Francis Chukwuma on Dopamine", "Employment Certificate", "ShineTTW Contract".
-- Avoid overly descriptive titles like "Ore-sax Employment Certificate for ShineTTW's Standing Ovation Master" - instead use "Employment Certificate" or "ShineTTW Contract".
-- Make it specific and engaging, but prioritize brevity over completeness.
-- CRITICAL: DO NOT use any markdown formatting in the title. No asterisks (*), no bold (**), no italic. The title must be plain text only.`;
+CRITICAL RULES:
+1. The overview MUST be 60-85 words.
+2. Write exactly 1 paragraph for the overview.
+3. Use **bold** strategically (3-5 key phrases) in the overview only.
+4. suggested_questions MUST be specific to the text. For example, if it's about physics, ask about a specific law mentioned.
+5. DO NOT generate the answers to the questions. Just the questions.
+6. The title field must be plain text with NO markdown formatting.`;
 
   // Use more content for better context (7000 chars instead of 3000)
   const contentWindow = Math.min(7000, extractedContent.length);
-  const userPrompt = `Read the provided document and produce a clear, concise overview (60-85 words).
+  const userPrompt = `Read the provided document and produce the requested JSON.
 
-Current title (may be auto-generated, improve it): ${currentTitle || 'Untitled'}
+Current title (improve it): ${currentTitle || 'Untitled'}
 
 Document content (first ${contentWindow} characters):
 ${extractedContent.substring(0, contentWindow)}
 
-Generate title and overview JSON. The overview should explain what the document is about, the central themes, the author's perspective or background (if present), the purpose and context of the writing, and why the material matters. Write in a neutral, polished, professional tone. Do not write a TL;DR or bullet list. Produce a coherent narrative summary of 60-85 words in a SINGLE continuous paragraph with NO paragraph breaks or line breaks (a quick, scannable overview).
-
-CRITICAL FOR TITLE: Keep it under 60 characters. Focus on the main topic only - think like a headline. Avoid including secondary details. The overview contains all the details; the title should be instantly scannable.
-
-IMPORTANT: Use markdown formatting for emphasis IN THE OVERVIEW ONLY:
-- Use **bold** (double asterisks) for 3-5 key important concepts, themes, or significant phrases
-- Use *italic* (single asterisks) for titles of works, manuscripts, or creative platforms
-- Follow NotebookLM's style of strategically emphasizing the most important information with bold formatting.
-- REMEMBER: The title field must be plain text with NO markdown formatting whatsoever.`;
+Generate the JSON with title, narrative overview, and suggested questions.`;
 
   // Call LLM with retry (uses cheap model: Grok)
   // Increased temperature to 0.5 for better synthesis
@@ -221,7 +202,7 @@ IMPORTANT: Use markdown formatting for emphasis IN THE OVERVIEW ONLY:
       throw new Error('Title cannot be empty');
     }
     if (cleanedTitle.length > 60) {
-      throw new Error(`Title too long: ${cleanedTitle.length} characters (max 60)`);
+      throw new Error(`Title too long: ${cleanedTitle.length} characters(max 60)`);
     }
 
     // Validate overview length (60-85 words target - quick, scannable overview)
@@ -239,8 +220,8 @@ IMPORTANT: Use markdown formatting for emphasis IN THE OVERVIEW ONLY:
     if (wordCount < 55) {
       // Throw error to force retry - the model must generate a proper overview
       throw new Error(
-        `Overview too short: ${wordCount} words (minimum 60 words required). ` +
-        `The overview must be a clear, concise narrative (60-85 words), not a brief summary. ` +
+        `Overview too short: ${wordCount} words(minimum 60 words required). ` +
+        `The overview must be a clear, concise narrative(60 - 85 words), not a brief summary. ` +
         `It should explain what the document is about, central themes, author's perspective, purpose and context, and why it matters. ` +
         `Write in a neutral, polished, professional tone. Do not write a TL;DR or bullet list. Aim for concise but informative.`
       );
@@ -260,9 +241,10 @@ IMPORTANT: Use markdown formatting for emphasis IN THE OVERVIEW ONLY:
       console.log(`Overview word count: ${wordCount} (target: 60-85 words for quick, scannable overview)`);
     }
 
-    // Extract preview (only overview, no who_for or next_step)
+    // Extract preview
     const preview = {
       overview: trimmedOverview,
+      suggested_questions: response.suggested_questions || [],
     };
 
     // Return cleaned title (markdown stripped), preview with actual usage statistics from LLM
