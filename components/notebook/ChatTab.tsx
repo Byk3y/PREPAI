@@ -93,6 +93,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
   const chatMessages = useStore(state =>
     state.notebooks.find(n => n.id === notebook.id)?.chat_messages || []
   );
+  const petName = useStore(state => state.petState.name);
 
   // Theme
   const { isDarkMode } = useTheme();
@@ -459,7 +460,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
             <View style={{ flex: 1, flexDirection: isInputFocused || inputText.length > 0 ? 'column' : 'row', alignItems: isInputFocused || inputText.length > 0 ? 'stretch' : 'center' }}>
               <TextInput
                 ref={inputRef}
-                placeholder={selectedCount > 0 ? `Ask ${selectedCount} source${selectedCount !== 1 ? 's' : ''}...` : "Ask a general question..."}
+                placeholder={`Ask ${petName}...`}
                 placeholderTextColor={colors.textSecondary}
                 style={{
                   flex: 1,
