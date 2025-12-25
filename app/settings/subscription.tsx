@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { restorePurchases } from '@/lib/purchases';
 import { usePaywall } from '@/lib/hooks/usePaywall';
+import { BrigoLogo } from '@/components/BrigoLogo';
 
 export default function SubscriptionScreen() {
     const { isDarkMode } = useTheme();
@@ -93,7 +94,10 @@ export default function SubscriptionScreen() {
                         <Text style={styles.trialText}>{trialStatusText}</Text>
                     </View>
 
-                    <Text style={styles.planTitle}>{planTitle}</Text>
+                    <View style={styles.planTitleRow}>
+                        <BrigoLogo size={26} textColor="#FFFFFF" />
+                        {tier === 'premium' && <Text style={styles.planTitlePro}> Pro</Text>}
+                    </View>
                     <Text style={styles.planTagline}>{planTagline}</Text>
 
                     <View style={styles.featuresList}>
@@ -211,6 +215,16 @@ const styles = StyleSheet.create({
         fontFamily: 'Nunito-Bold',
         color: '#FFFFFF',
         marginBottom: 4,
+    },
+    planTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    planTitlePro: {
+        fontSize: 26,
+        fontFamily: 'Nunito-Bold',
+        color: '#FFFFFF',
     },
     planTagline: {
         fontSize: 14,

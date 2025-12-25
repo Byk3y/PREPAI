@@ -15,6 +15,7 @@ import {
   Animated,
   StyleSheet,
   Dimensions,
+  Text,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,6 +31,7 @@ import {
 } from '@/components/pet-sheet';
 import { usePetTasks } from '@/hooks/usePetTasks';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import { BrigoLogo } from '@/components/BrigoLogo';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -38,7 +40,7 @@ export default function PetSheetScreen() {
   const { user, petState, updatePetName } = useStore();
   const scrollY = useRef(0);
   const scrollViewRef = useRef<ScrollView>(null);
-  
+
   // Theme
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
@@ -79,13 +81,13 @@ export default function PetSheetScreen() {
   const getGradientColors = (): [string, string] => {
     if (isDarkMode) {
       // Slightly darker/muted golden - blends into new background
-      return previewStage === 1 
+      return previewStage === 1
         ? ['#D4A843', '#29292b']  // Muted gold to background
         : ['#C88A30', '#29292b']; // Muted amber to background
     }
     // Light mode - original yellow gradients
-    return previewStage === 1 
-      ? ['#FFE082', '#FFFFFF'] 
+    return previewStage === 1
+      ? ['#FFE082', '#FFFFFF']
       : ['#FFB74D', '#FFFFFF'];
   };
 
@@ -167,6 +169,14 @@ export default function PetSheetScreen() {
                   />
 
                   <StreakBadges streak={user.streak} />
+
+                  {/* Powered by Brigo footer */}
+                  <View style={styles.poweredByContainer}>
+                    <Text style={[styles.poweredByText, { color: isDarkMode ? 'rgba(255, 255, 255, 0.4)' : 'rgba(120, 80, 40, 0.5)' }]}>
+                      Powered by
+                    </Text>
+                    <BrigoLogo size={16} textColor={isDarkMode ? 'rgba(255, 255, 255, 0.4)' : 'rgba(120, 80, 40, 0.5)'} />
+                  </View>
                 </View>
               </ScrollView>
               <SafeAreaView style={styles.bottomSafeArea} edges={['bottom']} />
@@ -232,5 +242,18 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     // Swipeable area - includes pet name, XP, missions, and stats
+  },
+  poweredByContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 32,
+    gap: 6,
+    opacity: 0.6,
+  },
+  poweredByText: {
+    fontSize: 12,
+    fontFamily: 'Outfit-Light',
+    color: 'rgba(255, 255, 255, 0.5)',
   },
 });

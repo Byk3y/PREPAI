@@ -4,8 +4,9 @@
  */
 
 import React from 'react';
-import { View, Image, Text, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BrigoLogo } from './BrigoLogo';
 
 interface FirstScreenProps {
   /** Optional image source - defaults to the splash mascot */
@@ -16,8 +17,6 @@ interface FirstScreenProps {
   textColor?: string;
   /** Show app name at bottom - defaults to true */
   showAppName?: boolean;
-  /** App name to display - defaults to Brigo */
-  appName?: string;
 }
 
 export function FirstScreen({
@@ -25,7 +24,6 @@ export function FirstScreen({
   backgroundColor = '#faf9f6',
   textColor = '#ffffff',
   showAppName = true,
-  appName = 'Brigo'
 }: FirstScreenProps) {
   return (
     <SafeAreaView
@@ -43,10 +41,10 @@ export function FirstScreen({
         </View>
       )}
 
-      {/* App Name at Bottom (optional) */}
+      {/* App Logo at Bottom (optional) */}
       {showAppName && (
         <View style={styles.appNameContainer}>
-          <Text style={[styles.appName, { color: textColor }]}>{appName}</Text>
+          <BrigoLogo size={32} textColor={textColor} />
         </View>
       )}
     </SafeAreaView>
@@ -73,11 +71,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 40,
     alignItems: 'center',
-  },
-  appName: {
-    fontSize: 24,
-    fontWeight: '400',
-    letterSpacing: 0.3,
-    textTransform: 'lowercase',
   },
 });

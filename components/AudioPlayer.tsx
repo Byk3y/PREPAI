@@ -31,6 +31,7 @@ import {
     ThumbDownIcon
 } from './AudioIcons';
 import { formatTime } from '@/lib/utils';
+import { BrigoLogo } from './BrigoLogo';
 
 interface AudioPlayerProps {
     audioUrl: string; // Required: URL to audio file
@@ -604,6 +605,14 @@ export function AudioPlayer({
                                 </Text>
                             </View>
                         </TouchableOpacity>
+                    </View>
+
+                    {/* Powered by Brigo footer */}
+                    <View className="flex-row items-center justify-center mb-4" style={{ gap: 6, opacity: 0.4 }}>
+                        <Text style={{ fontSize: 11, fontFamily: 'Outfit-Light', color: '#6B7280' }}>
+                            Powered by
+                        </Text>
+                        <BrigoLogo size={12} textColor="#6B7280" />
                     </View>
                 </View>
 

@@ -22,6 +22,7 @@ import { useStore } from '@/lib/store';
 import { getOfferings, purchasePackage, restorePurchases } from '@/lib/purchases';
 import { useUpgrade } from '@/lib/hooks/useUpgrade';
 import { PurchasesPackage } from 'react-native-purchases';
+import { BrigoLogo } from '../BrigoLogo';
 
 const STAGE_1_PET = require('@/assets/pets/stage-1/full-view.png');
 const STAGE_2_PET = require('@/assets/pets/stage-2/full-view.png');
@@ -184,7 +185,10 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
                                 resizeMode="contain"
                             />
                         </View>
-                        <Text style={[styles.title, { color: themeColors.text }]}>Brigo Pro</Text>
+                        <View style={styles.titleRow}>
+                            <BrigoLogo size={28} textColor={themeColors.text} />
+                            <Text style={[styles.proText, { color: themeColors.accent }]}> Pro</Text>
+                        </View>
                         <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
                             Everything you need to master your studies.
                         </Text>
@@ -346,6 +350,16 @@ const styles = StyleSheet.create({
     petImage: {
         width: 100,
         height: 100,
+    },
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    proText: {
+        fontSize: 28,
+        fontFamily: 'Nunito-Black',
+        letterSpacing: -0.5,
     },
     title: {
         fontSize: 28,

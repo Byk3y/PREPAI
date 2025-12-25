@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useStore } from '@/lib/store';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 import { generateGradientFromString } from '@/lib/utils/avatarGradient';
+import { BrigoLogo } from '../BrigoLogo';
 
 export const HomeHeader: React.FC = () => {
     const router = useRouter();
@@ -28,14 +29,10 @@ export const HomeHeader: React.FC = () => {
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingHorizontal: 24,
-            paddingVertical: 16,
+            paddingVertical: 20, // Increased padding slightly for the larger logo
             backgroundColor: colors.background
         }}>
-            <Text
-                style={{ fontFamily: 'Nunito-Bold', fontSize: 24, color: colors.text }}
-            >
-                Brigo
-            </Text>
+            <BrigoLogo size={38} textColor={colors.text} />
             <TouchableOpacity
                 onPress={handleProfilePress}
                 activeOpacity={0.8}
