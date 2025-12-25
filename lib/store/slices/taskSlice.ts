@@ -90,8 +90,8 @@ export const createTaskSlice: StateCreator<
     },
 
     loadDailyTasks: async () => {
-        const { authUser, getUserTimezone } = get();
-        if (!authUser) return;
+        const { authUser, getUserTimezone, isLoadingTasks } = get();
+        if (!authUser || isLoadingTasks) return;
 
         set({ isLoadingTasks: true });
         try {

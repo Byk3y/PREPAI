@@ -14,7 +14,7 @@ ADD COLUMN IF NOT EXISTS last_restore_reset TEXT DEFAULT TO_CHAR(CURRENT_DATE, '
 
 -- Step 2: Create improved increment_streak function
 -- This handles monthly refill and detects when a streak is reset
-OR REPLACE FUNCTION increment_streak(
+CREATE OR REPLACE FUNCTION increment_streak(
   p_user_id UUID,
   p_timezone TEXT DEFAULT 'UTC'
 )

@@ -152,7 +152,7 @@ export class ErrorClassifier {
 
     // Network-related strings
     if (message.includes('network') || message.includes('fetch') ||
-        message.includes('connection') || message.includes('timeout')) {
+      message.includes('connection') || message.includes('timeout')) {
       return new AppError({
         type: ErrorType.NETWORK,
         message: error,
@@ -165,7 +165,7 @@ export class ErrorClassifier {
 
     // Auth-related strings
     if (message.includes('unauthorized') || message.includes('not authenticated') ||
-        message.includes('invalid token') || message.includes('session expired')) {
+      message.includes('invalid token') || message.includes('session expired')) {
       return new AppError({
         type: ErrorType.AUTH,
         message: error,
@@ -178,7 +178,7 @@ export class ErrorClassifier {
 
     // Quota-related strings
     if (message.includes('limit') || message.includes('quota') ||
-        message.includes('trial expired') || message.includes('upgrade')) {
+      message.includes('trial expired') || message.includes('upgrade')) {
       return new AppError({
         type: ErrorType.QUOTA,
         message: error,
@@ -351,7 +351,7 @@ export class ErrorClassifier {
           originalError: error
         });
       }
-      
+
       return new AppError({
         type: ErrorType.QUOTA,
         message,
@@ -401,13 +401,34 @@ export class ErrorClassifier {
     }
 
     // Default Supabase error
-    return new AppError({
+    const appError = new AppError({
       type: ErrorType.UNKNOWN,
       message,
       context,
       severity: ErrorSeverity.MEDIUM,
       originalError: error
     });
+
+    // Check if it's actually a network error hidden in a Supabase error/object
+    const lowerMessage = message.toLowerCase();
+    if (
+      lowerMessage.includes('network') ||
+      lowerMessage.includes('fetch') ||
+      lowerMessage.includes('connection') ||
+      lowerMessage.includes('timeout')
+    ) {
+      return new AppError({
+        type: ErrorType.NETWORK,
+        message,
+        context: appError.context,
+        severity: ErrorSeverity.LOW, // Low severity for network issues
+        retryable: true,
+        recoveryAction: RecoveryAction.RETRY,
+        originalError: error
+      });
+    }
+
+    return appError;
   }
 }
 

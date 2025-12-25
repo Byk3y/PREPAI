@@ -66,11 +66,8 @@ export default function PetSheetScreen() {
   // Pet growth missions - includes both foundational and daily tasks
   const { allTasks, taskProgress, foundationalTasks, loadDailyTasks, loadFoundationalTasks, checkAndAwardTask } = usePetTasks();
 
-  // Refresh on mount to ensure we have latest data
-  React.useEffect(() => {
-    loadDailyTasks();
-    loadFoundationalTasks();
-  }, []);
+  // Gestures and loading are handled by hooks.
+  // usePetTasks already triggers loadDailyTasks and loadFoundationalTasks on mount if authUser exists.
 
   const handleNameChange = async (newName: string) => {
     // Use updatePetName instead of setPetState to trigger task completion check
