@@ -14,9 +14,14 @@ export interface UserSlice {
   setUser: (user: Partial<User>) => void;
   loadUserProfile: () => Promise<void>;
   hydrateUserProfileFromCache: () => void;
+  restoreStreak: () => Promise<{ success: boolean; restored_streak?: number; error?: string }>;
   resetUserProfile: () => void;
   hasCreatedNotebook: boolean;
   setHasCreatedNotebook: (value: boolean) => void;
+  showStreakRestoreModal: boolean;
+  setShowStreakRestoreModal: (show: boolean) => void;
+  previousStreakForRestore: number;
+  setPreviousStreakForRestore: (streak: number) => void;
 }
 
 export const createUserSlice: StateCreator<
@@ -31,6 +36,8 @@ export const createUserSlice: StateCreator<
     first_name: '',
     last_name: '',
     streak: 0,
+    streak_restores: 3,
+    last_restore_reset: '',
     coins: 0,
   },
   userProfileSyncedAt: null,
@@ -70,6 +77,8 @@ export const createUserSlice: StateCreator<
             first_name: '',
             last_name: '',
             streak: 0,
+            streak_restores: 3,
+            last_restore_reset: '',
             coins: 0,
             avatar: undefined,
           },
@@ -81,6 +90,16 @@ export const createUserSlice: StateCreator<
     } catch (error) {
       console.error('Error loading user profile:', error);
     }
+  },
+  restoreStreak: async () => {
+    const { authUser, loadUserProfile } = get();
+    if (!authUser) return { success: false, error: 'Not authenticated' };
+
+    const result = await userService.restoreStreak(authUser.id);
+    if (result.success) {
+      await loadUserProfile(); // Fully refresh profile to update streak and restores count
+    }
+    return result;
   },
   hydrateUserProfileFromCache: () => {
     const { authUser, userProfileUserId, user } = get();
@@ -97,6 +116,8 @@ export const createUserSlice: StateCreator<
         first_name: '',
         last_name: '',
         streak: 0,
+        streak_restores: 3,
+        last_restore_reset: '',
         coins: 0,
       },
       userProfileSyncedAt: null,
@@ -106,4 +127,8 @@ export const createUserSlice: StateCreator<
   },
   hasCreatedNotebook: false,
   setHasCreatedNotebook: (value) => set({ hasCreatedNotebook: value }),
+  showStreakRestoreModal: false,
+  setShowStreakRestoreModal: (show) => set({ showStreakRestoreModal: show }),
+  previousStreakForRestore: 0,
+  setPreviousStreakForRestore: (streak) => set({ previousStreakForRestore: streak }),
 });

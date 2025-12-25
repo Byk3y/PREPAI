@@ -103,6 +103,21 @@ export function StreakBadges({ streak }: StreakBadgesProps) {
                     );
                 })}
             </View>
+
+            {/* Safety Net Info */}
+            <View style={[styles.divider, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]} />
+
+            <View style={styles.safetyNetContainer}>
+                <View style={[styles.safetyIconContainer, { backgroundColor: isDarkMode ? 'rgba(56, 189, 248, 0.15)' : '#E0F2FE' }]}>
+                    <Ionicons name="shield-checkmark" size={16} color="#0284C7" />
+                </View>
+                <View style={styles.safetyTextContainer}>
+                    <Text style={[styles.safetyTitle, { color: cardTextColor }]}>Safety Net</Text>
+                    <Text style={[styles.safetyDesc, { color: isDarkMode ? 'rgba(255,255,255,0.5)' : '#64748B' }]}>
+                        You have 3 streak restores every month. They refill automatically!
+                    </Text>
+                </View>
+            </View>
         </View>
     );
 }
@@ -168,5 +183,34 @@ const styles = StyleSheet.create({
         borderRadius: 3,
         position: 'absolute',
         width: '100%',
+    },
+    divider: {
+        height: 1,
+        width: '100%',
+        marginVertical: 20,
+    },
+    safetyNetContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    safetyIconContainer: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    safetyTextContainer: {
+        flex: 1,
+    },
+    safetyTitle: {
+        fontSize: 13,
+        fontWeight: '700',
+        marginBottom: 2,
+    },
+    safetyDesc: {
+        fontSize: 11,
+        lineHeight: 14,
     },
 });

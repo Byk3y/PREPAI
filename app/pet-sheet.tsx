@@ -147,6 +147,7 @@ export default function PetSheetScreen() {
                 <View style={styles.topSection}>
                   <PetDisplay
                     streak={user.streak}
+                    restores={user.streak_restores}
                     stage={previewStage}
                     currentStage={currentStage}
                     onNextStage={previewStage === 1 ? () => setPreviewStage(2) : undefined}

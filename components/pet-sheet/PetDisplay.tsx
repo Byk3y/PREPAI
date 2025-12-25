@@ -16,6 +16,7 @@ const STAGE_2_SILHOUETTE = require('@/assets/pets/stage-2/silhouette.png');
 
 interface PetDisplayProps {
     streak: number;
+    restores?: number;
     stage: 1 | 2;
     currentStage: 1 | 2;
     onNextStage?: () => void;
@@ -98,7 +99,7 @@ const FieryStreakNumber = memo(({ streak }: { streak: number }) => {
     );
 });
 
-export const PetDisplay = memo(({ streak, stage, currentStage, onNextStage, onPrevStage }: PetDisplayProps) => {
+export const PetDisplay = memo(({ streak, restores = 0, stage, currentStage, onNextStage, onPrevStage }: PetDisplayProps) => {
     const { isDarkMode } = useTheme();
 
     const textSecondaryOnGradient = useMemo(() =>
@@ -120,9 +121,25 @@ export const PetDisplay = memo(({ streak, stage, currentStage, onNextStage, onPr
                 accessibilityLabel={`Your current streak is ${streak} days`}
                 accessibilityRole="text"
             >
-                <Text style={[styles.streakLabel, { color: textSecondaryOnGradient }]}>
-                    Streak days
-                </Text>
+                <View style={styles.labelRow}>
+                    <Text style={[styles.streakLabel, { color: textSecondaryOnGradient }]}>
+                        Streak days
+                    </Text>
+
+                    {/* Restore Shield Badge */}
+                    {restores > 0 && (
+                        <MotiView
+                            from={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            style={styles.restoreBadge}
+                        >
+                            <View style={styles.shieldBackground}>
+                                <Ionicons name="shield-checkmark" size={14} color="#38BDF8" />
+                                <Text style={styles.restoreCountText}>{restores}</Text>
+                            </View>
+                        </MotiView>
+                    )}
+                </View>
 
                 <FieryStreakNumber streak={streak} />
             </View>
@@ -204,10 +221,35 @@ const styles = StyleSheet.create({
     streakContainer: {
         marginBottom: 12,
     },
+    labelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 4,
+    },
     streakLabel: {
         fontSize: 15,
-        marginBottom: 4,
         fontWeight: '500',
+    },
+    restoreBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    shieldBackground: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(56, 189, 248, 0.2)',
+        gap: 4,
+    },
+    restoreCountText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#38BDF8',
     },
     streakValue: {
         fontSize: 72,

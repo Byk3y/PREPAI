@@ -155,6 +155,40 @@ export type Database = {
           },
         ]
       }
+      flashcard_completions: {
+        Row: {
+          id: string
+          user_id: string
+          flashcard_id: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          flashcard_id: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          flashcard_id?: string
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flashcard_completions_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flashcard_completions_flashcard_id_fkey"
+            columns: ["flashcard_id"]
+            referencedRelation: "studio_flashcards"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       materials: {
         Row: {
           content: string | null
@@ -487,6 +521,55 @@ export type Database = {
           },
         ]
       }
+      study_sessions: {
+        Row: {
+          id: string
+          user_id: string
+          notebook_id: string | null
+          start_at: string
+          end_at: string | null
+          duration_seconds: number | null
+          session_type: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          notebook_id?: string | null
+          start_at: string
+          end_at?: string | null
+          duration_seconds?: number | null
+          session_type?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          notebook_id?: string | null
+          start_at?: string
+          end_at?: string | null
+          duration_seconds?: number | null
+          session_type?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_sessions_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_sessions_notebook_id_fkey"
+            columns: ["notebook_id"]
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       usage_logs: {
         Row: {
           created_at: string | null
@@ -637,12 +720,83 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          id: string
+          name: string | null
+          first_name: string | null
+          last_name: string | null
+          avatar_url: string | null
+          streak: number | null
+          streak_restores: number | null
+          last_restore_reset: string | null
+          last_streak_date: string | null
+          timezone: string | null
+          coins: number | null
+          meta: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id: string
+          name?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          avatar_url?: string | null
+          streak?: number | null
+          streak_restores?: number | null
+          last_restore_reset?: string | null
+          last_streak_date?: string | null
+          timezone?: string | null
+          coins?: number | null
+          meta?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          avatar_url?: string | null
+          streak?: number | null
+          streak_restores?: number | null
+          last_restore_reset?: string | null
+          last_streak_date?: string | null
+          timezone?: string | null
+          coins?: number | null
+          meta?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_streak: {
+        Args: {
+          p_user_id: string
+          p_timezone?: string
+        }
+        Returns: Json
+      }
+      restore_streak: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       processing_job_status:
@@ -658,19 +812,27 @@ export type Database = {
   }
 }
 
-type PublicSchema = Database[Extract<keyof Database, "public">]
+type PublicSchema = Database["public"]
 
 export type Tables<
   PublicTableNameOrOptions extends
   | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
   | { schema: keyof Database },
   TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-  ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-    Database[PublicTableNameOrOptions["schema"]]["Views"])
+  ? keyof (Database[PublicTableNameOrOptions["schema"]] extends { Tables: any }
+    ? Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : any) &
+  (Database[PublicTableNameOrOptions["schema"]] extends { Views: any }
+    ? Database[PublicTableNameOrOptions["schema"]]["Views"]
+    : any)
   : never = never,
 > = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-    Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+  ? (Database[PublicTableNameOrOptions["schema"]] extends { Tables: any }
+    ? Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : any) &
+  (Database[PublicTableNameOrOptions["schema"]] extends { Views: any }
+    ? Database[PublicTableNameOrOptions["schema"]]["Views"]
+    : any)[TableName] extends {
       Row: infer R
     }
   ? R
@@ -690,12 +852,16 @@ export type TablesInsert<
   | keyof PublicSchema["Tables"]
   | { schema: keyof Database },
   TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-  ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  ? keyof (Database[PublicTableNameOrOptions["schema"]] extends { Tables: any }
+    ? Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : any)
   : never = never,
 > = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Insert: infer I
-  }
+  ? (Database[PublicTableNameOrOptions["schema"]] extends { Tables: any }
+    ? Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : any)[TableName] extends {
+      Insert: infer I
+    }
   ? I
   : never
   : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
@@ -711,12 +877,16 @@ export type TablesUpdate<
   | keyof PublicSchema["Tables"]
   | { schema: keyof Database },
   TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-  ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  ? keyof (Database[PublicTableNameOrOptions["schema"]] extends { Tables: any }
+    ? Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : any)
   : never = never,
 > = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Update: infer U
-  }
+  ? (Database[PublicTableNameOrOptions["schema"]] extends { Tables: any }
+    ? Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : any)[TableName] extends {
+      Update: infer U
+    }
   ? U
   : never
   : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
@@ -732,10 +902,14 @@ export type Enums<
   | keyof PublicSchema["Enums"]
   | { schema: keyof Database },
   EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
-  ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+  ? keyof (Database[PublicEnumNameOrOptions["schema"]] extends { Enums: any }
+    ? Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+    : any)
   : never = never,
 > = PublicEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  ? (Database[PublicEnumNameOrOptions["schema"]] extends { Enums: any }
+    ? Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+    : any)[EnumName]
   : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
   ? PublicSchema["Enums"][PublicEnumNameOrOptions]
   : never

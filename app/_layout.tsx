@@ -57,6 +57,8 @@ import { useAppStateMonitoring } from '@/hooks/useAppStateMonitoring';
 import { useRoutingLogic } from '@/hooks/useRoutingLogic';
 import { useStreakCheck } from '@/hooks/useStreakCheck';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { StreakSaviorModal } from '@/components/modals/StreakSaviorModal';
+import { useStore } from '@/lib/store';
 
 // Initialize RevenueCat SDK
 import { initializePurchases } from '@/lib/purchases';
@@ -69,6 +71,12 @@ function RootLayoutInner() {
   // Get theme from context
   const { isDarkMode, effectiveColorScheme } = useTheme();
   const colors = getThemeColors(isDarkMode);
+
+  // Store state for Streak Savior Modal (LIFTED HERE TO AVOID HOOKS RULE VIOLATION)
+  const showStreakRestoreModal = useStore(state => state.showStreakRestoreModal);
+  const setShowStreakRestoreModal = useStore(state => state.setShowStreakRestoreModal);
+  const previousStreakForRestore = useStore(state => state.previousStreakForRestore);
+  const streakRestores = useStore(state => state.user.streak_restores);
 
   // Initialize all app setup hooks
   useGlobalErrorHandler();
@@ -155,7 +163,15 @@ function RootLayoutInner() {
         style={{ width: 300, height: 300, opacity: 0, position: 'absolute', top: -9999, left: -9999 }}
         fadeDuration={0}
       />
+
       <InAppNotification />
+
+      <StreakSaviorModal
+        visible={showStreakRestoreModal}
+        onClose={() => setShowStreakRestoreModal(false)}
+        previousStreak={previousStreakForRestore}
+        restoresLeft={streakRestores}
+      />
     </View>
   );
 }

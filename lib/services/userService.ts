@@ -17,7 +17,7 @@ export const userService = {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, first_name, last_name, streak, avatar_url, meta, created_at')
+        .select('id, name, first_name, last_name, streak, streak_restores, last_restore_reset, avatar_url, meta, created_at')
         .eq('id', userId)
         .single();
 
@@ -38,6 +38,8 @@ export const userService = {
           first_name: data.first_name || '',
           last_name: data.last_name || '',
           streak: data.streak || 0,
+          streak_restores: data.streak_restores ?? 3,
+          last_restore_reset: data.last_restore_reset || '',
           coins: 0, // Not used in current system
           avatar: data.avatar_url || undefined,
           meta: (data.meta as any) || {},
@@ -188,6 +190,36 @@ export const userService = {
         metadata: { userId, updates },
       });
       return false;
+    }
+  },
+
+  /**
+   * Restore user's streak using available restores
+   * @param userId - The user's ID
+   */
+  restoreStreak: async (userId: string): Promise<{ success: boolean; restored_streak?: number; error?: string }> => {
+    try {
+      const { data, error } = await supabase.rpc('restore_streak', {
+        p_user_id: userId,
+      });
+
+      if (error) {
+        await handleError(error, {
+          operation: 'restore_streak',
+          component: 'user-service',
+          metadata: { userId },
+        });
+        return { success: false, error: error.message };
+      }
+
+      return data as any;
+    } catch (error: any) {
+      await handleError(error, {
+        operation: 'restore_streak',
+        component: 'user-service',
+        metadata: { userId },
+      });
+      return { success: false, error: error?.message || 'Failed to restore streak' };
     }
   },
 };

@@ -21,6 +21,9 @@ export interface ProfileMeta {
   commitment_made_at?: string; // ISO timestamp
   assessment_completed_at?: string; // ISO timestamp
   assessment_version?: string; // e.g., '1.0' for versioning
+
+  // Streak system fields
+  last_recoverable_streak?: number; // Used for restores
 }
 
 export interface User {
@@ -29,6 +32,8 @@ export interface User {
   first_name: string;    // First name for personalization
   last_name: string;     // Last name for personalization
   streak: number;
+  streak_restores: number; // New: 3 per month
+  last_restore_reset: string; // New: YYYYMM format
   coins: number;
   avatar?: string;
   meta?: ProfileMeta;    // Profile metadata from database
