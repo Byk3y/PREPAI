@@ -15,7 +15,6 @@ import {
   TextInput,
   TouchableWithoutFeedback,
   Keyboard,
-  Alert,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -158,50 +157,10 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
     sendMessage(msg, selectedMaterialIds);
   };
 
-  const handleLongPress = async (content: string) => {
+  const handleCopy = async (content: string) => {
     if (!content) return;
-
-    // Dismiss keyboard to ensure the menu isn't obscured
-    Keyboard.dismiss();
-
-    // Initial haptic to acknowledge the long press
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    if (Platform.OS === 'ios') {
-      const { ActionSheetIOS } = require('react-native');
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Copy Message'],
-          cancelButtonIndex: 0,
-          title: 'Message Options',
-        },
-        async (buttonIndex: number) => {
-          if (buttonIndex === 1) {
-            await Clipboard.setStringAsync(content);
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          }
-        }
-      );
-    } else {
-      Alert.alert(
-        'Message Options',
-        '',
-        [
-          {
-            text: 'Copy Message',
-            onPress: async () => {
-              await Clipboard.setStringAsync(content);
-              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            },
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-        ],
-        { cancelable: true }
-      );
-    }
+    await Clipboard.setStringAsync(content);
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   const toggleMaterial = (id: string) => {
@@ -324,51 +283,69 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
           )}
 
           {chatMessages.map((msg, index) => (
-            <TouchableOpacity
+            <View
               key={msg.id || index}
-              activeOpacity={0.9}
-              onLongPress={() => handleLongPress(msg.content)}
-              delayLongPress={400}
               style={{
                 flexDirection: 'row',
                 justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
                 marginBottom: 16,
               }}
             >
-              <View
-                style={{
-                  backgroundColor: msg.role === 'user' ? '#3B82F6' : colors.surfaceAlt,
-                  borderRadius: 18,
-                  borderTopRightRadius: msg.role === 'user' ? 4 : 18,
-                  borderTopLeftRadius: msg.role === 'assistant' ? 4 : 18,
-                  paddingHorizontal: 16,
-                  paddingVertical: 12,
-                  maxWidth: '85%',
-                }}
-              >
-                {msg.role === 'user' ? (
-                  <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Nunito-Medium' }}>
-                    {msg.content}
-                  </Text>
-                ) : (
-                  msg.content === '' ? (
-                    <TypingIndicator color={colors.textSecondary} />
-                  ) : (
-                    <MarkdownText
-                      selectable={false}
-                      style={{
-                        fontSize: 16,
-                        color: colors.text,
-                        lineHeight: 24,
-                        fontFamily: 'Nunito-Regular',
-                      }}
-                    >
+              <View style={{ maxWidth: '85%' }}>
+                <View
+                  style={{
+                    backgroundColor: msg.role === 'user' ? '#3B82F6' : colors.surfaceAlt,
+                    borderRadius: 18,
+                    borderTopRightRadius: msg.role === 'user' ? 4 : 18,
+                    borderTopLeftRadius: msg.role === 'assistant' ? 4 : 18,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                  }}
+                >
+                  {msg.role === 'user' ? (
+                    <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Nunito-Medium' }}>
                       {msg.content}
-                    </MarkdownText>
-                  )
+                    </Text>
+                  ) : (
+                    msg.content === '' ? (
+                      <TypingIndicator color={colors.textSecondary} />
+                    ) : (
+                      <MarkdownText
+                        selectable={false}
+                        style={{
+                          fontSize: 16,
+                          color: colors.text,
+                          lineHeight: 24,
+                          fontFamily: 'Nunito-Regular',
+                        }}
+                      >
+                        {msg.content}
+                      </MarkdownText>
+                    )
+                  )}
+                </View>
+                {/* Copy button for assistant messages */}
+                {msg.role === 'assistant' && msg.content !== '' && (
+                  <TouchableOpacity
+                    onPress={() => handleCopy(msg.content)}
+                    activeOpacity={0.7}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      marginTop: 6,
+                      paddingVertical: 4,
+                      paddingHorizontal: 8,
+                      alignSelf: 'flex-start',
+                    }}
+                  >
+                    <Ionicons name="copy-outline" size={16} color={colors.textSecondary} />
+                    <Text style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 4, fontFamily: 'Nunito-Regular' }}>
+                      Copy
+                    </Text>
+                  </TouchableOpacity>
                 )}
               </View>
-            </TouchableOpacity>
+            </View>
           ))}
         </View>
 
