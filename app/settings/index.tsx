@@ -120,6 +120,8 @@ export default function SettingsScreen() {
                     <NavItem
                         label="Notifications"
                         icon="notifications"
+                        route="/settings/notifications"
+                        subtext="Alerts and reminders"
                     />
                 </View>
 

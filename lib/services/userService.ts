@@ -17,7 +17,7 @@ export const userService = {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, first_name, last_name, streak, streak_restores, last_restore_reset, avatar_url, meta, created_at')
+        .select('id, name, first_name, last_name, streak, streak_restores, last_restore_reset, avatar_url, meta, expo_push_token, created_at')
         .eq('id', userId)
         .single();
 
@@ -43,6 +43,7 @@ export const userService = {
           coins: 0, // Not used in current system
           avatar: data.avatar_url || undefined,
           meta: (data.meta as any) || {},
+          expo_push_token: data.expo_push_token || undefined,
           created_at: data.created_at || undefined,
         };
       }

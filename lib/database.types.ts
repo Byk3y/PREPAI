@@ -734,6 +734,7 @@ export type Database = {
           timezone: string | null
           coins: number | null
           meta: Json | null
+          expo_push_token: string | null
           created_at: string | null
           updated_at: string | null
         }
@@ -750,6 +751,7 @@ export type Database = {
           timezone?: string | null
           coins?: number | null
           meta?: Json | null
+          expo_push_token?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -766,6 +768,7 @@ export type Database = {
           timezone?: string | null
           coins?: number | null
           meta?: Json | null
+          expo_push_token?: string | null
           created_at?: string | null
           updated_at?: string | null
         }

@@ -24,6 +24,13 @@ export interface ProfileMeta {
 
   // Streak system fields
   last_recoverable_streak?: number; // Used for restores
+
+  // Notification settings
+  notification_settings?: {
+    study_reminders?: boolean;
+    streak_alerts?: boolean;
+    content_updates?: boolean;
+  };
 }
 
 export interface User {
@@ -37,6 +44,7 @@ export interface User {
   coins: number;
   avatar?: string;
   meta?: ProfileMeta;    // Profile metadata from database
+  expo_push_token?: string; // Push token for notifications
   created_at?: string;   // ISO timestamp
 }
 
