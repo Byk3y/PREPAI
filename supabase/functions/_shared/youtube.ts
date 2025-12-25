@@ -13,7 +13,7 @@ export function extractYoutubeId(url: string): string | null {
 }
 
 /**
- * Fetch raw transcript from YouTube using RapidAPI
+ * Fetch raw transcript from YouTube using RapidAPI (Supadata)
  */
 export async function getYoutubeTranscript(url: string, rapidApiKey: string): Promise<string> {
     const videoId = extractYoutubeId(url);
@@ -21,11 +21,15 @@ export async function getYoutubeTranscript(url: string, rapidApiKey: string): Pr
         throw new Error('Invalid YouTube URL');
     }
 
+    // Clean URL: Strip tracking params (si=...) to prevent API confusion
+    const cleanUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
     try {
         console.log(`[youtube] Fetching transcript via RapidAPI for video: ${videoId}`);
 
+        // Added &text=true to request plain text response from Supadata
         const response = await fetch(
-            `https://youtube-transcripts.p.rapidapi.com/youtube/transcript?url=${encodeURIComponent(url)}&videoId=${videoId}`,
+            `https://youtube-transcripts.p.rapidapi.com/youtube/transcript?url=${encodeURIComponent(cleanUrl)}&videoId=${videoId}&text=true`,
             {
                 method: 'GET',
                 headers: {
@@ -42,17 +46,34 @@ export async function getYoutubeTranscript(url: string, rapidApiKey: string): Pr
 
         const data = await response.json();
 
-        // Supadata usually returns an array of segments or a full text
-        // Adjusting based on standard RapidAPI transcript formats
+        // Log keys but not full content for privacy/safety
+        console.log(`[youtube] API Response keys: ${Object.keys(data).join(', ')}`);
+
+        let transcriptOutput = '';
+
         if (data.transcript && typeof data.transcript === 'string') {
-            return data.transcript;
+            transcriptOutput = data.transcript;
         } else if (Array.isArray(data.content)) {
-            return data.content.map((item: any) => item.text).join(' ');
+            transcriptOutput = data.content.map((item: any) => item.text).join(' ');
         } else if (Array.isArray(data)) {
-            return data.map((item: any) => item.text).join(' ');
+            transcriptOutput = data.map((item: any) => item.text).join(' ');
+        } else if (data.content && typeof data.content === 'string') {
+            transcriptOutput = data.content;
         }
 
-        throw new Error('Unexpected transcript format from API');
+        if (!transcriptOutput || transcriptOutput.trim().length === 0) {
+            throw new Error('No transcript content found in API response');
+        }
+
+        // GUARD: Detect "Scrambled/Garbled" Dummy Data
+        // Some APIs return "nonsense" text if the account is blocked or limited
+        const scrambledCheck = transcriptOutput.substring(0, 50).toLowerCase();
+        if (scrambledCheck.includes('foreangsble') || scrambledCheck.includes('rablaned')) {
+            console.error('[youtube] Detected scrambled/dummy data from RapidAPI');
+            throw new Error('The YouTube transcript was returned in a scrambled/protected format. Please try again in 5 minutes.');
+        }
+
+        return transcriptOutput;
     } catch (error: any) {
         console.error('[youtube] RapidAPI Error:', error.message);
         throw new Error(`Professional YouTube extraction failed: ${error.message}`);
