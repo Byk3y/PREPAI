@@ -7,6 +7,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { MissionCard } from './MissionCard';
 import { DailyTask, TaskProgress } from '@/lib/store/types';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import { useStore } from '@/lib/store';
 
 interface MissionsListProps {
     missions: DailyTask[];
@@ -17,6 +18,7 @@ interface MissionsListProps {
 export function MissionsList({ missions, taskProgress, activeColor }: MissionsListProps) {
     const { isDarkMode } = useTheme();
     const colors = getThemeColors(isDarkMode);
+    const petName = useStore(state => state.petState.name);
 
     if (!missions || missions.length === 0) return null;
 
@@ -45,8 +47,8 @@ export function MissionsList({ missions, taskProgress, activeColor }: MissionsLi
 
     return (
         <View style={[
-            styles.container, 
-            { 
+            styles.container,
+            {
                 backgroundColor: cardBg,
                 borderWidth: 0,
                 shadowOpacity: isDarkMode ? 0 : 0.08,
@@ -57,9 +59,14 @@ export function MissionsList({ missions, taskProgress, activeColor }: MissionsLi
                 const progress = taskProgress[task.task_key];
 
                 // Map DailyTask to Mission format for MissionCard
+                let title = task.title;
+                if (task.task_key === 'secure_pet') {
+                    title = task.completed ? `Saved ${petName}` : `Save ${petName}`;
+                }
+
                 const missionProps = {
                     id: task.id,
-                    title: task.title,
+                    title: title,
                     // If task is completed, progress is fully done. 
                     // If not, use tracked progress or 0.
                     progress: task.completed ? 1 : (progress?.current || 0),

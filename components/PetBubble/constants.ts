@@ -8,10 +8,15 @@ export const PET_BUBBLE_IMAGES: Record<number, ImageSourcePropType> = {
   2: require('@/assets/pets/stage-2/bubble.png'),
 };
 
+export const PET_DYING_IMAGES: Record<number, ImageSourcePropType> = {
+  1: require('@/assets/pets/stage-1/dying.png'),
+  2: require('@/assets/pets/stage-2/dying.png'),
+};
+
 /**
  * Pet bubble size in pixels
  */
-export const PET_SIZE = 100;
+export const PET_SIZE = 110;
 
 /**
  * Padding from screen edges

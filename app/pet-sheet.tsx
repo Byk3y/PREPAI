@@ -18,6 +18,7 @@ import {
   Text,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { getLocalDateString } from '@/lib/utils/time';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '@/lib/store';
@@ -37,7 +38,10 @@ const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 export default function PetSheetScreen() {
   const router = useRouter();
-  const { user, petState, updatePetName, restoreStreak } = useStore();
+  const { user, petState, dailyTasks, updatePetName, restoreStreak } = useStore();
+
+  // Check if secure_pet task is already completed today
+  const isSecureTaskCompleted = dailyTasks?.find(t => t.task_key === 'secure_pet')?.completed;
   const scrollY = useRef(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const [hasJustRestored, setHasJustRestored] = useState(false);
@@ -59,9 +63,15 @@ export default function PetSheetScreen() {
   }, [currentStage]);
 
   // Streak restoration logic
+  // A streak is "at risk" if it hasn't been secured today
+  const today = getLocalDateString();
+  const isAtRisk = user.last_streak_date !== today && !isSecureTaskCompleted;
+
   // A streak is "lost" if it's 0 but there's a recoverable streak in meta
   const recoverableStreak = user.meta?.last_recoverable_streak ?? 0;
   const isStreakLost = user.streak === 0 && recoverableStreak > 0;
+
+  const isDying = isAtRisk || isStreakLost;
   const canRestore = isStreakLost && user.streak_restores > 0;
 
   const handleRestore = async () => {
@@ -165,6 +175,7 @@ export default function PetSheetScreen() {
                     onNextStage={previewStage === 1 ? () => setPreviewStage(2) : undefined}
                     onPrevStage={previewStage === 2 ? () => setPreviewStage(1) : undefined}
                     canRestore={canRestore}
+                    isDying={isDying}
                     onRestore={handleRestore}
                     showBalance={hasJustRestored}
                   />

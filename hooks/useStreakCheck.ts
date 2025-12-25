@@ -10,6 +10,7 @@ export function useStreakCheck() {
     const getUserTimezone = useStore((state) => state.getUserTimezone);
     const setShowStreakRestoreModal = useStore((state) => state.setShowStreakRestoreModal);
     const setPreviousStreakForRestore = useStore((state) => state.setPreviousStreakForRestore);
+    const checkStreakStatus = useStore((state) => state.checkStreakStatus);
     const hasCheckedTodayRef = useRef<string | null>(null);
     const appState = useRef(AppState.currentState);
 
@@ -23,48 +24,19 @@ export function useStreakCheck() {
             if (hasCheckedTodayRef.current === today) return;
 
             try {
-                // Get user's timezone (from profile or device fallback)
-                const timezone = await getUserTimezone();
+                // Step 1: Check if streak was reset (missed yesterday)
+                // This RPC does NOT increment the streak for today
+                const result = await checkStreakStatus();
 
-                // Step 1: Increment streak in database (handles day logic with timezone)
-                const { data: incrementResult, error: incrementError } = await supabase.rpc('increment_streak', {
-                    p_user_id: authUser.id,
-                    p_timezone: timezone
-                });
-
-                if (incrementError) {
-                    console.error('[StreakCheck] Failed to increment streak:', incrementError);
-                    return;
-                }
-
-                const result = incrementResult as any;
                 if (result?.success) {
                     // Mark as checked for today after success
                     hasCheckedTodayRef.current = today;
 
-                    // Reload user profile to update streak and restores in store
+                    // Reload user profile to ensure store state is fresh
                     await loadUserProfile();
-
-                    // If streak was reset, show the Savior Modal
-                    if (result.was_reset && (result.streak_restores > 0) && (result.previous_streak > 1)) {
-                        setPreviousStreakForRestore(result.previous_streak);
-                        setShowStreakRestoreModal(true);
-                    }
-
-                    // Only award points if it was actually incremented (not just a reset or same-day call)
-                    if (result.was_incremented) {
-                        await checkAndAwardTask('maintain_streak');
-                    }
-
-                    // Check for "Early Bird" daily task (5 AM - 9 AM)
-                    const now = new Date();
-                    const hour = now.getHours();
-                    if (hour >= 5 && hour < 9) {
-                        await checkAndAwardTask('study_early_bird');
-                    }
                 }
             } catch (error) {
-                console.error('[StreakCheck] Failed to check streak:', error);
+                console.error('[StreakCheck] Failed to check streak status:', error);
             }
         };
 

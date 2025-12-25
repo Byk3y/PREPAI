@@ -12,12 +12,26 @@ import { getPetBubbleImage } from './PetBubble/utils/getPetBubbleImage';
 import { usePetBubblePosition } from './PetBubble/hooks/usePetBubblePosition';
 import { usePetBubbleAnimations } from './PetBubble/hooks/usePetBubbleAnimations';
 import { usePetBubbleGestures } from './PetBubble/hooks/usePetBubbleGestures';
+import { getLocalDateString } from '@/lib/utils/time';
 
 export const PetBubble: React.FC = () => {
-  const { petState } = useStore();
+  const { user, petState, dailyTasks } = useStore();
+
+  // Check if secure_pet task is already completed today
+  const isSecureTaskCompleted = dailyTasks?.find(t => t.task_key === 'secure_pet')?.completed;
+
+  // A streak is "at risk" if it hasn't been secured today
+  const today = getLocalDateString();
+  const isAtRisk = user.last_streak_date !== today && !isSecureTaskCompleted;
+
+  // A streak is "lost" if it's 0 but there's a recoverable streak in meta
+  const recoverableStreak = user.meta?.last_recoverable_streak ?? 0;
+  const isStreakLost = user.streak === 0 && recoverableStreak > 0;
+
+  const isDying = isAtRisk || isStreakLost;
 
   // Get the correct bubble image for current stage
-  const bubbleImage = getPetBubbleImage(petState.stage);
+  const bubbleImage = getPetBubbleImage(petState.stage, isDying);
 
   // Position management
   const { position, setPosition, positionRef, screenDimensions, insets } = usePetBubblePosition();
@@ -72,6 +86,14 @@ export const PetBubble: React.FC = () => {
       <Animated.View
         style={{
           transform: [{ scale: animations.scaleAnim }],
+          // Add urgency glow if dying
+          ...(isDying && {
+            shadowColor: '#EF4444',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.6,
+            shadowRadius: 12,
+            elevation: 8,
+          })
         }}
         className="items-center justify-center"
       >

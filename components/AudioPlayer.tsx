@@ -192,6 +192,12 @@ export function AudioPlayer({
                     setCurrentTime(positionInSeconds);
                     saveCurrentPosition(positionInSeconds);
                 }
+
+                // Award "podcast_3_min" task if they've listened for 3 minutes (180s)
+                if (positionInSeconds >= 180 && !hasAwardedTaskRef.current && checkAndAwardTask) {
+                    hasAwardedTaskRef.current = true;
+                    checkAndAwardTask('podcast_3_min');
+                }
             }
 
             // Auto-stop at end and clear saved position
@@ -251,12 +257,6 @@ export function AudioPlayer({
                     saveCurrentPosition(positionInSeconds);
                 } else {
                     await sound.current.playAsync();
-
-                    // Award "listen to an audio overview" once per session
-                    if (checkAndAwardTask && !hasAwardedTaskRef.current) {
-                        hasAwardedTaskRef.current = true;
-                        checkAndAwardTask('listen_audio_overview');
-                    }
                 }
             }
         } catch (error) {

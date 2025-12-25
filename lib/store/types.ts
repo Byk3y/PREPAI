@@ -41,6 +41,7 @@ export interface User {
   streak: number;
   streak_restores: number; // New: 3 per month
   last_restore_reset: string; // New: YYYYMM format
+  last_streak_date?: string; // New: YYYY-MM-DD format
   coins: number;
   avatar?: string;
   meta?: ProfileMeta;    // Profile metadata from database

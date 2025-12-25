@@ -10,6 +10,7 @@ export function useNotebookChat(notebookId: string) {
     const addChatMessage = useStore(state => state.addChatMessage);
     const updateLastChatMessage = useStore(state => state.updateLastChatMessage);
     const authUser = useStore(state => state.authUser);
+    const checkAndAwardTask = useStore(state => state.checkAndAwardTask);
 
     const sendMessage = useCallback(async (message: string, selectedMaterialIds: string[]) => {
         if (!authUser || !message.trim()) return;
@@ -70,6 +71,9 @@ export function useNotebookChat(notebookId: string) {
 
             // 5. Update assistant message with final content
             updateLastChatMessage(notebookId, content);
+
+            // 6. Award task
+            checkAndAwardTask('chat_with_notebook');
 
         } catch (err: any) {
             console.error('Chat error:', err);

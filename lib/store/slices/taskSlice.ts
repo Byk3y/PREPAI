@@ -108,7 +108,8 @@ export const createTaskSlice: StateCreator<
                     !t.completed &&
                     [
                         'study_flashcards',
-                        'complete_quiz',
+                        'quiz_5_questions',
+                        'podcast_3_min',
                         'quiz_perfect_score',
                         'add_material_daily',
                         'audio_feedback_given',
@@ -208,10 +209,11 @@ export const createTaskSlice: StateCreator<
                     addPetPoints(data.points_awarded);
                 }
 
-                // Refresh both task lists
+                // Refresh both task lists and the user profile (to update streak and last_streak_date)
                 await Promise.all([
                     loadDailyTasks(),
-                    loadFoundationalTasks()
+                    loadFoundationalTasks(),
+                    (get() as any).loadUserProfile?.()
                 ]);
 
                 return {

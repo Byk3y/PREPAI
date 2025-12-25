@@ -60,8 +60,25 @@ export function useQuizState({
         ...prev,
         [currentQuestion.id]: true,
       }));
+
+      // Record individual question answer for daily task
+      if (authUser) {
+        completionService.recordQuizQuestionAnswer(authUser.id, currentQuestion.id).then(async () => {
+          // Check for "Answer 5 questions" task completion
+          const timezone = await getUserTimezone();
+          await completionService.checkAndAwardTaskIfThresholdMet(
+            authUser.id,
+            'quiz_5_questions',
+            timezone,
+            5,
+            () => checkAndAwardTask('quiz_5_questions')
+          );
+          // Refresh progress for UI
+          await refreshTaskProgress('quiz_5_questions');
+        });
+      }
     },
-    [currentQuestion, isReviewMode]
+    [currentQuestion, isReviewMode, authUser, getUserTimezone, checkAndAwardTask, refreshTaskProgress]
   );
 
   // Calculate and show results
@@ -89,18 +106,8 @@ export function useQuizState({
           metrics.correctCount
         );
 
-        // Refresh progress and check for task completion
-        await refreshTaskProgress('complete_quiz');
-
         // Check if threshold is met and award task
         const timezone = await getUserTimezone();
-        await completionService.checkAndAwardTaskIfThresholdMet(
-          authUser.id,
-          'complete_quiz',
-          timezone,
-          1, // Threshold: 1 quiz
-          () => checkAndAwardTask('complete_quiz')
-        );
 
         // Check if perfect score and award task
         if (scorePercent === 100) {

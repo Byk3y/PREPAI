@@ -18,7 +18,7 @@ export const formatMinutes = (minutes: number): string => {
   if (minutes < 60) {
     return `${minutes} min`;
   }
-  
+
   const hours = Math.floor(minutes / 60);
   return hours === 1 ? '1 hour' : `${hours} hours`;
 };
@@ -43,6 +43,17 @@ export const formatDuration = (seconds: number): string => {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}m ${s}s`;
+};
+
+/**
+ * Get current local date in YYYY-MM-DD format
+ */
+export const getLocalDateString = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 

@@ -15,6 +15,7 @@ export interface UserSlice {
   loadUserProfile: () => Promise<void>;
   hydrateUserProfileFromCache: () => void;
   restoreStreak: () => Promise<{ success: boolean; restored_streak?: number; error?: string }>;
+  checkStreakStatus: () => Promise<{ success: boolean; was_reset?: boolean; previous_streak?: number }>;
   resetUserProfile: () => void;
   hasCreatedNotebook: boolean;
   setHasCreatedNotebook: (value: boolean) => void;
@@ -22,6 +23,7 @@ export interface UserSlice {
   setShowStreakRestoreModal: (show: boolean) => void;
   previousStreakForRestore: number;
   setPreviousStreakForRestore: (streak: number) => void;
+  getUserTimezone?: () => Promise<string>; // Access from TaskSlice
 }
 
 export const createUserSlice: StateCreator<
@@ -38,6 +40,7 @@ export const createUserSlice: StateCreator<
     streak: 0,
     streak_restores: 3,
     last_restore_reset: '',
+    last_streak_date: undefined,
     coins: 0,
   },
   userProfileSyncedAt: null,
@@ -69,7 +72,6 @@ export const createUserSlice: StateCreator<
         });
       } else {
         // No profile exists, use auth user data as fallback
-        // Profile should be auto-created by trigger, but handle gracefully
         set({
           user: {
             id: authUser.id,
@@ -79,6 +81,7 @@ export const createUserSlice: StateCreator<
             streak: 0,
             streak_restores: 3,
             last_restore_reset: '',
+            last_streak_date: undefined,
             coins: 0,
             avatar: undefined,
           },
@@ -92,20 +95,38 @@ export const createUserSlice: StateCreator<
     }
   },
   restoreStreak: async () => {
-    const { authUser, loadUserProfile } = get();
+    const { authUser, loadUserProfile, getUserTimezone } = get() as any;
     if (!authUser) return { success: false, error: 'Not authenticated' };
 
-    const result = await userService.restoreStreak(authUser.id);
+    const timezone = typeof getUserTimezone === 'function' ? await getUserTimezone() : 'UTC';
+    const result = await userService.restoreStreak(authUser.id, timezone);
     if (result.success) {
       await loadUserProfile(); // Fully refresh profile to update streak and restores count
     }
+    return result;
+  },
+  checkStreakStatus: async () => {
+    const { authUser, setUser, getUserTimezone } = get() as any;
+    if (!authUser) return { success: false, error: 'Not authenticated' };
+
+    const timezone = typeof getUserTimezone === 'function' ? await getUserTimezone() : 'UTC';
+    const result = await userService.checkStreakStatus(authUser.id, timezone);
+
+    if (result.success && result.was_reset) {
+      // Update local streak to 0 and store previous streak for modal
+      setUser({ streak: 0 });
+      set({
+        previousStreakForRestore: result.previous_streak || 0,
+        showStreakRestoreModal: true
+      });
+    }
+
     return result;
   },
   hydrateUserProfileFromCache: () => {
     const { authUser, userProfileUserId, user } = get();
     if (authUser && userProfileUserId === authUser.id && user.id === authUser.id) {
       // Cache matches current user, keep it
-      // No need to set state as it's already there from hydration
     }
   },
   resetUserProfile: () => {
@@ -118,6 +139,7 @@ export const createUserSlice: StateCreator<
         streak: 0,
         streak_restores: 3,
         last_restore_reset: '',
+        last_streak_date: undefined,
         coins: 0,
       },
       userProfileSyncedAt: null,

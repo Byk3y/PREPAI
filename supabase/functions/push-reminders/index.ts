@@ -146,19 +146,19 @@ Deno.serve(async (req: Request) => {
 
             const library = {
                 happy: [
-                    { title: `🐾 ${petName} is hyped!`, body: `That ${streakCount}-day streak looks good on you. Time for "${notebookTitle}"?` },
-                    { title: `👀 Psst...`, body: `"${notebookTitle}" is calling your name. Can you hear it?` },
-                    { title: `💫 Perfect timing!`, body: `I was just thinking about "${notebookTitle}". Great minds, right?` }
+                    { title: `🐾 ${petName} is side-eyeing you`, body: `You have a ${streakCount}-day streak. It would be a shame if something... happened to it. 😏` },
+                    { title: `💅 Focus, bestie!`, body: `"${notebookTitle}" isn't going to study itself. Don't make me come over there.` },
+                    { title: `👀 I see you...`, body: `I know you're not busy. Open "${notebookTitle}" for 5 minutes. Do it for ${petName}.` }
                 ],
                 sassy: [
-                    { title: `💅 Just checking...`, body: `So "${notebookTitle}" is just sitting there collecting dust, huh?` },
-                    { title: `🙄 No pressure, but...`, body: `I didn't want to say anything, but "${notebookTitle}" has been feeling neglected.` },
-                    { title: `😏 Plot twist:`, body: `"${notebookTitle}" misses you more than you'd think.` }
+                    { title: `🙄 Wow, okay.`, body: `So we're just ignoring "${notebookTitle}" today? I see how it is. 💅` },
+                    { title: `🤡 Is this a joke?`, body: `Your streak is crying. I'm crying. Even "${notebookTitle}" is crying. Fix it.` },
+                    { title: `🤐 No words.`, body: `If you wanted to lose your streak, you could have just said so. 💅` }
                 ],
                 sad: [
-                    { title: `😰 SOS!`, body: `Your ${streakCount}-day streak is hanging by a thread!` },
-                    { title: `💔 ${petName} is worried...`, body: `"${notebookTitle}" and your streak are both about to ghost you.` },
-                    { title: `⚡ Quick save?`, body: `One session with "${notebookTitle}" = streak saved. Your call.` }
+                    { title: `😰 SOS: Save ${petName}!`, body: `Your ${streakCount}-day streak is literally gasping for air. Rescue it now!` },
+                    { title: `💔 Emotional Damage`, body: `${petName} is packging their bags. One session in "${notebookTitle}" will make them stay.` },
+                    { title: `💀 RIP Streak?`, body: `Last chance to save ${petName}! Don't let the fire go out. 🕯️` }
                 ]
             }
 

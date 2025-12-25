@@ -40,6 +40,7 @@ export const userService = {
           streak: data.streak || 0,
           streak_restores: data.streak_restores ?? 3,
           last_restore_reset: data.last_restore_reset || '',
+          last_streak_date: data.last_streak_date || undefined,
           coins: 0, // Not used in current system
           avatar: data.avatar_url || undefined,
           meta: (data.meta as any) || {},
@@ -198,10 +199,11 @@ export const userService = {
    * Restore user's streak using available restores
    * @param userId - The user's ID
    */
-  restoreStreak: async (userId: string): Promise<{ success: boolean; restored_streak?: number; error?: string }> => {
+  restoreStreak: async (userId: string, timezone: string = 'UTC'): Promise<{ success: boolean; restored_streak?: number; error?: string }> => {
     try {
       const { data, error } = await supabase.rpc('restore_streak', {
         p_user_id: userId,
+        p_timezone: timezone
       });
 
       if (error) {
@@ -223,6 +225,33 @@ export const userService = {
       return { success: false, error: error?.message || 'Failed to restore streak' };
     }
   },
+
+  /**
+   * Check for streak reset without incrementing
+   */
+  async checkStreakStatus(userId: string, timezone: string = 'UTC'): Promise<{
+    success: boolean;
+    was_reset?: boolean;
+    previous_streak?: number;
+    error?: string;
+  }> {
+    try {
+      const { data, error } = await supabase.rpc('check_streak_reset', {
+        p_user_id: userId,
+        p_timezone: timezone
+      });
+
+      if (error) {
+        console.error('Error calling check_streak_reset:', error);
+        return { success: false, error: error.message };
+      }
+
+      return data as any;
+    } catch (error: any) {
+      console.error('Error in checkStreakStatus:', error);
+      return { success: false, error: error.message };
+    }
+  }
 };
 
 

@@ -25,7 +25,6 @@ export const completionService = {
       if (error) {
         // Check if it's a duplicate constraint error (acceptable)
         if (error.code === '23505') {
-          // Duplicate entry - already recorded, this is fine
           return;
         }
 
@@ -51,8 +50,8 @@ export const completionService = {
    * @param userId - The user's ID
    * @param quizId - The quiz's ID
    * @param scorePercentage - The score percentage achieved (0-100)
-   * @param totalQuestions - Total number of questions (required)
-   * @param correctCount - Number of correct answers (required, stored as score)
+   * @param totalQuestions - Total number of questions
+   * @param correctCount - Number of correct answers
    */
   recordQuizCompletion: async (
     userId: string,
@@ -62,7 +61,8 @@ export const completionService = {
     correctCount: number
   ): Promise<void> => {
     try {
-      const { error } = await supabase
+      // Use any to bypass draft schema type errors
+      const { error } = await (supabase as any)
         .from('quiz_completions')
         .insert({
           user_id: userId,
@@ -91,44 +91,44 @@ export const completionService = {
   },
 
   /**
+   * Record a single quiz question answer
+   */
+  recordQuizQuestionAnswer: async (userId: string, questionId: string): Promise<void> => {
+    try {
+      const { error } = await (supabase as any)
+        .from('quiz_question_answers')
+        .insert({
+          user_id: userId,
+          question_id: questionId,
+        });
+
+      if (error) {
+        if (error.code === '23505') return;
+        throw error;
+      }
+    } catch (error) {
+      console.error('Failed to record quiz question answer:', error);
+    }
+  },
+
+  /**
    * Check if task progress threshold is met and award task if needed
-   * @param userId - The user's ID
-   * @param taskKey - The task key ('study_flashcards' or 'complete_quiz')
-   * @param timezone - The user's timezone
-   * @param threshold - The threshold to check (default: 5 for flashcards)
-   * @param onThresholdMet - Callback when threshold is met (for awarding task)
    */
   checkAndAwardTaskIfThresholdMet: async (
     userId: string,
-    taskKey: 'study_flashcards' | 'complete_quiz',
+    taskKey: string,
     timezone: string,
-    threshold: number = 5,
-    onThresholdMet?: () => Promise<void>
+    threshold: number,
+    onThresholdMet?: () => Promise<any>
   ): Promise<void> => {
     try {
-      // Get current progress using taskService
       const progress = await taskService.getTaskProgress(userId, taskKey, timezone);
 
       if (progress.current >= threshold && onThresholdMet) {
         await onThresholdMet();
       }
     } catch (error) {
-      // Non-critical error - log but don't throw
-      await handleError(error, {
-        operation: 'check_task_threshold',
-        component: 'completion-service',
-        metadata: { userId, taskKey, timezone, threshold },
-      });
+      console.error('Check task threshold failed:', error);
     }
   },
 };
-
-
-
-
-
-
-
-
-
-
