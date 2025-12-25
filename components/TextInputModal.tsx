@@ -2,7 +2,7 @@
  * Text Input Modal - NotebookLM style for pasting copied text
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,15 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   KeyboardAvoidingView,
-  Keyboard,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import * as Clipboard from 'expo-clipboard';
+import { MotiViewCompat as MotiView } from '@/components/MotiViewCompat';
 
 interface TextInputModalProps {
   visible: boolean;
@@ -33,138 +34,117 @@ export default function TextInputModal({
   onSave,
 }: TextInputModalProps) {
   const [content, setContent] = useState('');
-  const [inputHeight, setInputHeight] = useState(80);
-  
-  // Dark mode support using theme context
+
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
 
-  const handleSave = () => {
-    if (!content.trim()) {
-      return;
+  // Clear inputs when opening/closing
+  useEffect(() => {
+    if (!visible) {
+      setContent('');
     }
+  }, [visible]);
 
-    // Generate title from first line or first 50 characters
+  const handleSave = () => {
+    if (!content.trim()) return;
+
+    // Generate title from first line or first 30 characters
     const firstLine = content.trim().split('\n')[0];
-    const title = firstLine.length > 50 
-      ? firstLine.substring(0, 50).trim() + '...'
+    const finalTitle = firstLine.length > 30
+      ? firstLine.substring(0, 30).trim() + '...'
       : firstLine.trim() || 'Untitled';
 
-    onSave(title, content.trim());
-
-    // Reset field
-    setContent('');
-    setInputHeight(80);
-  };
-
-  const handleCancel = () => {
-    setContent('');
-    setInputHeight(80);
+    onSave(finalTitle, content.trim());
     onClose();
   };
 
-  const handleContentChange = (text: string) => {
-    setContent(text);
-    // Expand input as content grows
-    if (text.trim()) {
-      const lines = text.split('\n').length;
-      const newHeight = Math.min(Math.max(80, lines * 24 + 32), 450);
-      setInputHeight(newHeight);
-    } else {
-      setInputHeight(80);
+  const handlePaste = async () => {
+    const hasString = await Clipboard.hasStringAsync();
+    if (hasString) {
+      const text = await Clipboard.getStringAsync();
+      setContent((prev) => prev + text);
     }
   };
+
+  const charCount = content.length;
 
   return (
     <Modal
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={handleCancel}
+      onRequestClose={onClose}
     >
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
-          style={styles.keyboardView}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={handleCancel} style={styles.headerButton}>
-              <Ionicons name="arrow-back" size={24} color={colors.icon} />
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
-            <View style={styles.headerSpacer} />
-            <TouchableOpacity onPress={handleCancel} style={styles.headerButton}>
-              <Ionicons name="close" size={24} color={colors.icon} />
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Add New Resource</Text>
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={!content.trim()}
+              style={[
+                styles.saveButton,
+                { opacity: content.trim() ? 1 : 0.5 }
+              ]}
+            >
+              <Text style={[styles.saveButtonText, { color: '#6366f1' }]}>Add</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Main Content - Dismiss keyboard on tap outside */}
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.content}>
-            {/* Central Icon */}
-            <View style={styles.iconContainer}>
-              <View style={[styles.iconBackground, { backgroundColor: isDarkMode ? '#1e3a5f' : '#EFF6FF' }]}>
-                <Ionicons name="document-text" size={32} color="#3B82F6" />
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <MotiView
+              from={{ opacity: 0, translateY: 10 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 400 }}
+              style={styles.headerSection}
+            >
+              <View style={[styles.iconWrapper, { backgroundColor: isDarkMode ? 'rgba(99, 102, 241, 0.1)' : '#f5f3ff' }]}>
+                <Ionicons name="document-text" size={32} color="#6366f1" />
+              </View>
+              <View style={styles.textSection}>
+                <Text style={[styles.mainTitle, { color: colors.text }]}>Paste Copied Text</Text>
+                <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                  Paste research, articles, or transcripts.
+                </Text>
+              </View>
+            </MotiView>
+
+            <View style={styles.form}>
+              {/* Content Input Area - Infinite Growth Mode */}
+              <View style={[styles.contentWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View style={[styles.contentHeader, { borderBottomColor: colors.border }]}>
+                  <TouchableOpacity onPress={handlePaste} style={styles.toolButton}>
+                    <Ionicons name="clipboard-outline" size={18} color="#6366f1" />
+                    <Text style={styles.toolText}>Paste from Clipboard</Text>
+                  </TouchableOpacity>
+                  <Text style={[styles.charCount, { color: colors.textMuted }]}>{charCount.toLocaleString()} chars</Text>
+                </View>
+
+                <TextInput
+                  style={[styles.contentInput, { color: colors.text }]}
+                  placeholder="Drop your text here..."
+                  placeholderTextColor={colors.textMuted}
+                  value={content}
+                  onChangeText={setContent}
+                  multiline
+                  textAlignVertical="top"
+                  autoFocus
+                  scrollEnabled={false} // This permits the input to expand the container naturally
+                />
               </View>
             </View>
-
-            {/* Title */}
-            <Text style={[styles.title, { color: colors.text }]}>Paste Copied Text</Text>
-
-            {/* Description */}
-            <Text style={[styles.description, { color: colors.textSecondary }]}>
-              Paste your copied text below to upload as a source in Brigo.
-            </Text>
-
-            {/* Text Input - Starts small, expands with content */}
-            <TextInput
-              style={[
-                styles.textInput,
-                { 
-                  height: inputHeight,
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                  color: colors.text,
-                },
-              ]}
-              placeholder="Paste text here"
-              placeholderTextColor={colors.textMuted}
-              value={content}
-              onChangeText={handleContentChange}
-              multiline={true}
-              textAlignVertical="top"
-              autoFocus={true}
-              onContentSizeChange={(event) => {
-                const { height } = event.nativeEvent.contentSize;
-                // Slightly increased max height for better text preview
-                const newHeight = Math.min(Math.max(80, height + 16), 450);
-                setInputHeight(newHeight);
-              }}
-            />
-
-            {/* Add Button */}
-            <TouchableOpacity
-              onPress={handleSave}
-              style={[
-                styles.addButton,
-                { backgroundColor: isDarkMode ? colors.text : '#171717' },
-                !content.trim() && [styles.addButtonDisabled, { backgroundColor: isDarkMode ? colors.surface : '#E5E5E5' }],
-              ]}
-              disabled={!content.trim()}
-            >
-              <Text
-                style={[
-                  styles.addButtonText,
-                  { color: isDarkMode ? colors.background : '#FFFFFF' },
-                  !content.trim() && [styles.addButtonTextDisabled, { color: colors.textMuted }],
-                ]}
-              >
-                Add
-              </Text>
-            </TouchableOpacity>
-            </View>
-          </TouchableWithoutFeedback>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
@@ -175,9 +155,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  keyboardView: {
-    flex: 1,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -185,67 +162,87 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  headerButton: {
+  headerTitle: {
+    fontSize: 17,
+    fontFamily: 'Outfit-SemiBold',
+  },
+  closeButton: {
     padding: 8,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  headerSpacer: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 20,
-  },
-  iconContainer: {
-    marginBottom: 20,
-  },
-  iconBackground: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 15,
-    textAlign: 'center',
-    marginBottom: 24,
+  saveButton: {
     paddingHorizontal: 16,
-    lineHeight: 20,
+    paddingVertical: 8,
   },
-  textInput: {
-    width: '100%',
-    fontSize: 16,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    marginBottom: 24,
-    textAlignVertical: 'top',
+  saveButtonText: {
+    fontSize: 17,
+    fontFamily: 'Outfit-Bold',
   },
-  addButton: {
-    width: '100%',
-    borderRadius: 12,
-    paddingVertical: 16,
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 10,
+    paddingBottom: 40,
+  },
+  headerSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 16,
+  },
+  textSection: {
+    flex: 1,
+  },
+  iconWrapper: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 'auto',
-    marginBottom: 32,
   },
-  addButtonDisabled: {},
-  addButtonText: {
+  mainTitle: {
+    fontSize: 20,
+    fontFamily: 'Outfit-Bold',
+    marginBottom: 2,
+  },
+  subtitle: {
+    fontSize: 14,
+    fontFamily: 'Nunito-Regular',
+  },
+  form: {
+    gap: 16,
+  },
+  contentWrapper: {
+    borderRadius: 20,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+  },
+  contentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    height: 45,
+  },
+  toolButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  toolText: {
+    color: '#6366f1',
+    fontSize: 14,
+    fontFamily: 'Nunito-SemiBold',
+  },
+  charCount: {
+    fontSize: 12,
+    fontFamily: 'Nunito-Medium',
+  },
+  contentInput: {
+    flex: 1,
     fontSize: 16,
-    fontWeight: '600',
+    lineHeight: 24,
+    fontFamily: 'Nunito-Regular',
+    padding: 16,
   },
-  addButtonTextDisabled: {},
 });

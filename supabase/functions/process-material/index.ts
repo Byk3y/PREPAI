@@ -169,10 +169,10 @@ async function generateTitleAndPreview(
 
 Output ONLY valid JSON in this exact format:
 {
-  "title": "Concise headline (max 60 characters)",
-  "emoji": "A single relevant emoji that represents the topic",
+  "title": "Concise, professional headline (max 60 characters)",
+  "emoji": "A single atmospheric/premium emoji (e.g. ✨, 🧘, 🧠, 🧬, 🌌) that fits the vibe",
   "color": "One of: blue, green, orange, purple, pink (choose what fits the topic best)",
-  "overview": "A clear, narrative overview (60-85 words) as a single continuous paragraph. Explain the central themes, why it matters, and the author's key point.",
+  "overview": "A clear, narrative overview (60-85 words) as a single continuous paragraph. Explain the central themes and why it matters.",
   "suggested_questions": [
     "A content-specific question that sparks curiosity",
     "A practical application question",
@@ -183,10 +183,12 @@ Output ONLY valid JSON in this exact format:
 CRITICAL RULES:
 1. The overview MUST be 60-85 words.
 2. Write exactly 1 paragraph for the overview.
-3. Use **bold** strategically (3-5 key phrases) in the overview only.
-4. suggested_questions MUST be specific to the text. For example, if it's about physics, ask about a specific law mentioned.
-5. DO NOT generate the answers to the questions. Just the questions.
-6. The title field must be plain text with NO markdown formatting.`;
+3. Jump DIRECTLY into the insight. DO NOT start with "The text reveals...", "This document explores...", "This video discusses...", or any similar meta-commentary.
+4. Use **bold** strategically (3-5 key phrases) in the overview only.
+5. Avoid generic emojis like 📚 or 📖. Use emojis that capture the *feeling* of the content.
+6. TITLE STYLE: Concise and professional. Avoid clickbait or "social media" punchy headlines. DO NOT use abbreviations like "EQ" for "Emotional Intelligence". Focus on a clear, synthesis headline.
+7. suggested_questions MUST be specific to the text.
+8. The title field must be plain text with NO markdown formatting.`;
 
   // Use more content for better context (7000 chars instead of 3000)
   const contentWindow = Math.min(7000, extractedContent.length);

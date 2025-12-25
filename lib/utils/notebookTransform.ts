@@ -21,6 +21,7 @@ export function transformNotebook(nb: any, existingMaterials?: Material[]): Note
     progress: nb.progress || 0,
     createdAt: nb.created_at,
     color: nb.color,
+    emoji: nb.emoji,
     status: nb.status as Notebook['status'],
     meta: nb.meta || {},
     materials: existingMaterials || (nb.materials ? [{

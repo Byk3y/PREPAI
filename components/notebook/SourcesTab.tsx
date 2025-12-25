@@ -70,6 +70,48 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({ notebook }) => {
     );
   }
 
+  // Render failed state
+  if (notebook.status === 'failed') {
+    const errorMessage = notebook.meta?.error || 'Something went wrong while processing this notebook.';
+    const isYoutubeError = errorMessage.toLowerCase().includes('youtube');
+
+    return (
+      <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ paddingHorizontal: 24, paddingVertical: 40, alignItems: 'center' }}>
+          <View style={{ width: 80, height: 80, backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.1)' : '#fee2e2', borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+            <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
+          </View>
+
+          <Text style={{ fontSize: 24, fontFamily: 'Nunito-Bold', color: colors.text, textAlign: 'center', marginBottom: 12 }}>
+            Processing Failed
+          </Text>
+
+          <Text style={{ fontSize: 16, fontFamily: 'Nunito-Regular', color: colors.textSecondary, textAlign: 'center', lineHeight: 24, marginBottom: 24 }}>
+            {isYoutubeError
+              ? "We couldn't extract the transcript from this YouTube video. This usually happens with news channels or protected content."
+              : errorMessage}
+          </Text>
+
+          {isYoutubeError && (
+            <View style={{ backgroundColor: colors.surface, padding: 16, borderRadius: 12, width: '100%', marginBottom: 24, borderWidth: 1, borderColor: colors.border }}>
+              <Text style={{ fontSize: 14, fontFamily: 'Nunito-SemiBold', color: colors.text, marginBottom: 8 }}>💡 Tip:</Text>
+              <Text style={{ fontSize: 14, fontFamily: 'Nunito-Regular', color: colors.textSecondary, lineHeight: 20 }}>
+                You can try copying the transcript manually from YouTube and pasting it as a "Text Notebook" instead.
+              </Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ backgroundColor: '#6366f1', paddingHorizontal: 32, paddingVertical: 14, borderRadius: 14, width: '100%', alignItems: 'center' }}
+          >
+            <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Nunito-Bold' }}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  }
+
   // Render preview content
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>

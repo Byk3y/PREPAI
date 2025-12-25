@@ -56,6 +56,8 @@ export function useNotebookSubscription(
                       ...n,
                       status: newStatus,
                       title: updated.title,
+                      emoji: updated.emoji,
+                      color: updated.color,
                       meta: updated.meta || {},
                     }
                     : n
