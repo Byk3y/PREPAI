@@ -43,8 +43,8 @@ export async function extractPDF(fileBuffer: Uint8Array): Promise<string> {
     const processingTime = Date.now() - startTime;
     console.log(
       `[extractPDF] SUCCESS: ${result.text.length} chars extracted in ${processingTime}ms ` +
-        `using ${result.metadata.service} (quality: ${result.metadata.quality}, ` +
-        `attempts: ${result.metadata.attemptCount})`
+      `using ${result.metadata.service} (quality: ${result.metadata.quality}, ` +
+      `attempts: ${result.metadata.attemptCount})`
     );
 
     // Log fallbacks for monitoring
@@ -296,77 +296,92 @@ async function googleVisionOCR(
 }
 
 /**
- * Transcribe audio to text using AssemblyAI
- * Supports speaker diarization and timestamps
+ * Transcribe audio to text using Gemini 2.0 Flash (Multimodal AI)
+ * Faster, cheaper, and more accurate than AssemblyAI for study materials
  */
 export async function transcribeAudio(audioUrl: string): Promise<string> {
   const { getRequiredEnv } = await import('./env.ts');
-  const apiKey = getRequiredEnv('ASSEMBLYAI_API_KEY');
+  const apiKey = getRequiredEnv('GOOGLE_AI_API_KEY');
+
+  console.log('[transcribeAudio] START - Fetching audio from:', audioUrl);
+  const startTime = Date.now();
 
   try {
-    // Step 1: Upload audio file to AssemblyAI
-    const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
-      method: 'POST',
-      headers: {
-        authorization: apiKey,
-        'Transfer-Encoding': 'chunked',
-      },
-      body: await fetch(audioUrl).then((r) => r.arrayBuffer()),
-    });
-
-    if (!uploadResponse.ok) {
-      throw new Error(`AssemblyAI upload failed: ${uploadResponse.status}`);
+    // Step 1: Fetch audio file
+    const audioResponse = await fetch(audioUrl);
+    if (!audioResponse.ok) {
+      throw new Error(`Failed to fetch audio: ${audioResponse.status}`);
     }
+    const audioBuffer = new Uint8Array(await audioResponse.arrayBuffer());
+    console.log('[transcribeAudio] Downloaded buffer size:', audioBuffer.length);
 
-    const { upload_url } = await uploadResponse.json();
-
-    // Step 2: Request transcription
-    const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
-      method: 'POST',
-      headers: {
-        authorization: apiKey,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        audio_url: upload_url,
-        speaker_labels: true, // Enable speaker diarization
-        punctuate: true,
-        format_text: true,
-      }),
-    });
-
-    if (!transcriptResponse.ok) {
-      throw new Error(`AssemblyAI transcription request failed: ${transcriptResponse.status}`);
+    // Step 2: Convert to base64 using chunked conversion
+    const CHUNK_SIZE = 8192;
+    let binaryString = '';
+    for (let i = 0; i < audioBuffer.length; i += CHUNK_SIZE) {
+      const chunk = audioBuffer.slice(i, i + CHUNK_SIZE);
+      binaryString += String.fromCharCode.apply(null, Array.from(chunk));
     }
+    const base64Audio = btoa(binaryString);
 
-    const { id } = await transcriptResponse.json();
+    // Step 3: Detect MIME type (fallback to mp3)
+    let mimeType = 'audio/mpeg';
+    if (audioUrl.toLowerCase().endsWith('.wav')) mimeType = 'audio/wav';
+    else if (audioUrl.toLowerCase().endsWith('.m4a')) mimeType = 'audio/mp4';
+    else if (audioUrl.toLowerCase().endsWith('.aac')) mimeType = 'audio/aac';
+    else if (audioUrl.toLowerCase().endsWith('.ogg')) mimeType = 'audio/ogg';
+    else if (audioUrl.toLowerCase().endsWith('.flac')) mimeType = 'audio/flac';
 
-    // Step 3: Poll for completion (max 10 minutes)
-    const maxAttempts = 120; // 120 * 5s = 10 minutes
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const statusResponse = await fetch(`https://api.assemblyai.com/v2/transcript/${id}`, {
-        headers: { authorization: apiKey },
-      });
-
-      if (!statusResponse.ok) {
-        throw new Error(`AssemblyAI status check failed: ${statusResponse.status}`);
+    // Step 4: Call Gemini 2.0 Flash API (multimodal)
+    console.log('[transcribeAudio] Requesting transcription from Gemini...');
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  inline_data: {
+                    mime_type: mimeType,
+                    data: base64Audio,
+                  },
+                },
+                {
+                  text: 'You are an expert academic transcriptionist. Provide a precise and cleanly formatted transcription of this audio. Break it into logical paragraphs. Include speaker labels (Speaker A, Speaker B, etc.) if there are multiple people. Return only the transcript text without any commentary.',
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 20480, // Allow for long recordings
+          },
+        }),
       }
+    );
 
-      const transcript = await statusResponse.json();
-
-      if (transcript.status === 'completed') {
-        return transcript.text;
-      } else if (transcript.status === 'error') {
-        throw new Error(`Transcription failed: ${transcript.error}`);
-      }
-
-      // Wait 5 seconds before next poll
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini Audio API error: ${response.status} ${errorText}`);
     }
 
-    throw new Error('Transcription timeout (10 minutes)');
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    if (!text || text.trim() === '') {
+      throw new Error('Gemini returned an empty transcription');
+    }
+
+    const duration = Date.now() - startTime;
+    console.log(`[transcribeAudio] SUCCESS: Transcribed in ${duration}ms`);
+
+    return text.trim();
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
+    console.error('[transcribeAudio] ERROR:', message);
     throw new Error(`Audio transcription error: ${message}`);
   }
 }

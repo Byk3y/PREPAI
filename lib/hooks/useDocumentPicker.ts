@@ -20,7 +20,7 @@ export const useDocumentPicker = () => {
   const [isPickerActive, setIsPickerActive] = useState(false);
   const { handleError } = useErrorHandler();
 
-  const pickDocument = async (): Promise<DocumentResult | null> => {
+  const pickDocument = async (options: { type?: string | string[] } = {}): Promise<DocumentResult | null> => {
     // Prevent multiple simultaneous picker calls
     if (isPickerActive || loading) {
       return null;
@@ -31,7 +31,7 @@ export const useDocumentPicker = () => {
       setLoading(true);
 
       const result = await DocumentPicker.getDocumentAsync({
-        type: 'application/pdf',
+        type: options.type || 'application/pdf',
         copyToCacheDirectory: true,
       });
 
@@ -60,7 +60,7 @@ export const useDocumentPicker = () => {
         await handleError(error, {
           operation: 'pick_document',
           component: 'document-picker-hook',
-          metadata: {}
+          metadata: { options }
         });
       }
       return null;

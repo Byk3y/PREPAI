@@ -103,6 +103,11 @@ async function extractContent(
   } else if (kind === 'website') {
     // TODO: Implement website scraping
     throw new Error('Website scraping not implemented yet');
+  } else if (kind === 'youtube') {
+    // For now, return the URL so the AI can at least try to talk about it or we can implement the fetcher next
+    return {
+      text: `YouTube Video URL: ${external_url}\n\n[Transcript extraction in progress...]`
+    };
   }
 
   throw new Error(`Unsupported material kind: ${kind}`);

@@ -52,6 +52,7 @@ export default function HomeScreen() {
     handlePhotoUpload,
     handleCameraUpload,
     handleTextSave,
+    handleYouTubeImport,
     showUpgradeModal: showCreateUpgradeModal,
     setShowUpgradeModal: setShowCreateUpgradeModal,
     upgradeModalProps,
@@ -100,7 +101,8 @@ export default function HomeScreen() {
   };
 
   const handleMaterialTypeSelected = async (
-    type: 'pdf' | 'audio' | 'image' | 'website' | 'youtube' | 'copied-text'
+    type: 'pdf' | 'audio' | 'image' | 'website' | 'youtube' | 'copied-text',
+    providedUrl?: string
   ) => {
     let newNotebookId: string | null | undefined = null;
 
@@ -115,10 +117,48 @@ export default function HomeScreen() {
         newNotebookId = await handleAudioUpload();
         break;
       case 'website':
-        Alert.alert('Coming Soon', 'Website import feature will be available soon.');
+        if (providedUrl) {
+          Alert.alert('Coming Soon', 'Website import feature will be available soon.');
+        } else {
+          Alert.prompt(
+            'Import Website',
+            'Paste the website URL below',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Import',
+                onPress: (url: string | undefined) => {
+                  if (url) Alert.alert('Coming Soon', 'Website import feature will be available soon.');
+                }
+              }
+            ],
+            'plain-text'
+          );
+        }
         break;
       case 'youtube':
-        Alert.alert('Coming Soon', 'YouTube import feature will be available soon.');
+        if (providedUrl) {
+          newNotebookId = await handleYouTubeImport(providedUrl);
+        } else {
+          // If no URL provided (clicked the icon), prompt for it
+          Alert.prompt(
+            'Import YouTube Video',
+            'Paste the YouTube video URL below',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Import',
+                onPress: async (url: string | undefined) => {
+                  if (url) {
+                    const id = await handleYouTubeImport(url);
+                    if (id) navigateToNotebook(id);
+                  }
+                }
+              }
+            ],
+            'plain-text'
+          );
+        }
         break;
       case 'copied-text':
         setTextInputType('text');
@@ -170,7 +210,7 @@ export default function HomeScreen() {
     Date.now() - notebooksSyncedAt < 24 * 60 * 60 * 1000; // 24h freshness window
 
   const canShowContent = authUser ? isInitialized || isNotebookCacheFresh : false;
-  
+
   // Show loading state if we're on home route but not signed in (routing will redirect)
   // This prevents "Not Signed In" flash when app loads and routing hasn't redirected yet
   // Check if segments are empty (root route) - routing will redirect to /auth if no user

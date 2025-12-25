@@ -59,7 +59,7 @@ export const useNotebookCreation = () => {
         }
 
         const wrappedFn = withErrorHandling(async () => {
-            const result = await pickDocument();
+            const result = await pickDocument({ type: 'audio/*' });
             if (!result || result.cancelled) {
                 return null;
             }
@@ -103,7 +103,8 @@ export const useNotebookCreation = () => {
         }
 
         const wrappedFn = withErrorHandling(async () => {
-            const result = await pickDocument();
+            // Explicitly set PDF type (though it's the default in the hook now, being explicit is better)
+            const result = await pickDocument({ type: 'application/pdf' });
 
             if (!result || result.cancelled) {
                 return null;
@@ -300,6 +301,55 @@ export const useNotebookCreation = () => {
         return await wrappedFn();
     }, [addNotebook, withErrorHandling, checkCanCreate]);
 
+    const handleYouTubeImport = useCallback(async (url: string) => {
+        // Check if user can create content
+        if (!checkCanCreate()) {
+            return null;
+        }
+
+        const wrappedFn = withErrorHandling(async () => {
+            setIsAddingNotebook(true);
+
+            // Clean URL (remove channel info, etc.)
+            let cleanUrl = url.trim();
+            // Simple check to ensure it looks like a YouTube URL
+            if (!cleanUrl.includes('youtube.com') && !cleanUrl.includes('youtu.be')) {
+                throw new Error('Please provide a valid YouTube URL');
+            }
+
+            // Zero-friction: auto-create notebook with youtube material
+            const notebookId = await addNotebook({
+                title: 'YouTube Import', // Will be updated by Edge Function
+                flashcardCount: 0,
+                progress: 0,
+                color: 'pink',
+                material: {
+                    type: 'youtube' as any,
+                    uri: cleanUrl,
+                    title: 'YouTube Video',
+                },
+            });
+
+            // Reload notebooks to show the new one immediately
+            await loadNotebooks();
+
+            // Trigger "Add your first study material" task
+            const { checkAndAwardTask } = useStore.getState();
+            if (checkAndAwardTask) {
+                checkAndAwardTask('add_material');
+                checkAndAwardTask('add_material_daily');
+            }
+
+            setIsAddingNotebook(false);
+            return notebookId;
+        }, {
+            operation: 'youtube_import',
+            component: 'notebook-creation',
+            metadata: { url }
+        });
+        return await wrappedFn();
+    }, [addNotebook, loadNotebooks, withErrorHandling, checkCanCreate]);
+
     // Calculate pet level
     const petLevel = Math.floor((cachedPetState?.points || 0) / 50) + 1;
     const petName = cachedPetState?.name || 'Sparky';
@@ -311,6 +361,7 @@ export const useNotebookCreation = () => {
         handlePhotoUpload,
         handleCameraUpload,
         handleTextSave,
+        handleYouTubeImport,
         showUpgradeModal,
         setShowUpgradeModal,
         upgradeModalProps: {

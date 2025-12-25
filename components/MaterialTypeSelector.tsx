@@ -29,7 +29,7 @@ type MaterialType = 'pdf' | 'audio' | 'image' | 'website' | 'youtube' | 'copied-
 interface MaterialTypeSelectorProps {
   visible: boolean;
   onClose: () => void;
-  onSelectType: (type: MaterialType) => void;
+  onSelectType: (type: MaterialType, url?: string) => void;
 }
 
 export default function MaterialTypeSelector({
@@ -39,7 +39,7 @@ export default function MaterialTypeSelector({
 }: MaterialTypeSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  
+
   // Dark mode support using theme context
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
@@ -66,7 +66,7 @@ export default function MaterialTypeSelector({
         // Reset offset to ensure clean state
         translateY.setOffset(0);
         translateY.flattenOffset();
-        
+
         requestAnimationFrame(() => {
           Animated.timing(translateY, {
             toValue: 0,
@@ -166,19 +166,25 @@ export default function MaterialTypeSelector({
     });
   };
 
-  const handleSelectType = (type: MaterialType) => {
-    handleClose();
-    // Delay callback to allow animation to complete (400ms to match animation duration)
-    setTimeout(() => {
-      onSelectType(type);
-    }, 400);
+  const handleSearch = () => {
+    const query = searchQuery.trim();
+    if (query) {
+      // Check if it's a YouTube URL
+      if (query.includes('youtube.com') || query.includes('youtu.be')) {
+        handleSelectType('youtube', query);
+      } else {
+        // Default to website
+        handleSelectType('website', query);
+      }
+    }
   };
 
-  const handleSearch = () => {
-    if (searchQuery.trim()) {
-      // Handle web search - could trigger website type
-      handleSelectType('website');
-    }
+  const handleSelectType = (type: MaterialType, url?: string) => {
+    handleClose();
+    // Delay callback to allow animation to complete
+    setTimeout(() => {
+      onSelectType(type, url);
+    }, 400);
   };
 
   const materialOptions = [
@@ -244,7 +250,7 @@ export default function MaterialTypeSelector({
                   <TextInput
                     style={[
                       styles.searchInput,
-                      { 
+                      {
                         backgroundColor: colors.surface,
                         borderColor: colors.border,
                         color: colors.text,
@@ -293,17 +299,17 @@ export default function MaterialTypeSelector({
                       activeOpacity={0.7}
                     >
                       {option.iconSet === 'Ionicons' ? (
-                        <Ionicons 
-                          name={option.iconName as any} 
-                          size={20} 
-                          color={colors.icon} 
+                        <Ionicons
+                          name={option.iconName as any}
+                          size={20}
+                          color={colors.icon}
                           style={styles.buttonIcon}
                         />
                       ) : (
-                        <MaterialIcons 
-                          name={option.iconName as any} 
-                          size={20} 
-                          color={colors.icon} 
+                        <MaterialIcons
+                          name={option.iconName as any}
+                          size={20}
+                          color={colors.icon}
                           style={styles.buttonIcon}
                         />
                       )}
