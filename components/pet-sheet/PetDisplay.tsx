@@ -2,7 +2,7 @@
  * Pet Display - Streak counter and animated pet emoji
  */
 
-import React, { memo, useMemo, useState, useEffect, useRef } from 'react';
+import React, { memo, useMemo } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ImageSourcePropType } from 'react-native';
 import { MotiViewCompat as MotiView } from '@/components/MotiViewCompat';
 import { Ionicons } from '@expo/vector-icons';
@@ -126,25 +126,11 @@ export const PetDisplay = memo(({
 
     const isUnlocked = stage <= currentStage;
 
-    // Fixed source to prevent re-mounting during Prop passes
     const stage2Source = useMemo(() => {
         if (stage !== 2) return STAGE_2_SILHOUETTE;
         if (!isUnlocked) return STAGE_2_SILHOUETTE;
         return isDying ? STAGE_2_DYING : STAGE_2_FULL;
     }, [stage, isUnlocked, isDying]);
-
-    // Healing celebration logic
-    const [justHealed, setJustHealed] = useState(false);
-    const prevIsDying = useRef(isDying);
-
-    useEffect(() => {
-        if (prevIsDying.current === true && isDying === false) {
-            setJustHealed(true);
-            const timer = setTimeout(() => setJustHealed(false), 2000);
-            return () => clearTimeout(timer); // Clean up on unmount or re-trigger
-        }
-        prevIsDying.current = isDying;
-    }, [isDying]);
 
     return (
         <View style={styles.container}>
@@ -240,19 +226,6 @@ export const PetDisplay = memo(({
                         />
                     </View>
                 </MotiView>
-
-                {/* Healing Sparkles Celebration */}
-                {justHealed && (
-                    <MotiView
-                        from={{ scale: 0.5, opacity: 0 }}
-                        animate={{ scale: 1.8, opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ type: 'spring', damping: 12 }}
-                        style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }]}
-                    >
-                        <Ionicons name="sparkles" size={120} color="#FBBF24" />
-                    </MotiView>
-                )}
             </View>
 
             {stage === 1 && onNextStage && (
