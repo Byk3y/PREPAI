@@ -30,22 +30,30 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
     const colors = getThemeColors(isDarkMode);
     const { play } = useFeedback();
 
-    // Generate consistent color based on notebook ID
-    // NotebookLM-style muted, sophisticated colors - brighter to stand out
+    // Simplified theme-aware notebook card background colors
     const getNotebookColor = () => {
-        const lightColors = ['#dbeafe', '#d1fae5', '#fde68a', '#ede9fe', '#fecdd3', '#ccfbf1'];
-        // Brighter earth tones that stand out from #29292b background
-        const darkColors = [
-            '#3d4a3d', // Olive green
-            '#4a4540', // Bronze/brown
-            '#3d4545', // Teal
-            '#454038', // Earthy brown  
-            '#3d3d4a', // Slate blue
-            '#45453d', // Khaki
-        ];
-        const colorPalette = isDarkMode ? darkColors : lightColors;
-        const hash = notebook.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        return colorPalette[hash % colorPalette.length];
+        const color = notebook.color || 'blue'; // Default fallback
+
+        const palettes = {
+            light: {
+                blue: '#dbeafe',
+                green: '#d1fae5',
+                orange: '#fde68a',
+                purple: '#ede9fe',
+                pink: '#fecdd3',
+            },
+            dark: {
+                blue: '#3d3d4a',   // Slate blue
+                green: '#3d4a3d',  // Olive green
+                orange: '#4a4540', // Bronze/brown
+                purple: '#453d4a', // Muted purple
+                pink: '#4a3d45',   // Muted rose
+            }
+        };
+
+        const themePalette = isDarkMode ? palettes.dark : palettes.light;
+        const colorKey = (color as keyof typeof themePalette) || 'blue';
+        return themePalette[colorKey] || themePalette.blue;
     };
 
     const handleRetry = async (e: any) => {

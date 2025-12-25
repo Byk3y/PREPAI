@@ -151,6 +151,7 @@ async function generateTitleAndPreview(
 ): Promise<{
   title: string;
   emoji: string;
+  color: 'blue' | 'green' | 'orange' | 'purple' | 'pink';
   preview: {
     overview: string;
     suggested_questions: string[];
@@ -170,6 +171,7 @@ Output ONLY valid JSON in this exact format:
 {
   "title": "Concise headline (max 60 characters)",
   "emoji": "A single relevant emoji that represents the topic",
+  "color": "One of: blue, green, orange, purple, pink (choose what fits the topic best)",
   "overview": "A clear, narrative overview (60-85 words) as a single continuous paragraph. Explain the central themes, why it matters, and the author's key point.",
   "suggested_questions": [
     "A content-specific question that sparks curiosity",
@@ -214,6 +216,8 @@ Generate the JSON with title, narrative overview, and suggested questions.`;
       typeof response.title !== 'string' ||
       !response.emoji ||
       typeof response.emoji !== 'string' ||
+      !response.color ||
+      !['blue', 'green', 'orange', 'purple', 'pink'].includes(response.color) ||
       !response.overview ||
       typeof response.overview !== 'string'
     ) {
@@ -277,6 +281,7 @@ Generate the JSON with title, narrative overview, and suggested questions.`;
     return {
       title: cleanedTitle,
       emoji: response.emoji,
+      color: response.color,
       preview,
       usage: result.usage,
       costCents: result.costCents,
@@ -596,6 +601,7 @@ Deno.serve(async (req) => {
         .update({
           title: aiTitle,
           emoji: llmResult.emoji,
+          color: llmResult.color,
           status: 'preview_ready',
           meta: { preview },
           preview_generated_at: new Date().toISOString(),

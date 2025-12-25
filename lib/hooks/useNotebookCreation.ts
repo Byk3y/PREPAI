@@ -10,6 +10,10 @@ import { checkCanCreateContent } from '@/lib/services/subscriptionService';
 import type { LimitReason } from '@/lib/services/subscriptionService';
 import { useUpgrade } from '@/lib/hooks/useUpgrade';
 
+const COLORS: Array<'blue' | 'green' | 'orange' | 'purple' | 'pink'> = ['blue', 'green', 'orange', 'purple', 'pink'];
+
+const getRandomColor = () => COLORS[Math.floor(Math.random() * COLORS.length)];
+
 export const useNotebookCreation = () => {
     const router = useRouter();
     const { addNotebook, loadNotebooks, user, notebooks, cachedPetState, flashcardsStudied } = useStore();
@@ -69,7 +73,7 @@ export const useNotebookCreation = () => {
                 title: result.name.replace(/\.(mp3|wav|m4a|aac)$/i, ''),
                 flashcardCount: 0,
                 progress: 0,
-                color: 'purple',
+                color: getRandomColor(),
                 material: {
                     type: 'audio',
                     uri: result.uri,
@@ -116,7 +120,7 @@ export const useNotebookCreation = () => {
                 title: result.name.replace('.pdf', ''),
                 flashcardCount: 0,
                 progress: 0,
-                color: 'blue',
+                color: getRandomColor(),
                 material: {
                     type: 'pdf',
                     uri: result.uri,
@@ -184,7 +188,7 @@ export const useNotebookCreation = () => {
                 title: image.fileName?.replace(/\.[^/.]+$/, '') || 'Image Notes',
                 flashcardCount: 0,
                 progress: 0,
-                color: 'green',
+                color: getRandomColor(),
                 material: {
                     type: 'image',
                     uri: image.uri,
@@ -233,7 +237,7 @@ export const useNotebookCreation = () => {
                 title: 'Camera Photo',
                 flashcardCount: 0,
                 progress: 0,
-                color: 'green',
+                color: getRandomColor(),
                 material: {
                     type: 'image',
                     uri: result.uri,
@@ -275,7 +279,7 @@ export const useNotebookCreation = () => {
                 title: title,
                 flashcardCount: 0,
                 progress: 0,
-                color: type === 'note' ? 'orange' : 'purple',
+                color: getRandomColor(),
                 material: {
                     type: type,
                     content: content,
@@ -322,7 +326,7 @@ export const useNotebookCreation = () => {
                 title: 'YouTube Import', // Will be updated by Edge Function
                 flashcardCount: 0,
                 progress: 0,
-                color: 'pink',
+                color: getRandomColor(),
                 material: {
                     type: 'youtube' as any,
                     uri: cleanUrl,
