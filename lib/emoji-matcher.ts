@@ -15,7 +15,8 @@ const EMOJI_RULES: EmojiRule[] = [
   { keywords: ['chemistry', 'organic', 'molecule', 'chemical'], emoji: '🧪', priority: 100 },
   { keywords: ['biology', 'anatomy', 'genetics', 'dna', 'cell'], emoji: '🧬', priority: 100 },
   { keywords: ['math', 'calculus', 'algebra', 'geometry', 'trigonometry'], emoji: '📐', priority: 100 },
-  { keywords: ['computer science', 'programming', 'algorithm', 'coding'], emoji: '💻', priority: 100 },
+  { keywords: ['computer science', 'programming', 'algorithm', 'coding', 'developer', 'software'], emoji: '💻', priority: 100 },
+  { keywords: ['ai', 'artificial intelligence', 'machine learning', 'llm', 'automation'], emoji: '🤖', priority: 105 },
 
   // Sciences - Medium-High Priority
   { keywords: ['science', 'experiment', 'lab', 'laboratory'], emoji: '🔬', priority: 85 },
@@ -61,6 +62,8 @@ const EMOJI_RULES: EmojiRule[] = [
   { keywords: ['fitness', 'exercise', 'workout'], emoji: '💪', priority: 80 },
   { keywords: ['politics', 'government', 'political'], emoji: '🏛️', priority: 80 },
   { keywords: ['religion', 'theology', 'spiritual'], emoji: '🕉️', priority: 80 },
+  { keywords: ['productivity', 'workflow', 'habit', 'habits', 'agency'], emoji: '🚀', priority: 85 },
+  { keywords: ['emotions', 'mood', 'feeling', 'self-help'], emoji: '🌿', priority: 85 },
 
   // General Academic - Low Priority (fallbacks)
   { keywords: ['study', 'notes', 'lecture', 'class'], emoji: '📚', priority: 50 },
@@ -94,7 +97,12 @@ export function getTopicEmoji(title: string): string {
   // Find first matching rule
   for (const rule of sortedRules) {
     for (const keyword of rule.keywords) {
-      if (normalized.includes(keyword.toLowerCase())) {
+      // Use regex with word boundaries to avoid partial matches (e.g. 'ap' in 'applications')
+      // \b matches word boundaries, making sure 'ap' is it's own word
+      const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'i');
+
+      if (regex.test(normalized)) {
         return rule.emoji;
       }
     }

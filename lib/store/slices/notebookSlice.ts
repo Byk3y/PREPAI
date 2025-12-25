@@ -111,12 +111,15 @@ export const createNotebookSlice: StateCreator<
       const { newNotebook, material, isFileUpload, storagePath } = await notebookService.createNotebook(authUser.id, notebook as any);
 
       // 2. Optimistic Update
-      const materialsArr = Array.isArray(newNotebook.materials) ? newNotebook.materials : [];
+      const materialsArr = newNotebook.materials
+        ? (Array.isArray(newNotebook.materials) ? newNotebook.materials : [newNotebook.materials])
+        : [];
       const materialObj = materialsArr[0];
 
       const transformedNotebook: Notebook = {
         id: newNotebook.id,
         title: newNotebook.title,
+        emoji: (newNotebook as any).emoji,
         flashcardCount: (newNotebook as any).flashcard_count || 0,
         lastStudied: (newNotebook as any).last_studied || undefined,
         progress: (newNotebook as any).progress || 0,

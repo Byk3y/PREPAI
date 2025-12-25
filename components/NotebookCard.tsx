@@ -134,10 +134,10 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
         if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes !== 1 ? 's' : ''} ago`;
         if (diffInHours < 24) return `${diffInHours} hour${diffInHours !== 1 ? 's' : ''} ago`;
         if (diffInDays < 7) return `${diffInDays} day${diffInDays !== 1 ? 's' : ''} ago`;
-        
+
         // For dates older than a week, show the date
-        const months = ['January', 'February', 'March', 'April', 'May', 'June', 
-                       'July', 'August', 'September', 'October', 'November', 'December'];
+        const months = ['January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'];
         const month = months[createdDate.getMonth()];
         const day = createdDate.getDate();
         const year = createdDate.getFullYear();
@@ -169,14 +169,14 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
             >
                 {/* Emoji on the left */}
                 <View style={{ marginRight: 14 }}>
-                    <Text style={{ fontSize: 28 }}>{getTopicEmoji(notebook.title)}</Text>
+                    <Text style={{ fontSize: 28 }}>{notebook.emoji || getTopicEmoji(notebook.title)}</Text>
                 </View>
 
                 {/* Content */}
                 <View style={{ flex: 1 }}>
-                    <Text 
-                        style={{ fontSize: 16, fontFamily: 'Nunito-SemiBold', color: colors.text, marginBottom: 2 }} 
-                        numberOfLines={1} 
+                    <Text
+                        style={{ fontSize: 16, fontFamily: 'Nunito-SemiBold', color: colors.text, marginBottom: 2 }}
+                        numberOfLines={1}
                         ellipsizeMode="tail"
                     >
                         {notebook.title}
@@ -192,7 +192,7 @@ export const NotebookCard: React.FC<NotebookCardProps> = ({
                             <TouchableOpacity
                                 onPress={handleRetry}
                                 disabled={isRetrying}
-                                style={{ 
+                                style={{
                                     backgroundColor: isDarkMode ? 'rgba(127, 29, 29, 0.5)' : '#fee2e2',
                                     paddingHorizontal: 12,
                                     paddingVertical: 4,

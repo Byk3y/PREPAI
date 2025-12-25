@@ -35,23 +35,20 @@ export const notebookService = {
             progress: nb.progress || 0,
             createdAt: nb.created_at,
             color: nb.color,
+            emoji: (nb as any).emoji,
             status: nb.status as Notebook['status'],
             meta: nb.meta || {},
-            materials: nb.materials
-                ? [
-                    {
-                        id: nb.materials.id,
-                        type: nb.materials.kind as Material['type'],
-                        uri: nb.materials.storage_path || nb.materials.external_url,
-                        filename: getFilenameFromPath(nb.materials.storage_path),
-                        content: nb.materials.content,
-                        preview_text: nb.materials.preview_text,
-                        title: nb.title, // Use notebook title as fallback for Material interface compatibility
-                        createdAt: nb.materials.created_at,
-                        thumbnail: nb.materials.thumbnail,
-                    },
-                ]
-                : [],
+            materials: (nb.materials ? (Array.isArray(nb.materials) ? nb.materials : [nb.materials]) : []).map((m: any) => ({
+                id: m.id,
+                type: m.kind as Material['type'],
+                uri: m.storage_path || m.external_url,
+                filename: getFilenameFromPath(m.storage_path),
+                content: m.content,
+                preview_text: m.preview_text,
+                title: nb.title,
+                createdAt: m.created_at,
+                thumbnail: m.thumbnail,
+            })),
         }));
     },
 
@@ -350,6 +347,7 @@ export const notebookService = {
         try {
             const updateData: any = {};
             if (updates.title !== undefined) updateData.title = updates.title;
+            if (updates.emoji !== undefined) updateData.emoji = updates.emoji;
             if (updates.color !== undefined) updateData.color = updates.color;
             if (updates.status !== undefined) updateData.status = updates.status;
             if (updates.flashcardCount !== undefined)
@@ -414,13 +412,16 @@ export const notebookService = {
                 return null;
             }
 
-            const materialsArr = Array.isArray(data.materials) ? data.materials : [];
+            const materialsArr = data.materials
+                ? (Array.isArray(data.materials) ? data.materials : [data.materials])
+                : [];
             const materialObj = materialsArr[0];
 
             // Transform Supabase data to Notebook format
             return {
                 id: data.id,
                 title: data.title,
+                emoji: (data as any).emoji,
                 flashcardCount: (data as any).flashcard_count || 0,
                 lastStudied: (data as any).last_studied || undefined,
                 progress: (data as any).progress || 0,

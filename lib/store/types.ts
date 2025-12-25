@@ -183,7 +183,7 @@ export interface ChatMessage {
 export interface Notebook {
   id: string;
   title: string;
-  emoji?: string; // DEPRECATED: Not used - emojis computed dynamically via getTopicEmoji()
+  emoji?: string; // AI-selected or manually chosen emoji (falls back to getTopicEmoji)
   flashcardCount: number;
   lastStudied?: string; // ISO date string
   progress: number; // 0-100 percentage

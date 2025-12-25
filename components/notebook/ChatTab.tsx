@@ -192,7 +192,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
           {/* Material Icon & Title */}
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 }}>
             <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-              <Text style={{ fontSize: 48, marginRight: 12 }}>{getTopicEmoji(notebook.title)}</Text>
+              <Text style={{ fontSize: 48, marginRight: 12 }}>{notebook.emoji || getTopicEmoji(notebook.title)}</Text>
             </Animated.View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 24, color: colors.text, marginBottom: 4, fontFamily: 'Nunito-Bold' }}>
@@ -244,7 +244,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
         {/* Material Icon & Title */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 }}>
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <Text style={{ fontSize: 48, marginRight: 12 }}>{getTopicEmoji(notebook.title)}</Text>
+            <Text style={{ fontSize: 48, marginRight: 12 }}>{notebook.emoji || getTopicEmoji(notebook.title)}</Text>
           </Animated.View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 24, color: colors.text, marginBottom: 4, fontFamily: 'Nunito-Bold' }}>

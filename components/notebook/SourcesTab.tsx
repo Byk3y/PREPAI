@@ -20,7 +20,7 @@ interface SourcesTabProps {
 export const SourcesTab: React.FC<SourcesTabProps> = ({ notebook }) => {
   const material = notebook.materials?.[0];
   const router = useRouter();
-  
+
   // Theme
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
@@ -52,7 +52,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({ notebook }) => {
         <View style={{ paddingHorizontal: 24, paddingVertical: 24 }}>
           {/* Material Icon & Title */}
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 }}>
-            <Text style={{ fontSize: 48, marginRight: 12 }}>{getTopicEmoji(notebook.title)}</Text>
+            <Text style={{ fontSize: 48, marginRight: 12 }}>{notebook.emoji || getTopicEmoji(notebook.title)}</Text>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 24, color: colors.text, marginBottom: 4, fontFamily: 'Nunito-Bold' }}>
                 {notebook.title}

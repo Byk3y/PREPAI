@@ -104,10 +104,27 @@ async function extractContent(
     // TODO: Implement website scraping
     throw new Error('Website scraping not implemented yet');
   } else if (kind === 'youtube') {
-    // For now, return the URL so the AI can at least try to talk about it or we can implement the fetcher next
-    return {
-      text: `YouTube Video URL: ${external_url}\n\n[Transcript extraction in progress...]`
-    };
+    const { getRequiredEnv } = await import('../_shared/env.ts');
+    const { getYoutubeTranscript, cleanTranscriptWithAI } = await import('../_shared/youtube.ts');
+
+    const apiKey = getRequiredEnv('GOOGLE_AI_API_KEY');
+    const rapidApiKey = getRequiredEnv('RAPIDAPI_KEY');
+
+    try {
+      // Step 1: Fetch raw transcript via Professional API (handles blocks/fallbacks)
+      const rawTranscript = await getYoutubeTranscript(external_url, rapidApiKey);
+
+      // Step 2: Clean it up with AI for that "Premium" Brigo feel
+      const cleanedText = await cleanTranscriptWithAI(rawTranscript, apiKey);
+
+      return { text: cleanedText };
+    } catch (error: any) {
+      console.warn(`[extractContent] YouTube transcript failed, falling back to audio: ${error.message}`);
+
+      // TODO: Implement the Audio Fallback (extracting audio from video and using transcribeAudio)
+      // For now, re-throw to show error in UI
+      throw new Error(`YouTube Import Failed: ${error.message}`);
+    }
   }
 
   throw new Error(`Unsupported material kind: ${kind}`);
@@ -133,6 +150,7 @@ async function generateTitleAndPreview(
   currentTitle: string
 ): Promise<{
   title: string;
+  emoji: string;
   preview: {
     overview: string;
     suggested_questions: string[];
@@ -151,6 +169,7 @@ async function generateTitleAndPreview(
 Output ONLY valid JSON in this exact format:
 {
   "title": "Concise headline (max 60 characters)",
+  "emoji": "A single relevant emoji that represents the topic",
   "overview": "A clear, narrative overview (60-85 words) as a single continuous paragraph. Explain the central themes, why it matters, and the author's key point.",
   "suggested_questions": [
     "A content-specific question that sparks curiosity",
@@ -193,6 +212,8 @@ Generate the JSON with title, narrative overview, and suggested questions.`;
     if (
       !response.title ||
       typeof response.title !== 'string' ||
+      !response.emoji ||
+      typeof response.emoji !== 'string' ||
       !response.overview ||
       typeof response.overview !== 'string'
     ) {
@@ -255,6 +276,7 @@ Generate the JSON with title, narrative overview, and suggested questions.`;
     // Return cleaned title (markdown stripped), preview with actual usage statistics from LLM
     return {
       title: cleanedTitle,
+      emoji: response.emoji,
       preview,
       usage: result.usage,
       costCents: result.costCents,
@@ -573,6 +595,7 @@ Deno.serve(async (req) => {
         .from('notebooks')
         .update({
           title: aiTitle,
+          emoji: llmResult.emoji,
           status: 'preview_ready',
           meta: { preview },
           preview_generated_at: new Date().toISOString(),
