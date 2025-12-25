@@ -92,27 +92,27 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
           emoji: '🎉',
           title: 'Your trial has ended',
           message:
-            "You've made amazing progress! Upgrade to Premium to continue accessing all your notebooks and features.",
+            "You've made amazing progress! Upgrade to Premium to continue using Smart Chat, Flashcards, and all your notebooks.",
         };
       case 'create_attempt':
         return {
           emoji: '🔒',
           title: 'Trial limit reached',
           message:
-            "You've reached your trial limit. Upgrade to Premium to create unlimited notebooks and unlock all features.",
+            "You've reached your trial limit. Upgrade to Premium to unlock unlimited Smart Chat, Notebooks, and Podcasts.",
         };
       case 'locked_notebook':
         return {
           emoji: '📚',
           title: 'Unlock all notebooks',
           message:
-            'Upgrade to Premium to access all your notebooks and continue your learning journey.',
+            'Upgrade to Premium to access all your notebooks and continue deep-diving with Smart Chat.',
         };
       default:
         return {
           emoji: '⭐',
           title: 'Upgrade to Premium',
-          message: 'Unlock all features and continue your learning journey.',
+          message: 'Unlock Smart Chat, unlimited Study Tools, and continue your learning journey.',
         };
     }
   };

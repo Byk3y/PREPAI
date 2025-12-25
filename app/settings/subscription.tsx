@@ -111,7 +111,7 @@ export default function SubscriptionScreen() {
                         </View>
                         <View style={styles.featureItem}>
                             <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-                            <Text style={styles.featureText}>Advanced AI tutoring mode</Text>
+                            <Text style={styles.featureText}>Interactive Smart Chat</Text>
                         </View>
                     </View>
                 </LinearGradient>

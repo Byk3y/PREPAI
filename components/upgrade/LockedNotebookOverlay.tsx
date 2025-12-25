@@ -38,7 +38,7 @@ export function LockedNotebookOverlay({
     if (visible) {
       // Track when locked notebook is accessed
       trackLockedNotebookAccessed(notebookId || 'unknown');
-      
+
       // Reset countdown when modal becomes visible
       setCountdown(Math.ceil(delayMs / 1000));
 
@@ -88,7 +88,7 @@ export function LockedNotebookOverlay({
 
             {/* Message */}
             <Text style={[styles.message, { color: colors.textSecondary }]}>
-              Upgrade to Premium to access all your notebooks and unlock unlimited features.
+              Upgrade to Premium to access all your notebooks and unlock Smart Chat, Podcasts, and unlimited Study Tools.
             </Text>
 
             {/* Action button */}

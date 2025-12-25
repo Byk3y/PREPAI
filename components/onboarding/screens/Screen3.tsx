@@ -153,10 +153,18 @@ export function Screen3({ colors, onContinue }: Screen3Props) {
           colors={colors}
         />
         <FeatureItem
+          icon="chatbubbles-outline"
+          title="Smart Chat"
+          color="#10B981"
+          delay={600}
+          isVisible={headlineComplete}
+          colors={colors}
+        />
+        <FeatureItem
           icon="headset-outline"
           title="Podcasts"
           color="#8B5CF6"
-          delay={600}
+          delay={800}
           isVisible={headlineComplete}
           colors={colors}
         />

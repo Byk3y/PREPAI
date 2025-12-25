@@ -36,9 +36,10 @@ interface PaywallScreenProps {
 }
 
 const FEATURES = [
-    { text: 'Unlimited notebooks & AI', icon: 'infinite' },
-    { text: 'Unlimited podcasts', icon: 'musical-note' },
-    { text: 'Cloud backup & Priority support', icon: 'cloud-done' },
+    { text: 'Interactive Smart Chat', icon: 'chatbubbles' },
+    { text: 'Study Flashcards & Quizzes', icon: 'school' },
+    { text: 'Unlimited Podcast Summaries', icon: 'headset' },
+    { text: 'Unlimited Notebooks & Storage', icon: 'infinite' },
 ];
 
 export const PaywallScreen: React.FC<PaywallScreenProps> = ({
