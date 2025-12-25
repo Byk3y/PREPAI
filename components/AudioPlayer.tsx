@@ -22,6 +22,7 @@ import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 import { AudioVisualizer } from './AudioVisualizer';
 import { useStore } from '@/lib/store';
 import { audioFeedbackService } from '@/lib/services/audioFeedbackService';
+import { configureAudioMode } from '@/lib/audioConfig';
 import {
     CloseIcon,
     DownloadIcon,
@@ -139,12 +140,9 @@ export function AudioPlayer({
         try {
             setLoading(true);
 
-            // Configure audio mode
-            await Audio.setAudioModeAsync({
-                allowsRecordingIOS: false,
-                playsInSilentModeIOS: true,
-                staysActiveInBackground: true,
-            });
+            // Configure audio mode to allow background playback
+            // and ensure it still mixes with other audio as per user requirements
+            await configureAudioMode(true);
 
             // Load audio
             const { sound: audioSound } = await Audio.Sound.createAsync(

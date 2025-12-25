@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
-import { Audio, type AVPlaybackStatusSuccess } from 'expo-av';
-import { InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av/build/Audio.types';
+import { Audio, type AVPlaybackStatusSuccess, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 
 type SoundName =
   | 'tap'
@@ -47,25 +46,17 @@ export function useFeedback(options: FeedbackOptions = {}) {
 
   const soundsRef = useRef<Partial<Record<SoundName, Audio.Sound>>>({});
   const lastPlayRef = useRef<Partial<Record<SoundName, number>>>({});
-  const loadingRef = useRef<Partial<Record<SoundName, Promise<Audio.Sound>>>>({});
+  const loadingRef = useRef<Partial<Record<SoundName, Promise<Audio.Sound | undefined>>>>({});
 
   useEffect(() => {
     let mounted = true;
 
     (async () => {
       try {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: playInSilentMode,
-          allowsRecordingIOS: false,
-          staysActiveInBackground: false,
-          // Allow sound effects to mix with background music instead of interrupting it
-          // MixWithOthers is the default on iOS and allows our sounds to play alongside other audio
-          interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
-          // On Android, use DuckOthers (default) which will briefly lower volume of background music
-          // Note: Android doesn't have a true "mix" mode like iOS, but DuckOthers is better than stopping
-          interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
-          shouldDuckAndroid: true, // Allow ducking - this is the Android way to coexist
-        });
+        // Audio mode is now initialized globally in _layout.tsx
+        // but we ensure it's set correctly here just in case, 
+        // using the same parameters to avoid session interruptions.
+        // We only preload sounds here.
 
         // Preload optimistically
         for (const name of Object.keys(SOUND_MAP) as SoundName[]) {

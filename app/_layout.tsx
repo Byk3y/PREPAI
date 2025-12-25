@@ -60,6 +60,10 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { StreakSaviorModal } from '@/components/modals/StreakSaviorModal';
 import { useStore } from '@/lib/store';
 
+// Initialize audio configuration
+import { initAudioConfig } from '@/lib/audioConfig';
+initAudioConfig();
+
 // Initialize RevenueCat SDK
 import { initializePurchases } from '@/lib/purchases';
 
