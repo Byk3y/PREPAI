@@ -8,6 +8,7 @@ import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-
 import { NotebookCard } from '@/components/NotebookCard';
 import { TrialReminderCard } from '@/components/upgrade/TrialReminderCard';
 import { LimitedAccessBanner } from '@/components/upgrade/LimitedAccessBanner';
+import { StreakRestoreBanner } from '@/components/home/StreakRestoreBanner';
 import { TikTokLoader } from '@/components/TikTokLoader';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 import type { Notebook } from '@/lib/store';
@@ -27,6 +28,11 @@ interface NotebookListProps {
   totalCount: number;
   onUpgrade: () => void;
   onDismissTrialReminder: () => void;
+  showStreakRestore?: boolean;
+  previousStreak?: number;
+  restoresLeft?: number;
+  onRestoreStreak?: () => Promise<void>;
+  onDismissStreakRestore?: () => void;
 }
 
 export function NotebookList({
@@ -44,6 +50,11 @@ export function NotebookList({
   totalCount,
   onUpgrade,
   onDismissTrialReminder,
+  showStreakRestore,
+  previousStreak = 0,
+  restoresLeft = 0,
+  onRestoreStreak,
+  onDismissStreakRestore,
 }: NotebookListProps) {
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
@@ -72,6 +83,16 @@ export function NotebookList({
         <View style={{ alignItems: 'center', paddingVertical: 12 }}>
           <TikTokLoader size={10} color="#6366f1" containerWidth={60} />
         </View>
+      )}
+
+      {/* Streak Restore Banner */}
+      {showStreakRestore && onRestoreStreak && onDismissStreakRestore && (
+        <StreakRestoreBanner
+          previousStreak={previousStreak}
+          restoresLeft={restoresLeft}
+          onRestore={onRestoreStreak}
+          onDismiss={onDismissStreakRestore}
+        />
       )}
 
       {/* Trial Reminder (3 days or less remaining) */}

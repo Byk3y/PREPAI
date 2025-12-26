@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/first-screen/splash.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#FF9500"
     },
@@ -69,7 +69,13 @@
           "microphonePermission": "This app needs access to your microphone for audio features."
         }
       ],
-      "@sentry/react-native",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "prepai-nb",
+          "project": "react-native"
+        }
+      ],
       "expo-secure-store",
       "@react-native-google-signin/google-signin",
       "expo-web-browser",

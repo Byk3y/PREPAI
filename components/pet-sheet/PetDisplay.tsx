@@ -17,11 +17,15 @@ const STAGE_2_FULL = require('@/assets/pets/stage-2/full-view.png');
 const STAGE_2_DYING = require('@/assets/pets/stage-2/dying.png');
 const STAGE_2_SILHOUETTE = require('@/assets/pets/stage-2/silhouette.png');
 
+// Stage 3 Assets
+const STAGE_3_FULL = require('@/assets/pets/stage-3/full-view.png');
+const STAGE_3_SILHOUETTE = require('@/assets/pets/stage-3/silhouette.png');
+
 interface PetDisplayProps {
     streak: number;
     restores?: number;
-    stage: 1 | 2;
-    currentStage: 1 | 2;
+    stage: 1 | 2 | 3;
+    currentStage: 1 | 2 | 3;
     onNextStage?: () => void;
     onPrevStage?: () => void;
     canRestore?: boolean;
@@ -132,6 +136,13 @@ export const PetDisplay = memo(({
         return isDying ? STAGE_2_DYING : STAGE_2_FULL;
     }, [stage, isUnlocked, isDying]);
 
+    const stage3Source = useMemo(() => {
+        if (stage !== 3) return STAGE_3_SILHOUETTE;
+        if (!isUnlocked) return STAGE_3_SILHOUETTE;
+        // Fallback to full view since stage 3 doesn't have dying image yet
+        return STAGE_3_FULL;
+    }, [stage, isUnlocked]);
+
     return (
         <View style={styles.container}>
             <View
@@ -208,6 +219,7 @@ export const PetDisplay = memo(({
                         />
                     </View>
 
+                    {/* Stage 2 Render */}
                     <View
                         style={[
                             styles.imageWrapper,
@@ -225,10 +237,29 @@ export const PetDisplay = memo(({
                             fadeDuration={0}
                         />
                     </View>
+
+                    {/* Stage 3 Render */}
+                    <View
+                        style={[
+                            styles.imageWrapper,
+                            styles.absoluteWrapper,
+                            { opacity: stage === 3 ? 1 : 0 }
+                        ]}
+                    >
+                        <Image
+                            source={stage3Source}
+                            style={[
+                                styles.petImage,
+                                { transform: [{ scale: isUnlocked ? (isDying ? 1.2 : 1.0) : 0.9 }] }
+                            ]}
+                            resizeMode="contain"
+                            fadeDuration={0}
+                        />
+                    </View>
                 </MotiView>
             </View>
 
-            {stage === 1 && onNextStage && (
+            {(stage === 1 || stage === 2) && onNextStage && (
                 <TouchableOpacity
                     style={styles.navigationArrow}
                     onPress={onNextStage}
@@ -238,7 +269,7 @@ export const PetDisplay = memo(({
                 </TouchableOpacity>
             )}
 
-            {stage === 2 && onPrevStage && (
+            {(stage === 2 || stage === 3) && onPrevStage && (
                 <TouchableOpacity
                     style={[styles.navigationArrow, { right: undefined, left: 0 }]}
                     onPress={onPrevStage}

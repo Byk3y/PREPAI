@@ -22,14 +22,14 @@ interface FeedbackOptions {
 }
 
 const SOUND_MAP: Record<SoundName, number> = {
-  tap: require('../assets/sfx/tap.wav'),
-  correct: require('../assets/sfx/correct.wav'),
-  incorrect: require('../assets/sfx/incorrect.wav'),
-  hint: require('../assets/sfx/hint.wav'),
-  complete: require('../assets/sfx/complete.wav'),
-  flip: require('../assets/sfx/flip.wav'),
-  reveal: require('../assets/sfx/reveal.wav'),
-  start: require('../assets/sfx/start.wav'),
+  tap: require('../assets/sfx/tap.m4a'),
+  correct: require('../assets/sfx/correct.m4a'),
+  incorrect: require('../assets/sfx/incorrect.m4a'),
+  hint: require('../assets/sfx/hint.m4a'),
+  complete: require('../assets/sfx/complete.m4a'),
+  flip: require('../assets/sfx/flip.m4a'),
+  reveal: require('../assets/sfx/reveal.m4a'),
+  start: require('../assets/sfx/start.m4a'),
 };
 
 const DEFAULT_VOLUME = 0.5;

@@ -247,6 +247,16 @@ export default function HomeScreen() {
           totalCount={totalCount}
           onUpgrade={() => router.push('/upgrade')}
           onDismissTrialReminder={() => setShowTrialReminder(false)}
+          showStreakRestore={useStore.getState().showStreakRestoreModal}
+          previousStreak={useStore.getState().previousStreakForRestore}
+          restoresLeft={user.streak_restores}
+          onRestoreStreak={async () => {
+            const result = await useStore.getState().restoreStreak();
+            if (result.success) {
+              useStore.getState().setShowStreakRestoreModal(false);
+            }
+          }}
+          onDismissStreakRestore={() => useStore.getState().setShowStreakRestoreModal(false)}
         />
       )}
 

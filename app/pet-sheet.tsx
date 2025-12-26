@@ -51,11 +51,11 @@ export default function PetSheetScreen() {
   const colors = getThemeColors(isDarkMode);
 
   // Derive stage from petState (automatically calculated from points)
-  // Clamp to valid stage range for UI (1-2 for now, since we only have assets for stages 1-2)
-  const currentStage = Math.min(Math.max(petState.stage, 1), 2) as 1 | 2;
+  // Clamp to valid stage range for UI (1-3)
+  const currentStage = Math.min(Math.max(petState.stage, 1), 3) as 1 | 2 | 3;
 
   // Local state for previewing next/previous stage (UI preview only, doesn't change actual stage)
-  const [previewStage, setPreviewStage] = useState<1 | 2>(currentStage);
+  const [previewStage, setPreviewStage] = useState<1 | 2 | 3>(currentStage);
 
   // Update preview stage when actual stage changes
   React.useEffect(() => {
@@ -103,14 +103,14 @@ export default function PetSheetScreen() {
   const getGradientColors = (): [string, string] => {
     if (isDarkMode) {
       // Slightly darker/muted golden - blends into new background
-      return previewStage === 1
-        ? ['#D4A843', '#29292b']  // Muted gold to background
-        : ['#C88A30', '#29292b']; // Muted amber to background
+      if (previewStage === 1) return ['#D4A843', '#29292b']; // Muted gold
+      if (previewStage === 2) return ['#C88A30', '#29292b']; // Muted amber
+      return ['#BE185D', '#29292b']; // Deep pink/magenta for Stage 3
     }
-    // Light mode - original yellow gradients
-    return previewStage === 1
-      ? ['#FFE082', '#FFFFFF']
-      : ['#FFB74D', '#FFFFFF'];
+    // Light mode
+    if (previewStage === 1) return ['#FFE082', '#FFFFFF'];
+    if (previewStage === 2) return ['#FFB74D', '#FFFFFF'];
+    return ['#F9A8D4', '#FFFFFF']; // Soft pink for Stage 3
   };
 
   return (
@@ -172,8 +172,8 @@ export default function PetSheetScreen() {
                     restores={user.streak_restores}
                     stage={previewStage}
                     currentStage={currentStage}
-                    onNextStage={previewStage === 1 ? () => setPreviewStage(2) : undefined}
-                    onPrevStage={previewStage === 2 ? () => setPreviewStage(1) : undefined}
+                    onNextStage={previewStage < 3 ? () => setPreviewStage((prev) => (prev + 1) as 1 | 2 | 3) : undefined}
+                    onPrevStage={previewStage > 1 ? () => setPreviewStage((prev) => (prev - 1) as 1 | 2 | 3) : undefined}
                     canRestore={canRestore}
                     isDying={isDying}
                     onRestore={handleRestore}
@@ -192,7 +192,11 @@ export default function PetSheetScreen() {
                   <MissionsList
                     missions={allTasks}
                     taskProgress={taskProgress}
-                    activeColor={previewStage === 1 ? '#FBBF24' : '#FB923C'} // Gold for Stage 1, Orange for Stage 2
+                    activeColor={
+                      previewStage === 1 ? '#FBBF24' :
+                        previewStage === 2 ? '#FB923C' :
+                          '#EC4899' // Vibrant pink for Stage 3
+                    }
                   />
 
                   <StreakBadges

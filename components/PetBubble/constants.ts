@@ -6,17 +6,29 @@ import { ImageSourcePropType } from 'react-native';
 export const PET_BUBBLE_IMAGES: Record<number, ImageSourcePropType> = {
   1: require('@/assets/pets/stage-1/bubble.png'),
   2: require('@/assets/pets/stage-2/bubble.png'),
+  3: require('@/assets/pets/stage-3/bubble.png'),
 };
 
 export const PET_DYING_IMAGES: Record<number, ImageSourcePropType> = {
   1: require('@/assets/pets/stage-1/dying.png'),
   2: require('@/assets/pets/stage-2/dying.png'),
+  3: require('@/assets/pets/stage-2/dying.png'), // Fallback until stage-3 dying is added
 };
 
 /**
  * Pet bubble size in pixels
  */
 export const PET_SIZE = 110;
+
+/**
+ * Stage-specific scale factors to ensure visual consistency
+ * (e.g., if one stage's artwork naturally appears larger than others)
+ */
+export const PET_STAGE_SCALES: Record<number, number> = {
+  1: 1.0,  // Base size
+  2: 1.0,
+  3: 0.95, // Increased scale for better visual balance
+};
 
 /**
  * Padding from screen edges

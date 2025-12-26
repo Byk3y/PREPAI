@@ -7,7 +7,7 @@
 import React, { useEffect } from 'react';
 import { Animated, Image } from 'react-native';
 import { useStore } from '@/lib/store';
-import { PET_SIZE } from './PetBubble/constants';
+import { PET_SIZE, PET_STAGE_SCALES } from './PetBubble/constants';
 import { getPetBubbleImage } from './PetBubble/utils/getPetBubbleImage';
 import { usePetBubblePosition } from './PetBubble/hooks/usePetBubblePosition';
 import { usePetBubbleAnimations } from './PetBubble/hooks/usePetBubbleAnimations';
@@ -18,11 +18,18 @@ export const PetBubble: React.FC = () => {
   const { user, petState, dailyTasks } = useStore();
 
   // Check if secure_pet task is already completed today
-  const isSecureTaskCompleted = dailyTasks?.find(t => t.task_key === 'secure_pet')?.completed;
+  const today = getLocalDateString();
+  const secureTask = dailyTasks?.find(t => t.task_key === 'secure_pet');
+
+  // A task is completed today if the server says 'completed: true' AND:
+  // 1. It has a completed_at that starts with today's date
+  // 2. OR it has NO completed_at (fallback for cached/legacy data) but server says it's completed
+  const isSecureTaskCompletedToday = secureTask?.completed && (
+    !secureTask.completed_at || secureTask.completed_at.startsWith(today)
+  );
 
   // A streak is "at risk" if it hasn't been secured today
-  const today = getLocalDateString();
-  const isAtRisk = user.last_streak_date !== today && !isSecureTaskCompleted;
+  const isAtRisk = user.last_streak_date !== today && !isSecureTaskCompletedToday;
 
   // A streak is "lost" if it's 0 but there's a recoverable streak in meta
   const recoverableStreak = user.meta?.last_recoverable_streak ?? 0;
@@ -32,6 +39,10 @@ export const PetBubble: React.FC = () => {
 
   // Get the correct bubble image for current stage
   const bubbleImage = getPetBubbleImage(petState.stage, isDying);
+
+  // Get stage-specific scale to ensure visual consistency
+  const stageScale = PET_STAGE_SCALES[petState.stage] || 1.0;
+  const bubbleSize = PET_SIZE * stageScale;
 
   // Position management
   const { position, setPosition, positionRef, screenDimensions, insets } = usePetBubblePosition();
@@ -100,10 +111,11 @@ export const PetBubble: React.FC = () => {
         {/* Living Pet Bubble - changes based on stage */}
         <Image
           source={bubbleImage}
-          style={{ width: PET_SIZE, height: PET_SIZE }}
+          style={{ width: bubbleSize, height: bubbleSize }}
           resizeMode="contain"
         />
       </Animated.View>
     </Animated.View>
   );
 };
+

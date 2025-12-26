@@ -17,7 +17,7 @@ export const userService = {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, first_name, last_name, streak, streak_restores, last_restore_reset, avatar_url, meta, expo_push_token, created_at')
+        .select('id, name, first_name, last_name, streak, last_streak_date, streak_restores, last_restore_reset, avatar_url, meta, expo_push_token, created_at')
         .eq('id', userId)
         .single();
 
