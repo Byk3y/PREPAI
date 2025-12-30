@@ -20,7 +20,7 @@ export default function SubscriptionScreen() {
         try {
             const { isPro } = await restorePurchases();
             if (isPro) {
-                if (authUser) loadSubscription(authUser.id);
+                if (authUser) await loadSubscription(authUser.id);
                 Alert.alert("Success", "Your purchases have been restored.");
             } else {
                 Alert.alert("Notice", "No active subscriptions found to restore.");
@@ -35,7 +35,6 @@ export default function SubscriptionScreen() {
     };
 
     const handleOpenCustomerCenter = () => {
-        // Open native subscription management
         if (Platform.OS === 'ios') {
             Linking.openURL('https://apps.apple.com/account/subscriptions');
         } else {
@@ -43,8 +42,6 @@ export default function SubscriptionScreen() {
         }
     };
 
-
-    // Calculate subscription status
     const getDaysLeft = () => {
         if (!trialEndsAt) return 0;
         const now = new Date();
@@ -55,98 +52,99 @@ export default function SubscriptionScreen() {
     };
 
     const daysLeft = getDaysLeft();
-    const trialStatusText = tier === 'premium'
+    const isPro = tier === 'premium';
+    const trialStatusText = isPro
         ? 'Premium • Active'
         : isExpired
             ? 'Trial expired'
-            : `Trial • ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`;
-
-    const badgeText = tier === 'premium' ? 'PRO' : 'TRIAL';
-    const planTitle = tier === 'premium' ? 'Brigo Pro' : 'Trial';
-    const planTagline = tier === 'premium'
-        ? 'Unlimited notebooks • Priority AI • No Ads'
-        : `${daysLeft} days remaining in your pro trial`;
+            : `Trial • ${daysLeft} days left`;
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: isDarkMode ? '#111' : '#F9FAFB' }]}>
             <Stack.Screen options={{ headerShown: false }} />
 
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color={colors.text} />
+                    <Ionicons name="chevron-back" size={24} color={isDarkMode ? '#FFF' : '#111827'} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>Subscription</Text>
-                <View style={{ width: 40 }} />
+                <Text style={[styles.headerTitle, { color: isDarkMode ? '#FFF' : '#111827' }]}>Subscription</Text>
+                <View style={{ width: 44 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                 <LinearGradient
-                    colors={[colors.primary, colors.primaryDark]}
+                    colors={isPro ? ['#8B5CF6', '#7C3AED'] : ['#3B82F6', '#2563EB']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.premiumCard}
                 >
                     <View style={styles.cardHeader}>
                         <View style={styles.badge}>
-                            <Text style={styles.badgeText}>{badgeText}</Text>
+                            <Text style={styles.badgeText}>{isPro ? 'PRO' : 'TRIAL'}</Text>
                         </View>
-                        <Text style={styles.trialText}>{trialStatusText}</Text>
+                        <Text style={styles.trialStatusText}>{trialStatusText}</Text>
                     </View>
 
                     <View style={styles.planTitleRow}>
-                        <BrigoLogo size={26} textColor="#FFFFFF" />
-                        {tier === 'premium' && <Text style={styles.planTitlePro}> Pro</Text>}
+                        <BrigoLogo size={28} textColor="#FFFFFF" />
+                        {isPro && <Text style={styles.planTitlePro}> Pro</Text>}
                     </View>
-                    <Text style={styles.planTagline}>{planTagline}</Text>
+
+                    <Text style={styles.planTagline}>
+                        {isPro
+                            ? 'Unlimited notebooks • Priority AI access'
+                            : `${daysLeft} days remaining in your pro trial`
+                        }
+                    </Text>
 
                     <View style={styles.featuresList}>
-                        <View style={styles.featureItem}>
-                            <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-                            <Text style={styles.featureText}>
-                                {tier === 'premium' ? 'Unlimited Studio generation' : '5 Studio generations'}
-                            </Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                            <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-                            <Text style={styles.featureText}>
-                                {tier === 'premium' ? 'Unlimited Podcasts' : '3 Podcasts'}
-                            </Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                            <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-                            <Text style={styles.featureText}>Interactive Smart Chat</Text>
-                        </View>
+                        {[
+                            { text: isPro ? 'Unlimited Studio generations' : '5 Studio generations' },
+                            { text: isPro ? 'Unlimited Podcasts' : '3 Podcasts' },
+                            { text: 'Interactive Smart Chat' }
+                        ].map((f, i) => (
+                            <View key={i} style={styles.featureItem}>
+                                <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                                <Text style={styles.featureText}>{f.text}</Text>
+                            </View>
+                        ))}
                     </View>
                 </LinearGradient>
 
-                {tier !== 'premium' && (
+                {!isPro && (
                     <TouchableOpacity
-                        style={[styles.upgradeButton, { backgroundColor: colors.primary }]}
+                        style={[styles.upgradeButton, { backgroundColor: isDarkMode ? '#FFF' : '#000' }]}
                         onPress={handlePresentPaywall}
+                        activeOpacity={0.9}
                     >
-                        <Text style={styles.upgradeButtonText}>UPGRADE TO PRO</Text>
-                        <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+                        <View style={styles.buttonInner}>
+                            <Text style={[styles.upgradeButtonText, { color: isDarkMode ? '#000' : '#FFF' }]}>UPGRADE TO PRO</Text>
+                            <Ionicons name="sparkles" size={18} color={isDarkMode ? '#000' : '#FFF'} />
+                        </View>
                     </TouchableOpacity>
                 )}
 
                 <TouchableOpacity
-                    style={[styles.manageButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                    style={[styles.manageButton, {
+                        backgroundColor: isDarkMode ? '#1F2937' : '#FFF',
+                        borderColor: isDarkMode ? '#374151' : '#E5E7EB'
+                    }]}
                     onPress={handleOpenCustomerCenter}
                 >
                     <View style={styles.manageButtonLeft}>
-                        <Ionicons name="card-outline" size={22} color={colors.textSecondary} />
-                        <Text style={[styles.manageButtonText, { color: colors.text }]}>Manage Billing</Text>
+                        <Ionicons name="card-outline" size={22} color={isDarkMode ? '#A1A1AA' : '#64748B'} />
+                        <Text style={[styles.manageButtonText, { color: isDarkMode ? '#FFF' : '#111827' }]}>Manage Billing</Text>
                     </View>
-                    <Ionicons name="open-outline" size={18} color={colors.textMuted} />
+                    <Ionicons name="open-outline" size={18} color={isDarkMode ? '#4B5563' : '#9CA3AF'} />
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.restoreButton} onPress={handleRestore}>
-                    <Text style={[styles.restoreButtonText, { color: colors.primary }]}>RESTORE PURCHASES</Text>
+                    <Text style={[styles.restoreButtonText, { color: isDarkMode ? '#6B7280' : '#4B5563' }]}>RESTORE PURCHASES</Text>
                 </TouchableOpacity>
 
                 <View style={styles.footer}>
-                    <Text style={[styles.footerText, { color: colors.textMuted }]}>
+                    <Text style={[styles.footerText, { color: isDarkMode ? '#71717A' : '#9CA3AF' }]}>
                         Subscription renews automatically unless canceled in settings.
                     </Text>
                 </View>
@@ -167,10 +165,10 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     backButton: {
-        padding: 4,
+        padding: 8,
     },
     headerTitle: {
-        fontSize: 20,
+        fontSize: 18,
         fontFamily: 'Nunito-Bold',
     },
     content: {
@@ -181,19 +179,19 @@ const styles = StyleSheet.create({
         padding: 24,
         marginBottom: 24,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 20,
-        elevation: 8,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+        elevation: 6,
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 24,
     },
     badge: {
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        backgroundColor: 'rgba(255, 255, 255, 0.25)',
         paddingHorizontal: 12,
         paddingVertical: 4,
         borderRadius: 12,
@@ -204,17 +202,11 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         letterSpacing: 1,
     },
-    trialText: {
+    trialStatusText: {
         fontSize: 12,
         fontFamily: 'Nunito-Bold',
         color: '#FFFFFF',
         opacity: 0.9,
-    },
-    planTitle: {
-        fontSize: 28,
-        fontFamily: 'Nunito-Bold',
-        color: '#FFFFFF',
-        marginBottom: 4,
     },
     planTitleRow: {
         flexDirection: 'row',
@@ -227,41 +219,43 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
     },
     planTagline: {
-        fontSize: 14,
+        fontSize: 15,
         fontFamily: 'Nunito-Medium',
         color: '#FFFFFF',
-        opacity: 0.8,
-        marginBottom: 24,
+        opacity: 0.85,
+        marginBottom: 26,
     },
     featuresList: {
-        gap: 10,
+        gap: 12,
     },
     featureItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: 12,
     },
     featureText: {
-        fontSize: 14,
+        fontSize: 15,
         fontFamily: 'Nunito-Medium',
         color: '#FFFFFF',
     },
     upgradeButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 18,
+        height: 64,
         borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
         marginBottom: 16,
-        gap: 12,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 4,
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 3,
+    },
+    buttonInner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     upgradeButtonText: {
-        color: '#FFFFFF',
         fontSize: 16,
         fontFamily: 'Nunito-Bold',
         letterSpacing: 0.5,
@@ -273,11 +267,6 @@ const styles = StyleSheet.create({
         padding: 18,
         borderRadius: 20,
         borderWidth: 1,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
     },
     manageButtonLeft: {
         flexDirection: 'row',
@@ -307,6 +296,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontFamily: 'Nunito-Regular',
         lineHeight: 18,
-        opacity: 0.7,
+        opacity: 0.6,
     }
 });

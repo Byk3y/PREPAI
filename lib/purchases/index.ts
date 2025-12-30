@@ -6,43 +6,51 @@ import { REVENUECAT_CONFIG } from '@/lib/constants';
  * Purchases Service - Thin wrapper around RevenueCat SDK
  */
 
+let initializationPromise: Promise<void> | null = null;
+
 /**
  * Initialize RevenueCat SDK
  * Should be called once at app startup
  */
 export const initializePurchases = async (userId?: string) => {
-    // Set log level to verbose in development
-    if (__DEV__) {
-        Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
-    }
+    if (initializationPromise) return initializationPromise;
 
-    const apiKey = Platform.select({
-        ios: REVENUECAT_CONFIG.APPLE_KEY,
-        android: REVENUECAT_CONFIG.GOOGLE_KEY,
-    });
-
-    if (!apiKey) {
+    initializationPromise = (async () => {
+        // Set log level to verbose in development
         if (__DEV__) {
-            console.warn('RevenueCat API key not found for this platform.');
+            Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
         }
-        return;
-    }
 
-    // Prevent double initialization
-    const isConfigured = await Purchases.isConfigured();
-    if (isConfigured) {
+        const apiKey = Platform.select({
+            ios: REVENUECAT_CONFIG.APPLE_KEY,
+            android: REVENUECAT_CONFIG.GOOGLE_KEY,
+        });
+
+        if (!apiKey) {
+            if (__DEV__) {
+                console.warn('RevenueCat API key not found for this platform.');
+            }
+            return;
+        }
+
+        // Prevent double initialization
+        const isConfigured = await Purchases.isConfigured();
+        if (isConfigured) {
+            if (__DEV__) {
+                console.log('[RevenueCat] Already configured, skipping repeat initialization.');
+            }
+            return;
+        }
+
+        // Configure the SDK
+        Purchases.configure({ apiKey, appUserID: userId });
+
         if (__DEV__) {
-            console.log('[RevenueCat] Already configured, skipping repeat initialization.');
+            console.log('[RevenueCat] Initialized successfully');
         }
-        return;
-    }
+    })();
 
-    // Configure the SDK
-    Purchases.configure({ apiKey, appUserID: userId });
-
-    if (__DEV__) {
-        console.log('[RevenueCat] Initialized successfully');
-    }
+    return initializationPromise;
 };
 
 /**
@@ -51,6 +59,7 @@ export const initializePurchases = async (userId?: string) => {
  */
 export const identifyPurchaser = async (userId: string) => {
     try {
+        await initializePurchases();
         const { customerInfo, created } = await Purchases.logIn(userId);
         return { customerInfo, created };
     } catch (error) {
@@ -64,6 +73,7 @@ export const identifyPurchaser = async (userId: string) => {
  */
 export const logoutPurchaser = async () => {
     try {
+        await initializePurchases();
         await Purchases.logOut();
     } catch (error) {
         console.error('[RevenueCat] Error logging out:', error);
@@ -75,6 +85,7 @@ export const logoutPurchaser = async () => {
  */
 export const getCustomerInfo = async () => {
     try {
+        await initializePurchases();
         return await Purchases.getCustomerInfo();
     } catch (error) {
         console.error('[RevenueCat] Error getting customer info:', error);
@@ -87,6 +98,7 @@ export const getCustomerInfo = async () => {
  */
 export const checkProEntitlement = async (): Promise<boolean> => {
     try {
+        await initializePurchases();
         const info = await Purchases.getCustomerInfo();
         return !!info.entitlements.active[REVENUECAT_CONFIG.ENTITLEMENT_ID];
     } catch (error) {

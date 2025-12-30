@@ -106,13 +106,13 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
           emoji: '📚',
           title: 'Unlock all notebooks',
           message:
-            'Upgrade to Premium to access all your notebooks and continue deep-diving with Smart Chat.',
+            'Upgrade to Premium to access all your notebooks, unlock Mastery Gap Analysis, and continue deep-diving with Smart Chat.',
         };
       default:
         return {
           emoji: '⭐',
           title: 'Upgrade to Premium',
-          message: 'Unlock Smart Chat, unlimited Study Tools, and continue your learning journey.',
+          message: 'Unlock Strategic Briefings, Mastery Gap Analysis, and unlimited Study Tools to conquer your exams.',
         };
     }
   };

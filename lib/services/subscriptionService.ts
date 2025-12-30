@@ -24,7 +24,7 @@ export function isTrialActive(subscription: SubscriptionData): boolean {
 }
 
 /**
- * Get days until trial expiration (10-day trial period)
+ * Get days until trial expiration (7-day trial period)
  * Returns 0 if expired or no trial end date
  */
 export function getDaysUntilExpiration(trialEndsAt: string | null): number {
@@ -234,7 +234,7 @@ export function shouldShowTrialReminder(subscription: SubscriptionData): boolean
   }
 
   const daysRemaining = getDaysUntilExpiration(subscription.trialEndsAt);
-  return daysRemaining <= 3 && daysRemaining > 0;
+  return daysRemaining <= 2 && daysRemaining > 0;
 }
 
 /**
