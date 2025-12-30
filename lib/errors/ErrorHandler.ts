@@ -77,7 +77,11 @@ export class ErrorHandler {
 
     // Console logging (development)
     if (__DEV__) {
-      console.error('[AppError]', logData);
+      if (appError.severity === ErrorSeverity.LOW) {
+        console.warn('[AppError:LOW]', logData);
+      } else {
+        console.error('[AppError]', logData);
+      }
     }
 
     // Send to Sentry (only in production)
@@ -127,7 +131,7 @@ export class ErrorHandler {
     // Show full-screen error modal via event system
     // ErrorNotificationProvider will listen and display
     this.notifyError(appError);
-    
+
     // TODO: Report to monitoring service
     // TODO: Potentially restart app or clear cache
 

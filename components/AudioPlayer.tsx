@@ -193,8 +193,8 @@ export function AudioPlayer({
                     saveCurrentPosition(positionInSeconds);
                 }
 
-                // Award "podcast_3_min" task if they've listened for 3 minutes (180s)
-                if (positionInSeconds >= 180 && !hasAwardedTaskRef.current && checkAndAwardTask) {
+                // Award "podcast_3_min" task if they've listened for 60 seconds (1 minute)
+                if (positionInSeconds >= 60 && !hasAwardedTaskRef.current && checkAndAwardTask) {
                     hasAwardedTaskRef.current = true;
                     checkAndAwardTask('podcast_3_min');
                 }

@@ -87,7 +87,6 @@ export const useNotebookCreation = () => {
             // Trigger "Add your first study material" task
             const { checkAndAwardTask } = useStore.getState();
             if (checkAndAwardTask) {
-                checkAndAwardTask('add_material');
                 checkAndAwardTask('add_material_daily');
             }
             setIsAddingNotebook(false);
@@ -134,7 +133,6 @@ export const useNotebookCreation = () => {
             // Trigger "Add your first study material" task
             const { checkAndAwardTask } = useStore.getState();
             if (checkAndAwardTask) {
-                checkAndAwardTask('add_material');
                 checkAndAwardTask('add_material_daily');
             }
             setIsAddingNotebook(false);
@@ -203,7 +201,6 @@ export const useNotebookCreation = () => {
             // Trigger "Add your first study material" task
             const { checkAndAwardTask } = useStore.getState();
             if (checkAndAwardTask) {
-                checkAndAwardTask('add_material');
                 checkAndAwardTask('add_material_daily');
             }
 
@@ -252,7 +249,6 @@ export const useNotebookCreation = () => {
             // Trigger "Add your first study material" task
             const { checkAndAwardTask } = useStore.getState();
             if (checkAndAwardTask) {
-                checkAndAwardTask('add_material');
                 checkAndAwardTask('add_material_daily');
             }
 
@@ -291,7 +287,6 @@ export const useNotebookCreation = () => {
             // We use the store via import as this hook uses useStore
             const { checkAndAwardTask } = useStore.getState();
             if (checkAndAwardTask) {
-                checkAndAwardTask('add_material');
                 checkAndAwardTask('add_material_daily');
             }
 
@@ -340,7 +335,6 @@ export const useNotebookCreation = () => {
             // Trigger "Add your first study material" task
             const { checkAndAwardTask } = useStore.getState();
             if (checkAndAwardTask) {
-                checkAndAwardTask('add_material');
                 checkAndAwardTask('add_material_daily');
             }
 

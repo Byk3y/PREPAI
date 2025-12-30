@@ -214,14 +214,14 @@ export default function HomeScreen() {
   // Show loading state if we're on home route but not signed in (routing will redirect)
   // This prevents "Not Signed In" flash when app loads and routing hasn't redirected yet
   // Check if segments are empty (root route) - routing will redirect to /auth if no user
-  const isOnHomeRoute = segments.length === 0 || segments[0] === undefined;
+  const isOnHomeRoute = segments.length < 1 || segments[0] === undefined;
   // Always show loading if on home route without user (routing will handle redirect)
   const shouldShowLoading = isOnHomeRoute && !authUser;
 
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: colors.background }}
-      edges={['top', 'bottom']}
+      edges={['top']}
     >
       <HomeHeader />
 
@@ -296,7 +296,9 @@ export default function HomeScreen() {
       <HomeActionButtons
         onCameraPress={onScanNotes}
         onAddPress={handleCreateNotebook}
+        bottom={50}
       />
+
 
       {/* Modals */}
       <MaterialTypeSelector
