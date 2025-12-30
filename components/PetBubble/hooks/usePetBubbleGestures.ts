@@ -39,12 +39,14 @@ interface UsePetBubbleGesturesConfig {
   setPanValues: (x: number, y: number) => void;
   setAllAnimatedValues: (position: Position, panXValue: number, panYValue: number) => void;
   startIdleAnimation: () => void;
+  scale?: number;
 }
 
 /**
  * Hook to manage pet bubble gesture handling (drag, tap, edge snapping)
  */
 export function usePetBubbleGestures(config: UsePetBubbleGesturesConfig) {
+  const { scale = 1.0 } = config;
   const router = useRouter();
   const { authUser } = useStore();
   const { play } = useFeedback();
@@ -160,11 +162,12 @@ export function usePetBubbleGestures(config: UsePetBubbleGesturesConfig) {
         const currentInsets = insetsRef.current;
 
         // Calculate the base visual position (top-left corner)
-        const baseLeft = currentPos.x - PET_SIZE / 2;
-        const baseTop = currentPos.y - PET_SIZE / 2;
+        const size = PET_SIZE * scale;
+        const baseLeft = currentPos.x - size / 2;
+        const baseTop = currentPos.y - size / 2;
 
         // Get bounds for top-left corner
-        const bounds = calculateTopLeftBounds(currentScreenDimensions, currentInsets);
+        const bounds = calculateTopLeftBounds(currentScreenDimensions, currentInsets, scale);
 
         // Calculate where the bubble would be with the gesture movement
         const potentialLeft = baseLeft + gestureState.dx;
@@ -208,11 +211,12 @@ export function usePetBubbleGestures(config: UsePetBubbleGesturesConfig) {
         const currentInsets = insetsRef.current;
 
         // Calculate the base visual position (top-left corner)
-        const baseLeft = currentPos.x - PET_SIZE / 2;
-        const baseTop = currentPos.y - PET_SIZE / 2;
+        const size = PET_SIZE * scale;
+        const baseLeft = currentPos.x - size / 2;
+        const baseTop = currentPos.y - size / 2;
 
         // Get bounds for top-left corner
-        const bounds = calculateTopLeftBounds(currentScreenDimensions, currentInsets);
+        const bounds = calculateTopLeftBounds(currentScreenDimensions, currentInsets, scale);
 
         // Calculate where the bubble would be with the gesture movement
         const potentialLeft = baseLeft + gestureState.dx;
@@ -222,19 +226,23 @@ export function usePetBubbleGestures(config: UsePetBubbleGesturesConfig) {
         const clamped = clampTopLeftPosition(potentialLeft, potentialTop, bounds);
 
         // Convert back to center coordinates for position state
-        const clampedCenter = convertTopLeftToCenter(clamped.left, clamped.top);
+        const clampedCenter = {
+          x: clamped.left + size / 2,
+          y: clamped.top + size / 2,
+        };
 
         // Double-check: Clamp center Y to proper bounds (should match the render bounds)
         const horizontalInset = getHorizontalInset(currentInsets);
-        const minCenterY = currentInsets.top + PET_SIZE / 2 + TOP_PADDING;
-        const maxCenterY = currentScreenDimensions.height - currentInsets.bottom - PET_SIZE / 2 - BOTTOM_PADDING;
+        const minCenterY = currentInsets.top + size / 2 + TOP_PADDING;
+        const maxCenterY = currentScreenDimensions.height - currentInsets.bottom - size / 2 - BOTTOM_PADDING;
         const finalClampedY = Math.max(minCenterY, Math.min(maxCenterY, clampedCenter.y));
 
         // Determine which edge to snap to (horizontal only)
         const symmetricTargetX = calculateEdgeSnapTarget(
           clampedCenter.x,
           currentScreenDimensions,
-          currentInsets
+          currentInsets,
+          scale
         );
 
         // Calculate current position and pan values

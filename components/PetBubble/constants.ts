@@ -26,14 +26,14 @@ export const PET_SIZE = 110;
  */
 export const PET_STAGE_SCALES: Record<number, number> = {
   1: 1.0,  // Base size
-  2: 1.0,
-  3: 0.95, // Increased scale for better visual balance
+  2: 1.35, // Increased from 1.15 to ensure it looks larger than stage 1
+  3: 1.5,  // Increased from 1.1 to ensure visual progression
 };
 
 /**
  * Padding from screen edges
  */
-export const EDGE_PADDING = 0; // Reduced for closer edge snapping
+export const EDGE_PADDING = 6; // Adjusted to provide breathing room from the screen edge
 export const TOP_PADDING = 80; // Increased to prevent reaching header/profile icon area
 export const BOTTOM_PADDING = 100;
 

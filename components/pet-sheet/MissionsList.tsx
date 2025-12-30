@@ -45,6 +45,9 @@ export function MissionsList({ missions, taskProgress, activeColor }: MissionsLi
     const cardBg = isDarkMode ? 'rgba(255, 255, 255, 0.12)' : 'white';
     const cardTextColor = isDarkMode ? '#FFFFFF' : '#171717';
 
+    const hasFoundational = visibleMissions.some(m => m.task_type === 'foundational');
+    const displayTitle = hasFoundational ? 'Pet Onboarding' : 'Grow your Pet';
+
     return (
         <View style={[
             styles.container,
@@ -54,14 +57,18 @@ export function MissionsList({ missions, taskProgress, activeColor }: MissionsLi
                 shadowOpacity: isDarkMode ? 0 : 0.08,
             }
         ]}>
-            <Text style={[styles.title, { color: cardTextColor }]}>Grow your Pet</Text>
+            <Text style={[styles.title, { color: cardTextColor }]}>{displayTitle}</Text>
             {visibleMissions.map((task) => {
                 const progress = taskProgress[task.task_key];
 
                 // Map DailyTask to Mission format for MissionCard
                 let title = task.title;
                 if (task.task_key === 'secure_pet') {
-                    title = task.completed ? `Saved ${petName}` : `Save ${petName}`;
+                    if (task.completed) {
+                        title = `Studied to protect ${petName}`;
+                    } else {
+                        title = `Study to protect ${petName}`;
+                    }
                 }
 
                 const missionProps = {

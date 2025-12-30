@@ -78,15 +78,18 @@ export const createPetSlice: StateCreator<
   updatePetName: async (newName: string) => {
     const { setPetState } = get();
 
-    // 1. Update state locally and persist
+    // 1. Update state locally and persist - this is the critical path
     await setPetState({ name: newName });
 
     // 2. Check for "Name your pet" task completion
     // We do this here as a convenient trigger point
-    // Use typed accessor for cross-slice access to TaskSlice
+    // MODIFIED: Fire and forget task points awarding to prevent blocking the UI
+    // if the background task system is slow or under load.
     const state = get() as unknown as TaskSliceAccessor;
     if (newName !== 'Pet' && newName !== 'Nova' && typeof state.checkAndAwardTask === 'function') {
-      await state.checkAndAwardTask('name_pet');
+      state.checkAndAwardTask('name_pet').catch(err => {
+        console.warn('[PetSlice] Failed to award points for naming pet:', err);
+      });
     }
   },
 

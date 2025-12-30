@@ -131,17 +131,22 @@ export const PetDisplay = memo(({
     const isUnlocked = stage <= currentStage;
 
     const stage2Source = useMemo(() => {
-        if (stage !== 2) return STAGE_2_SILHOUETTE;
-        if (!isUnlocked) return STAGE_2_SILHOUETTE;
-        return isDying ? STAGE_2_DYING : STAGE_2_FULL;
-    }, [stage, isUnlocked, isDying]);
+        const stage2Unlocked = currentStage >= 2;
+        if (!stage2Unlocked) return STAGE_2_SILHOUETTE;
+
+        // Only show dying state if this IS the current active stage
+        const activeStageDying = isDying && currentStage === 2;
+        return activeStageDying ? STAGE_2_DYING : STAGE_2_FULL;
+    }, [currentStage, isDying]);
 
     const stage3Source = useMemo(() => {
-        if (stage !== 3) return STAGE_3_SILHOUETTE;
-        if (!isUnlocked) return STAGE_3_SILHOUETTE;
-        // Fallback to full view since stage 3 doesn't have dying image yet
+        const stage3Unlocked = currentStage >= 3;
+        if (!stage3Unlocked) return STAGE_3_SILHOUETTE;
+
+        // Only show historical/full view if the user is looking at stage 3
+        // (Stage 3 doesn't have a dying image yet, but we apply the same logic structure)
         return STAGE_3_FULL;
-    }, [stage, isUnlocked]);
+    }, [currentStage]);
 
     return (
         <View style={styles.container}>
@@ -209,11 +214,11 @@ export const PetDisplay = memo(({
                     {/* Stage 1 Render - Always mounted, toggle opacity */}
                     <View style={[styles.imageWrapper, { opacity: stage === 1 ? 1 : 0 }]}>
                         <Image
-                            source={isDying ? STAGE_1_DYING : STAGE_1_FULL}
-                            style={[
-                                styles.petImage,
-                                isDying && { transform: [{ scale: 1.3 }] }
-                            ]}
+                            source={(isDying && currentStage === 1) ? STAGE_1_DYING : STAGE_1_FULL}
+                            style={{
+                                width: (isDying && currentStage === 1) ? 220 : 250,
+                                height: (isDying && currentStage === 1) ? 220 : 250
+                            }}
                             resizeMode="contain"
                             fadeDuration={0}
                         />
@@ -229,10 +234,10 @@ export const PetDisplay = memo(({
                     >
                         <Image
                             source={stage2Source}
-                            style={[
-                                styles.petImage,
-                                { transform: [{ scale: isUnlocked ? (isDying ? 1.4 : 1.2) : 1.1 }] }
-                            ]}
+                            style={{
+                                width: isUnlocked ? ((isDying && currentStage === 2) ? 260 : 340) : 280,
+                                height: isUnlocked ? ((isDying && currentStage === 2) ? 260 : 340) : 280
+                            }}
                             resizeMode="contain"
                             fadeDuration={0}
                         />
@@ -248,10 +253,10 @@ export const PetDisplay = memo(({
                     >
                         <Image
                             source={stage3Source}
-                            style={[
-                                styles.petImage,
-                                { transform: [{ scale: isUnlocked ? (isDying ? 1.2 : 1.0) : 0.9 }] }
-                            ]}
+                            style={{
+                                width: isUnlocked ? ((isDying && currentStage === 3) ? 280 : 360) : 280,
+                                height: isUnlocked ? ((isDying && currentStage === 3) ? 280 : 360) : 280
+                            }}
                             resizeMode="contain"
                             fadeDuration={0}
                         />
@@ -378,7 +383,7 @@ const styles = StyleSheet.create({
     },
     petCharacterContainer: {
         alignItems: 'center',
-        paddingVertical: 12,
+        paddingVertical: 0,
         position: 'relative',
     },
     navigationArrow: {
@@ -390,8 +395,8 @@ const styles = StyleSheet.create({
         padding: 8,
     },
     petEmojiContainer: {
-        width: 250,
-        height: 250,
+        width: 300,
+        height: 280,
         alignItems: 'center',
         justifyContent: 'center',
     },

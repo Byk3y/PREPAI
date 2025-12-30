@@ -28,8 +28,8 @@ export const PetBubble: React.FC = () => {
     !secureTask.completed_at || secureTask.completed_at.startsWith(today)
   );
 
-  // A streak is "at risk" if it hasn't been secured today
-  const isAtRisk = user.last_streak_date !== today && !isSecureTaskCompletedToday;
+  // A streak is "at risk" if it hasn't been secured today and the user has an active streak
+  const isAtRisk = user.streak > 0 && user.last_streak_date !== today && !isSecureTaskCompletedToday;
 
   // A streak is "lost" if it's 0 but there's a recoverable streak in meta
   const recoverableStreak = user.meta?.last_recoverable_streak ?? 0;
@@ -41,14 +41,20 @@ export const PetBubble: React.FC = () => {
   const bubbleImage = getPetBubbleImage(petState.stage, isDying);
 
   // Get stage-specific scale to ensure visual consistency
-  const stageScale = PET_STAGE_SCALES[petState.stage] || 1.0;
+  let stageScale = PET_STAGE_SCALES[petState.stage] || 1.0;
+
+  // Reduce scale for Stage 2 if dying as per user request
+  if (isDying && petState.stage === 2) {
+    stageScale = 1.05; // Further reduced from 1.20 to be even more compact
+  }
+
   const bubbleSize = PET_SIZE * stageScale;
 
   // Position management
-  const { position, setPosition, positionRef, screenDimensions, insets } = usePetBubblePosition();
+  const { position, setPosition, positionRef, screenDimensions, insets } = usePetBubblePosition(stageScale);
 
   // Animation management
-  const animations = usePetBubbleAnimations(position);
+  const animations = usePetBubbleAnimations(position, stageScale);
 
   // Update animated position when position state changes
   useEffect(() => {
@@ -62,6 +68,7 @@ export const PetBubble: React.FC = () => {
     setPosition,
     screenDimensions,
     insets,
+    scale: stageScale,
     scaleAnim: animations.scaleAnim,
     panX: animations.panX,
     panY: animations.panY,

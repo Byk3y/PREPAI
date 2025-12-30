@@ -36,15 +36,17 @@ export function getHorizontalInset(insets: SafeAreaInsets): number {
  */
 export function calculateBounds(
   screenDimensions: ScreenDimensions,
-  insets: SafeAreaInsets
+  insets: SafeAreaInsets,
+  scale: number = 1.0
 ): Bounds {
-  const horizontalInset = getHorizontalInset(insets);
-  
+  const size = PET_SIZE * scale;
+  const halfSize = size / 2;
+
   return {
-    minX: horizontalInset + PET_SIZE / 2 + EDGE_PADDING,
-    maxX: screenDimensions.width - horizontalInset - PET_SIZE / 2 - EDGE_PADDING,
-    minY: insets.top + PET_SIZE / 2 + TOP_PADDING,
-    maxY: screenDimensions.height - insets.bottom - PET_SIZE / 2 - BOTTOM_PADDING,
+    minX: insets.left + halfSize + EDGE_PADDING,
+    maxX: screenDimensions.width - insets.right - halfSize - EDGE_PADDING,
+    minY: insets.top + halfSize + TOP_PADDING,
+    maxY: screenDimensions.height - insets.bottom - halfSize - BOTTOM_PADDING,
   };
 }
 
@@ -53,15 +55,16 @@ export function calculateBounds(
  */
 export function calculateTopLeftBounds(
   screenDimensions: ScreenDimensions,
-  insets: SafeAreaInsets
+  insets: SafeAreaInsets,
+  scale: number = 1.0
 ): { minLeft: number; maxLeft: number; minTop: number; maxTop: number } {
-  const horizontalInset = getHorizontalInset(insets);
-  
+  const size = PET_SIZE * scale;
+
   return {
-    minLeft: horizontalInset + EDGE_PADDING,
-    maxLeft: screenDimensions.width - horizontalInset - PET_SIZE - EDGE_PADDING,
+    minLeft: insets.left + EDGE_PADDING,
+    maxLeft: screenDimensions.width - insets.right - size - EDGE_PADDING,
     minTop: insets.top + TOP_PADDING,
-    maxTop: screenDimensions.height - insets.bottom - PET_SIZE - BOTTOM_PADDING,
+    maxTop: screenDimensions.height - insets.bottom - size - BOTTOM_PADDING,
   };
 }
 
@@ -70,12 +73,13 @@ export function calculateTopLeftBounds(
  */
 export function calculateInitialPosition(
   screenDimensions: ScreenDimensions,
-  insets: SafeAreaInsets
+  insets: SafeAreaInsets,
+  scale: number = 1.0
 ): Position {
-  const horizontalInset = getHorizontalInset(insets);
-  
+  const size = PET_SIZE * scale;
+
   return {
-    x: screenDimensions.width - horizontalInset - PET_SIZE / 2 - EDGE_PADDING,
+    x: screenDimensions.width - insets.right - size / 2 - EDGE_PADDING,
     y: insets.top + (screenDimensions.height * ANIMATION_CONFIG.initialTopOffset),
   };
 }
@@ -107,20 +111,22 @@ export function clampTopLeftPosition(
 /**
  * Convert center coordinates to top-left corner
  */
-export function convertCenterToTopLeft(center: Position): { left: number; top: number } {
+export function convertCenterToTopLeft(center: Position, scale: number = 1.0): { left: number; top: number } {
+  const halfSize = (PET_SIZE * scale) / 2;
   return {
-    left: center.x - PET_SIZE / 2,
-    top: center.y - PET_SIZE / 2,
+    left: center.x - halfSize,
+    top: center.y - halfSize,
   };
 }
 
 /**
  * Convert top-left corner to center coordinates
  */
-export function convertTopLeftToCenter(left: number, top: number): Position {
+export function convertTopLeftToCenter(left: number, top: number, scale: number = 1.0): Position {
+  const halfSize = (PET_SIZE * scale) / 2;
   return {
-    x: left + PET_SIZE / 2,
-    y: top + PET_SIZE / 2,
+    x: left + halfSize,
+    y: top + halfSize,
   };
 }
 
@@ -131,20 +137,20 @@ export function convertTopLeftToCenter(left: number, top: number): Position {
 export function calculateEdgeSnapTarget(
   currentX: number,
   screenDimensions: ScreenDimensions,
-  insets: SafeAreaInsets
+  insets: SafeAreaInsets,
+  scale: number = 1.0
 ): number {
-  const horizontalInset = getHorizontalInset(insets);
   const screenMidpoint = screenDimensions.width / 2;
-  const leftEdgeX = horizontalInset + PET_SIZE / 2 + EDGE_PADDING;
-  const rightEdgeX = screenDimensions.width - horizontalInset - PET_SIZE / 2 - EDGE_PADDING;
-  
-  const targetX = currentX < screenMidpoint ? leftEdgeX : rightEdgeX;
-  
-  // Clamp to valid bounds
-  const finalMinCenterX = horizontalInset + PET_SIZE / 2 + EDGE_PADDING;
-  const finalMaxCenterX = screenDimensions.width - horizontalInset - PET_SIZE / 2 - EDGE_PADDING;
-  
-  return Math.max(finalMinCenterX, Math.min(finalMaxCenterX, targetX));
+  const size = PET_SIZE * scale;
+  const halfSize = size / 2;
+
+  // Directly calculate the possible min/max center X values
+  const minCenterX = insets.left + halfSize + EDGE_PADDING;
+  const maxCenterX = screenDimensions.width - insets.right - halfSize - EDGE_PADDING;
+
+  const targetX = currentX < screenMidpoint ? minCenterX : maxCenterX;
+
+  return Math.max(minCenterX, Math.min(maxCenterX, targetX));
 }
 
 /**

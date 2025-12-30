@@ -140,21 +140,38 @@ export const createTaskSlice: StateCreator<
             const tasks = await taskService.getFoundationalTasks(authUser.id);
             set({ foundationalTasks: tasks });
 
-            // Recovery: if add_material remains incomplete but user already has material,
-            // attempt awarding once. Idempotent and quick no-op if criteria not met.
-            const addMaterialTask = tasks.find((t: any) => t.task_key === 'add_material');
-            if (addMaterialTask && !addMaterialTask.completed) {
-                get().checkAndAwardTask('add_material');
+            // Recovery logic: Auto-award foundational tasks if user already has data
+            // This handles cases where tasks weren't awarded during the initial action
+            const anyIncomplete = tasks.some(t => !t.completed);
+            if (!anyIncomplete) return;
+
+            // Use 'any' cast to access other slices in the combined store
+            const store = get() as any;
+            const notebooks = store.notebooks || [];
+
+            // 1. Create Notebook Recovery
+            const createNotebookTask = tasks.find((t: any) => t.task_key === 'create_notebook');
+            if (createNotebookTask && !createNotebookTask.completed && notebooks.length > 0) {
+                get().checkAndAwardTask('create_notebook');
             }
 
-            // Recovery: if generate_audio_overview remains incomplete but user already has completed audio,
-            // attempt awarding once. Idempotent and quick no-op if criteria not met.
-            // This handles cases where the app was backgrounded or component unmounted
-            // before the polling detected completion.
+
+            // 3. Generate Audio Recovery
             const generateAudioTask = tasks.find((t: any) => t.task_key === 'generate_audio_overview');
+            // Check if any material has been processed into audio (usually stored in audio_overviews table or meta)
+            // For now, simpler check: if task is incomplete, we just try to award it once if service allows
             if (generateAudioTask && !generateAudioTask.completed) {
+                // The award_task_points RPC has server-side validation, so this is safe
                 get().checkAndAwardTask('generate_audio_overview');
             }
+
+            // 4. First Chat Recovery
+            const firstChatTask = tasks.find((t: any) => t.task_key === 'first_notebook_chat');
+            const hasChat = notebooks.some((n: any) => n.chat_messages && n.chat_messages.length > 0);
+            if (firstChatTask && !firstChatTask.completed && hasChat) {
+                get().checkAndAwardTask('first_notebook_chat');
+            }
+
         } catch (error) {
             console.error('Failed to load foundational tasks:', error);
         }
@@ -208,6 +225,12 @@ export const createTaskSlice: StateCreator<
                 if (data.points_awarded && data.points_awarded > 0) {
                     addPetPoints(data.points_awarded);
                 }
+
+                // Auto-save Pet Logic:
+                // This is now handled server-side in the award_task_points RPC for robustness.
+                // When any daily study task is awarded, secure_pet is auto-awarded 
+                // and the streak is incremented. data.points_awarded will include 
+                // both sets of points, which we already added above.
 
                 // Refresh both task lists and the user profile (to update streak and last_streak_date)
                 await Promise.all([

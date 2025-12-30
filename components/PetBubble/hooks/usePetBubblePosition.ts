@@ -13,13 +13,13 @@ import {
 /**
  * Hook to manage pet bubble position state and screen dimension changes
  */
-export function usePetBubblePosition() {
+export function usePetBubblePosition(scale: number = 1.0) {
   const insets = useSafeAreaInsets();
   const [screenDimensions, setScreenDimensions] = useState<ScreenDimensions>(
     Dimensions.get('window')
   );
   const [position, setPosition] = useState<Position>(() =>
-    calculateInitialPosition(Dimensions.get('window'), insets)
+    calculateInitialPosition(Dimensions.get('window'), insets, scale)
   );
   const positionRef = useRef<Position>(position);
 
@@ -37,19 +37,19 @@ export function usePetBubblePosition() {
     return () => subscription?.remove();
   }, [insets.top, insets.bottom, insets.left, insets.right]);
 
-  // Update position when insets or screen dimensions change
+  // Update position when insets, screen dimensions, or scale change
   // Clamp position to new bounds, but preserve user's position if still valid
   useEffect(() => {
-    const bounds = calculateBounds(screenDimensions, insets);
+    const bounds = calculateBounds(screenDimensions, insets, scale);
     setPosition((prevPosition) => {
       // Clamp position to new bounds
       const clamped = clampPosition(prevPosition, bounds);
       return clamped;
     });
-  }, [insets.top, insets.left, insets.right, screenDimensions.width, screenDimensions.height]);
+  }, [insets.top, insets.left, insets.right, screenDimensions.width, screenDimensions.height, scale]);
 
   // Get current bounds
-  const bounds = calculateBounds(screenDimensions, insets);
+  const bounds = calculateBounds(screenDimensions, insets, scale);
 
   return {
     position,

@@ -50,6 +50,17 @@ export default function PetSheetScreen() {
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
 
+  // Pet growth missions - includes both foundational and daily tasks
+  const { allTasks, taskProgress, foundationalTasks, loadDailyTasks, loadFoundationalTasks, checkAndAwardTask } = usePetTasks();
+
+  // If foundational just finished in background, ensure daily tasks are loaded
+  React.useEffect(() => {
+    const isComplete = foundationalTasks.length > 0 && foundationalTasks.every(t => t.completed);
+    if (isComplete && dailyTasks.length === 0) {
+      loadDailyTasks();
+    }
+  }, [foundationalTasks, dailyTasks.length, loadDailyTasks]);
+
   // Derive stage from petState (automatically calculated from points)
   // Clamp to valid stage range for UI (1-3)
   const currentStage = Math.min(Math.max(petState.stage, 1), 3) as 1 | 2 | 3;
@@ -62,16 +73,22 @@ export default function PetSheetScreen() {
     setPreviewStage(currentStage);
   }, [currentStage]);
 
-  // Streak restoration logic
-  // A streak is "at risk" if it hasn't been secured today
+  // A streak is "at risk" if user has a streak and it hasn't been secured today
   const today = getLocalDateString();
-  const isAtRisk = user.last_streak_date !== today && !isSecureTaskCompleted;
+  const isAtRisk = user.streak > 0 && user.last_streak_date !== today && !isSecureTaskCompleted;
 
   // A streak is "lost" if it's 0 but there's a recoverable streak in meta
   const recoverableStreak = user.meta?.last_recoverable_streak ?? 0;
   const isStreakLost = user.streak === 0 && recoverableStreak > 0;
 
-  const isDying = isAtRisk || isStreakLost;
+  // Onboarding awareness: If user is still in foundational phase, they can't see/secure daily tasks.
+  // We shouldn't show them as "dying" just because they haven't finished onboarding.
+  const isOnboardingComplete = foundationalTasks.length > 0 && foundationalTasks.every(t => t.completed);
+
+  // Pet is only "at risk" if they've finished onboarding and haven't secured today
+  const isAtRiskChecked = isAtRisk && isOnboardingComplete;
+
+  const isDying = isAtRiskChecked || isStreakLost;
   const canRestore = isStreakLost && user.streak_restores > 0;
 
   const handleRestore = async () => {
@@ -82,16 +99,11 @@ export default function PetSheetScreen() {
     }
   };
 
-  // Gesture handling hook
+  // Gestures and loading are handled by hooks.
   const { translateY, handleBarPanResponder, contentPanResponder, dismiss } = usePetSheetGestures({
     onDismiss: () => router.back(),
     scrollY,
   });
-
-  // Pet growth missions - includes both foundational and daily tasks
-  const { allTasks, taskProgress, foundationalTasks, loadDailyTasks, loadFoundationalTasks, checkAndAwardTask } = usePetTasks();
-
-  // Gestures and loading are handled by hooks.
   // usePetTasks already triggers loadDailyTasks and loadFoundationalTasks on mount if authUser exists.
 
   const handleNameChange = async (newName: string) => {

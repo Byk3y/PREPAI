@@ -6,7 +6,7 @@ import { convertCenterToTopLeft, type Position } from '../utils/positionCalculat
 /**
  * Hook to manage all pet bubble animations
  */
-export function usePetBubbleAnimations(initialPosition: Position) {
+export function usePetBubbleAnimations(initialPosition: Position, scale: number = 1.0) {
   // Separate animated values to avoid useNativeDriver conflicts
   const scaleAnim = useRef(new Animated.Value(1)).current; // Uses native driver
   const panX = useRef(new Animated.Value(0)).current; // No native driver (for pan)
@@ -15,11 +15,11 @@ export function usePetBubbleAnimations(initialPosition: Position) {
   // Use Animated.Value for left/top to avoid layout recalculation flashes
   // Initialize based on initial position
   const getInitialLeft = () => {
-    const topLeft = convertCenterToTopLeft(initialPosition);
+    const topLeft = convertCenterToTopLeft(initialPosition, scale);
     return topLeft.left;
   };
   const getInitialTop = () => {
-    const topLeft = convertCenterToTopLeft(initialPosition);
+    const topLeft = convertCenterToTopLeft(initialPosition, scale);
     return topLeft.top;
   };
   const leftAnim = useRef(new Animated.Value(getInitialLeft())).current;
@@ -77,11 +77,11 @@ export function usePetBubbleAnimations(initialPosition: Position) {
   // Update animated left/top values when position changes
   const updatePosition = useCallback(
     (newPosition: Position) => {
-      const topLeft = convertCenterToTopLeft(newPosition);
+      const topLeft = convertCenterToTopLeft(newPosition, scale);
       leftAnim.setValue(topLeft.left);
       topAnim.setValue(topLeft.top);
     },
-    [leftAnim, topAnim]
+    [leftAnim, topAnim, scale]
   );
 
   // Stop idle animation
@@ -122,19 +122,19 @@ export function usePetBubbleAnimations(initialPosition: Position) {
         Animated.parallel([
           needsResetX
             ? Animated.spring(panX, {
-                toValue: 0,
-                useNativeDriver: false,
-                tension: ANIMATION_CONFIG.scaleSpring.tension,
-                friction: ANIMATION_CONFIG.scaleSpring.friction,
-              })
+              toValue: 0,
+              useNativeDriver: false,
+              tension: ANIMATION_CONFIG.scaleSpring.tension,
+              friction: ANIMATION_CONFIG.scaleSpring.friction,
+            })
             : Animated.timing(panX, { toValue: 0, duration: 0, useNativeDriver: false }),
           needsResetY
             ? Animated.spring(panY, {
-                toValue: 0,
-                useNativeDriver: false,
-                tension: ANIMATION_CONFIG.scaleSpring.tension,
-                friction: ANIMATION_CONFIG.scaleSpring.friction,
-              })
+              toValue: 0,
+              useNativeDriver: false,
+              tension: ANIMATION_CONFIG.scaleSpring.tension,
+              friction: ANIMATION_CONFIG.scaleSpring.friction,
+            })
             : Animated.timing(panY, { toValue: 0, duration: 0, useNativeDriver: false }),
           Animated.spring(scaleAnim, {
             toValue: 1,
@@ -222,7 +222,7 @@ export function usePetBubbleAnimations(initialPosition: Position) {
   // Set all animated values synchronously (for edge snap without animation)
   const setAllAnimatedValues = useCallback(
     (position: Position, panXValue: number, panYValue: number) => {
-      const topLeft = convertCenterToTopLeft(position);
+      const topLeft = convertCenterToTopLeft(position, scale);
       leftAnim.setValue(topLeft.left);
       topAnim.setValue(topLeft.top);
       panX.setValue(panXValue);

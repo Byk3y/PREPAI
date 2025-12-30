@@ -57,7 +57,12 @@ export const petService = {
       // Calculate stage from points (always authoritative)
       const calculatedStage = Math.floor(petState.points / 100) + 1;
 
-      const { error } = await supabase
+      // Create a timeout promise to prevent hanging the UI
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Save pet state timed out after 5s')), 5000)
+      );
+
+      const upsertPromise = supabase
         .from('pet_states')
         .upsert(
           {
@@ -71,6 +76,8 @@ export const petService = {
             onConflict: 'user_id',
           }
         );
+
+      const { error } = (await Promise.race([upsertPromise, timeoutPromise])) as any;
 
       if (error) {
         await handleError(error, {

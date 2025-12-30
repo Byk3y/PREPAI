@@ -57,20 +57,23 @@ export function usePetTasks() {
     // Combined task list: Show all foundational tasks (completed and incomplete) + daily tasks
     // Foundational tasks remain visible until all are complete; once complete, we show only daily tasks
     // Priority while incomplete: foundational first (sorted by display_order), then daily tasks (if unlocked)
+    // Combined task list: Strictly sequenced
+    // 1. If any foundational tasks are incomplete: Show ONLY foundational tasks
+    // 2. Once all foundational tasks are complete: Show ONLY daily tasks
     const allTasks = useMemo(() => {
-        // Sort foundational tasks by display_order (all foundational tasks are always shown)
-        const sortedFoundational = [...foundationalTasks].sort((a, b) => 
+        // Sort foundational tasks by display_order
+        const sortedFoundational = [...foundationalTasks].sort((a, b) =>
             (a.display_order || 999) - (b.display_order || 999)
         );
-        
-        // If foundational not yet complete, show foundational + (if any) daily
+
+        // If foundational not yet complete, show ONLY foundational
         if (!foundationalCompleted) {
-            return [...sortedFoundational, ...dailyTasks];
+            return sortedFoundational;
         }
 
         // If foundational complete, show only daily tasks
         return [...dailyTasks];
-        
+
     }, [foundationalTasks, dailyTasks, foundationalCompleted]);
 
     // Derived state helper
