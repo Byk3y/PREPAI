@@ -3,13 +3,13 @@
 This document outlines the strategy for implementing the "Chat with Notebook" feature using **Grok 4.1 Fast** via OpenRouter, featuring a high-end streaming interface and source-specific context.
 
 ## 1. Objectives
-*   **Ultra-Fast Response**: Aim for < 1.5s "Time to First Token".
-*   **Source Context**: AI answers based *only* on selected materials (PDFs, Notes, etc.).
+*   **Ultra-Fast Response**: Aim for < 1.0s "Time to First Token" using Grok 4.1 Fast.
+*   **Omniscient Context**: Leverage Grok's **2M token context window** to analyze entire notebooks without truncation.
 *   **Streaming UI**: Real-time text generation (typing effect).
 *   **Persistence**: Save chat history per notebook.
 
 ## 2. Technical Stack
-*   **LLM**: Grok 4.1 Fast (via OpenRouter).
+*   **LLM**: **Grok 4.1 Fast** (via OpenRouter) - Primary Model.
 *   **Backend**: Supabase Edge Functions + PostgreSQL.
 *   **Frontend**: React Native (Expo) + Zustand (Store) + `EventSource`/Fetch Streaming.
 

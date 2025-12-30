@@ -22,12 +22,15 @@ import { Ionicons } from '@expo/vector-icons';
 import type { Notebook } from '@/lib/store';
 import { MarkdownText } from '@/components/MarkdownText';
 import { PreviewSkeleton } from './PreviewSkeleton';
+import { MotiView } from 'moti';
 import { getTopicEmoji } from '@/lib/emoji-matcher';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 import { BackgroundProcessingIndicator } from '@/components/BackgroundProcessingIndicator';
 import { SourceSelectionModal } from './SourceSelectionModal';
 import { useNotebookChat } from '@/lib/hooks/useNotebookChat';
 import { useStore } from '@/lib/store';
+
+const EMPTY_ARRAY: any[] = [];
 
 interface ChatTabProps {
   notebook: Notebook;
@@ -86,12 +89,14 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
   const selectedCount = selectedMaterialIds.length;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef<ScrollView>(null);
+  const [isReadyToShow, setIsReadyToShow] = useState(false);
+  const contentOpacity = useRef(new Animated.Value(0)).current;
 
   const { sendMessage, isStreaming } = useNotebookChat(notebook.id);
 
-  // Reactively select chat messages from the store to ensure updates (like optimistic ones) are shown
+  // Reactively select chat messages from the store
   const chatMessages = useStore(state =>
-    state.notebooks.find(n => n.id === notebook.id)?.chat_messages || []
+    state.notebooks.find(n => n.id === notebook.id)?.chat_messages || EMPTY_ARRAY
   );
   const petName = useStore(state => state.petState.name);
 
@@ -99,29 +104,71 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
 
+  // Helper to separate the Mastery Gap from the narrative overview
+  const getStrategicSynthesis = (overview: string) => {
+    if (!overview) return { briefing: '', masteryGap: '' };
+
+    // Usually the Mastery Gap is the last sentence based on our prompt
+    const sentences = overview.split(/[.!?]\s+/);
+    if (sentences.length <= 1) return { briefing: overview, masteryGap: '' };
+
+    const briefing = sentences.slice(0, -1).join('. ') + sentences[sentences.length - 2].slice(-1);
+    const masteryGap = sentences[sentences.length - 1];
+
+    return { briefing, masteryGap };
+  };
+
+  const { briefing, masteryGap } = getStrategicSynthesis(
+    notebook.meta?.preview?.overview || notebook.meta?.preview?.tl_dr || ''
+  );
+
+  const userEducationLevel = useStore(state => state.educationLevel);
+
   // Track if we've done the initial scroll to avoid annoying "quick scroll" animation on entry
   const hasInitiallyScrolled = useRef(false);
 
   // Load chat messages on mount
   useEffect(() => {
     useStore.getState().loadChatMessages(notebook.id);
-    hasInitiallyScrolled.current = false; // Reset when notebook changes
+    hasInitiallyScrolled.current = false;
+    setIsReadyToShow(false);
+    contentOpacity.setValue(0);
   }, [notebook.id]);
 
-  // Auto-scroll to bottom when messages change or streaming
+  // Handle new messages (streaming or received) AFTER initial load
   useEffect(() => {
-    if (chatMessages.length > 0 || isStreaming) {
-      const shouldAnimate = hasInitiallyScrolled.current;
-
-      // We use a short timeout to ensure layout has finished
+    // Only animate for new incoming messages if we've already done our initial jump
+    if (isReadyToShow && hasInitiallyScrolled.current && (chatMessages.length > 0 || isStreaming)) {
       const timer = setTimeout(() => {
-        scrollRef.current?.scrollToEnd({ animated: shouldAnimate });
-        hasInitiallyScrolled.current = true;
-      }, 50);
-
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }, 100);
       return () => clearTimeout(timer);
     }
-  }, [chatMessages, isStreaming]);
+  }, [chatMessages.length, isStreaming, isReadyToShow]);
+
+  // Initial "jump" to bottom on first layout
+  const handleContentSizeChange = () => {
+    // Only proceed if we haven't unlocked the view yet
+    if (!isReadyToShow) {
+      // 1. Silent non-animated jump
+      scrollRef.current?.scrollToEnd({ animated: false });
+
+      // 2. Perform a second silent jump slightly later to catch any layout shifts
+      // This is the "secret sauce" for zero-flicker on first-load
+      setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: false });
+
+        // 3. Mark as scrolled and reveal
+        hasInitiallyScrolled.current = true;
+        setIsReadyToShow(true);
+        Animated.timing(contentOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
+      }, 60); // 60ms is usually enough for the first layout paint to finish
+    }
+  };
 
   // Gentle pulse animation for emoji (breathing effect)
   useEffect(() => {
@@ -142,6 +189,20 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
     animation.start();
     return () => animation.stop();
   }, [pulseAnim]);
+
+  // Scroll to bottom when keyboard opens to keep last message visible
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      // Small timeout to allow KeyboardAvoidingView to adjust first
+      setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+
+    return () => {
+      showSubscription.remove();
+    };
+  }, []);
 
   const handleTakeQuiz = () => {
     if (notebook.status === 'extracting') return;
@@ -240,116 +301,197 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
         style={{ flex: 1 }}
         contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingVertical: 24 }}
         keyboardShouldPersistTaps="handled"
+        onContentSizeChange={handleContentSizeChange}
       >
-        {/* Material Icon & Title */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 }}>
-          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <Text style={{ fontSize: 48, marginRight: 12 }}>{notebook.emoji || getTopicEmoji(notebook.title)}</Text>
-          </Animated.View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 24, color: colors.text, marginBottom: 4, fontFamily: 'Nunito-Bold' }}>
-              {notebook.title}
-            </Text>
-            <Text style={{ fontSize: 14, color: colors.textSecondary, fontFamily: 'Nunito-Regular' }}>
-              {materialCount} source{materialCount !== 1 ? 's' : ''}
-            </Text>
-          </View>
-        </View>
-
-        {/* Overview Content (if available) - NotebookLM style narrative */}
-        {(notebook.meta?.preview?.overview || notebook.meta?.preview?.tl_dr) && (
-          <View style={{ marginBottom: 24 }}>
-            <Text style={{ fontSize: 18, color: colors.text, marginBottom: 12, fontFamily: 'Nunito-SemiBold' }}>Overview</Text>
-            <MarkdownText style={{ fontSize: 16, color: colors.textSecondary, lineHeight: 24, fontFamily: 'Nunito-Regular' }}>
-              {notebook.meta.preview.overview || notebook.meta.preview.tl_dr || ''}
-            </MarkdownText>
-          </View>
-        )}
-
-        {/* Chat Messages Area */}
-        <View style={{ flex: 1 }}>
-          {chatMessages.length === 0 && !(notebook.meta?.preview?.overview || notebook.meta?.preview?.tl_dr) && (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
-              <View style={{ width: 80, height: 80, backgroundColor: colors.surfaceAlt, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <Ionicons name="chatbubble-outline" size={32} color="#6366f1" />
-              </View>
-              <Text style={{ fontSize: 18, color: colors.text, marginBottom: 8, fontFamily: 'Nunito-SemiBold' }}>
-                Ask questions about your material
+        <Animated.View style={{ flex: 1, opacity: contentOpacity }}>
+          {/* Material Icon & Title */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 }}>
+            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+              <Text style={{ fontSize: 48, marginRight: 12 }}>{notebook.emoji || getTopicEmoji(notebook.title)}</Text>
+            </Animated.View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 24, color: colors.text, marginBottom: 4, fontFamily: 'Nunito-Bold' }}>
+                {notebook.title}
               </Text>
-              <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', maxWidth: 280, fontFamily: 'Nunito-Regular' }}>
-                Chat with your {materialCount} source{materialCount !== 1 ? 's' : ''} to get
-                answers and insights.
+              <Text style={{ fontSize: 14, color: colors.textSecondary, fontFamily: 'Nunito-Regular' }}>
+                {materialCount} source{materialCount !== 1 ? 's' : ''}
+              </Text>
+            </View>
+          </View>
+
+          {/* Mastery Calibration Badge */}
+          {userEducationLevel && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: isDarkMode ? 'rgba(99, 102, 241, 0.15)' : 'rgba(99, 102, 241, 0.1)',
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: 999,
+              alignSelf: 'flex-start',
+              marginBottom: 24,
+              marginTop: -16,
+              borderWidth: 1,
+              borderColor: isDarkMode ? 'rgba(99, 102, 241, 0.3)' : 'rgba(99, 102, 241, 0.2)',
+            }}>
+              <Ionicons name="school" size={14} color="#6366f1" />
+              <Text style={{ marginLeft: 6, fontSize: 11, color: '#6366f1', fontFamily: 'SpaceGrotesk-Bold', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Calibrated: {userEducationLevel} Mastery
               </Text>
             </View>
           )}
 
-          {chatMessages.map((msg, index) => (
-            <View
-              key={msg.id || index}
-              style={{
-                flexDirection: 'row',
-                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                marginBottom: 16,
-              }}
-            >
-              <View style={{ maxWidth: '85%' }}>
-                <View
+          {/* Strategic Briefing Card */}
+          {briefing ? (
+            <View style={{ marginBottom: 24 }}>
+              <View style={{
+                backgroundColor: colors.surface,
+                borderRadius: 20,
+                padding: 20,
+                borderWidth: 1,
+                borderColor: colors.border,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.05,
+                shadowRadius: 12,
+                elevation: 2,
+              }}>
+                <Text style={{ fontSize: 13, color: '#6366f1', marginBottom: 12, fontFamily: 'SpaceGrotesk-Bold', textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Overview
+                </Text>
+                <MarkdownText
                   style={{
-                    backgroundColor: msg.role === 'user' ? '#3B82F6' : colors.surfaceAlt,
-                    borderRadius: 18,
-                    borderTopRightRadius: msg.role === 'user' ? 4 : 18,
-                    borderTopLeftRadius: msg.role === 'assistant' ? 4 : 18,
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
+                    fontSize: 16,
+                    color: colors.text,
+                    lineHeight: 26,
+                    fontFamily: 'Nunito-Regular'
                   }}
+                  highlightColor="#6366f1"
                 >
-                  {msg.role === 'user' ? (
-                    <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Nunito-Medium' }}>
-                      {msg.content}
-                    </Text>
-                  ) : (
-                    msg.content === '' ? (
-                      <TypingIndicator color={colors.textSecondary} />
-                    ) : (
-                      <MarkdownText
-                        selectable={false}
-                        style={{
-                          fontSize: 16,
-                          color: colors.text,
-                          lineHeight: 24,
-                          fontFamily: 'Nunito-Regular',
-                        }}
-                      >
-                        {msg.content}
-                      </MarkdownText>
-                    )
-                  )}
-                </View>
-                {/* Copy button for assistant messages */}
-                {msg.role === 'assistant' && msg.content !== '' && (
-                  <TouchableOpacity
-                    onPress={() => handleCopy(msg.content)}
-                    activeOpacity={0.7}
+                  {briefing}
+                </MarkdownText>
+
+                {/* Mastery Gap Insight - The "Aha!" Moment */}
+                {masteryGap ? (
+                  <MotiView
+                    from={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ type: 'spring', damping: 15, delay: 500 } as any}
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      marginTop: 6,
-                      paddingVertical: 4,
-                      paddingHorizontal: 8,
-                      alignSelf: 'flex-start',
+                      backgroundColor: isDarkMode ? 'rgba(249, 115, 22, 0.1)' : 'rgba(249, 115, 22, 0.05)',
+                      borderRadius: 12,
+                      padding: 16,
+                      marginTop: 20,
+                      borderWidth: 1,
+                      borderColor: isDarkMode ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.3)',
+                      borderLeftWidth: 4,
                     }}
                   >
-                    <Ionicons name="copy-outline" size={16} color={colors.textSecondary} />
-                    <Text style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 4, fontFamily: 'Nunito-Regular' }}>
-                      Copy
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                      <Ionicons name="flashlight" size={16} color="#F97316" />
+                      <Text style={{ marginLeft: 8, fontSize: 12, color: '#F97316', fontFamily: 'SpaceGrotesk-Bold', textTransform: 'uppercase' }}>
+                        Key Insight
+                      </Text>
+                    </View>
+                    <MarkdownText
+                      style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 22, fontFamily: 'Nunito-Medium' }}
+                      highlightColor="#F97316"
+                    >
+                      {masteryGap}
+                    </MarkdownText>
+                  </MotiView>
+                ) : null}
               </View>
             </View>
-          ))}
-        </View>
+          ) : null}
 
+          {/* Chat Messages Area */}
+          <View style={{ flex: 1 }}>
+            {chatMessages.length === 0 && !(notebook.meta?.preview?.overview || notebook.meta?.preview?.tl_dr) && (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
+                <View style={{ width: 80, height: 80, backgroundColor: colors.surfaceAlt, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                  <Ionicons name="chatbubble-outline" size={32} color="#6366f1" />
+                </View>
+                <Text style={{ fontSize: 18, color: colors.text, marginBottom: 8, fontFamily: 'Nunito-SemiBold' }}>
+                  Ask questions about your material
+                </Text>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center', maxWidth: 280, fontFamily: 'Nunito-Regular' }}>
+                  Chat with your {materialCount} source{materialCount !== 1 ? 's' : ''} to get
+                  answers and insights.
+                </Text>
+              </View>
+            )}
+
+            {chatMessages.map((msg, index) => (
+              <View
+                key={msg.id || index}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  marginBottom: 16,
+                }}
+              >
+                <View style={{ maxWidth: '85%' }}>
+                  <View
+                    style={{
+                      backgroundColor: msg.role === 'user' ? '#3B82F6' : colors.surfaceAlt,
+                      borderRadius: 18,
+                      borderTopRightRadius: msg.role === 'user' ? 4 : 18,
+                      borderTopLeftRadius: msg.role === 'assistant' ? 4 : 18,
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                    }}
+                  >
+                    {msg.role === 'user' ? (
+                      <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Nunito-Medium' }}>
+                        {msg.content}
+                      </Text>
+                    ) : (
+                      msg.content === '' ? (
+                        <TypingIndicator color={colors.textSecondary} />
+                      ) : (
+                        <MarkdownText
+                          selectable={false}
+                          style={{
+                            fontSize: 16,
+                            color: colors.text,
+                            lineHeight: 24,
+                            fontFamily: 'Nunito-Regular',
+                          }}
+                        >
+                          {msg.content}
+                        </MarkdownText>
+                      )
+                    )}
+                  </View>
+                  {/* Copy button for assistant messages */}
+                  {msg.role === 'assistant' && msg.content !== '' && (
+                    <TouchableOpacity
+                      onPress={() => handleCopy(msg.content)}
+                      activeOpacity={0.7}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        marginTop: 6,
+                        paddingVertical: 4,
+                        paddingHorizontal: 8,
+                        alignSelf: 'flex-start',
+                      }}
+                    >
+                      <Ionicons name="copy-outline" size={16} color={colors.textSecondary} />
+                      <Text style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 4, fontFamily: 'Nunito-Regular' }}>
+                        Copy
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            ))}
+
+            {/* Bottom Spacer to prevent message hugging the input bar */}
+            <View style={{ height: 20 }} />
+          </View>
+        </Animated.View>
       </ScrollView>
 
       {/* Bottom Interface logic (Pills + Input) */}
@@ -549,4 +691,3 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
     </KeyboardAvoidingView >
   );
 };
-

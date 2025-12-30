@@ -8,11 +8,13 @@ import { useFeedback } from '@/lib/feedback';
 interface HomeActionButtonsProps {
     onCameraPress: () => void;
     onAddPress: () => void;
+    bottom?: number;
 }
 
 export const HomeActionButtons: React.FC<HomeActionButtonsProps> = ({
     onCameraPress,
-    onAddPress
+    onAddPress,
+    bottom = 20
 }) => {
     const { isDarkMode } = useTheme();
     const { play } = useFeedback();
@@ -25,7 +27,7 @@ export const HomeActionButtons: React.FC<HomeActionButtonsProps> = ({
         <View
             style={{
                 position: 'absolute',
-                bottom: 40,
+                bottom: bottom,
                 left: 24,
                 right: 24,
                 flexDirection: 'row',
@@ -68,9 +70,9 @@ export const HomeActionButtons: React.FC<HomeActionButtonsProps> = ({
                             backgroundColor: 'rgba(255, 255, 255, 0.15)',
                         }}
                     >
-                        <MaterialIcons 
-                            name="camera-alt" 
-                            size={24} 
+                        <MaterialIcons
+                            name="camera-alt"
+                            size={24}
                             color="#FFFFFF"
                         />
                     </BlurView>
@@ -86,9 +88,9 @@ export const HomeActionButtons: React.FC<HomeActionButtonsProps> = ({
                             borderRadius: 28,
                         }}
                     >
-                        <MaterialIcons 
-                            name="camera-alt" 
-                            size={24} 
+                        <MaterialIcons
+                            name="camera-alt"
+                            size={24}
                             color="#1a1a1a"
                         />
                     </View>
@@ -128,14 +130,14 @@ export const HomeActionButtons: React.FC<HomeActionButtonsProps> = ({
                             backgroundColor: 'rgba(255, 255, 255, 0.15)',
                         }}
                     >
-                        <MaterialIcons 
-                            name="add" 
-                            size={20} 
+                        <MaterialIcons
+                            name="add"
+                            size={20}
                             color="#FFFFFF"
                         />
                         <Text
-                            style={{ 
-                                fontFamily: 'Nunito-SemiBold', 
+                            style={{
+                                fontFamily: 'Nunito-SemiBold',
                                 fontSize: 16,
                                 color: '#FFFFFF',
                             }}
@@ -157,14 +159,14 @@ export const HomeActionButtons: React.FC<HomeActionButtonsProps> = ({
                             borderRadius: 999,
                         }}
                     >
-                        <MaterialIcons 
-                            name="add" 
-                            size={20} 
+                        <MaterialIcons
+                            name="add"
+                            size={20}
                             color="#1a1a1a"
                         />
                         <Text
-                            style={{ 
-                                fontFamily: 'Nunito-SemiBold', 
+                            style={{
+                                fontFamily: 'Nunito-SemiBold',
                                 fontSize: 16,
                                 color: '#1a1a1a',
                             }}

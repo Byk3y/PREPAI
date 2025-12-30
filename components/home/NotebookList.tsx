@@ -66,7 +66,7 @@ export function NotebookList({
       contentContainerStyle={{
         paddingHorizontal: 24,
         paddingTop: 8,
-        paddingBottom: 120,
+        paddingBottom: 160,
         flexGrow: 1, // allow pull-to-refresh from anywhere
       }}
       refreshControl={
@@ -123,32 +123,6 @@ export function NotebookList({
         />
       ))}
 
-      {/* Add New Button (List Item) */}
-      <TouchableOpacity
-        onPress={onCreateNotebook}
-        style={{
-          backgroundColor: colors.surface,
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 24,
-          borderWidth: 2,
-          borderStyle: 'dashed',
-          borderColor: colors.border,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        activeOpacity={0.7}
-      >
-        <Text
-          style={{
-            fontSize: 16,
-            fontFamily: 'Nunito-SemiBold',
-            color: colors.textSecondary,
-          }}
-        >
-          + Add New Notebook
-        </Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }

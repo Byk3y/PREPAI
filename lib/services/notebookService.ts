@@ -9,9 +9,9 @@ export const notebookService = {
         const { data, error } = await supabase
             .from('notebooks')
             .select(`
-        *,
-        materials (*)
-      `)
+                *,
+                materials!materials_notebook_id_fkey (*)
+            `)
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
 
@@ -170,6 +170,82 @@ export const notebookService = {
                 component: 'notebook-service',
                 userId,
                 metadata: { notebookTitle: notebook.title, userId }
+            });
+            throw appError;
+        }
+    },
+
+    addMaterialToNotebook: async (
+        userId: string,
+        notebookId: string,
+        material: Omit<Material, 'id' | 'createdAt'> & {
+            fileUri?: string;
+            filename?: string;
+        }
+    ) => {
+        try {
+            // Step 1: Upload file if provided
+            let storagePath: string | undefined;
+            if (material.fileUri && material.filename) {
+                const materialId = `temp-${Date.now()}`;
+                const uploadResult = await storageService.uploadMaterialFile(
+                    userId,
+                    materialId,
+                    material.fileUri,
+                    material.filename
+                );
+                if (uploadResult.error) {
+                    storagePath = material.fileUri;
+                } else {
+                    storagePath = uploadResult.storagePath;
+                }
+            }
+
+            // Step 2: Determine upload type
+            const isFileUpload =
+                !!storagePath ||
+                (material.type &&
+                    ['pdf', 'audio', 'image', 'photo'].includes(material.type));
+
+            // Step 3: Create material record
+            const materialData: any = {
+                user_id: userId,
+                notebook_id: notebookId,
+                kind: material.type || 'text',
+                storage_path: storagePath,
+                external_url: material.uri?.startsWith('http')
+                    ? material.uri
+                    : null,
+                content: isFileUpload ? null : material.content,
+                preview_text: null,
+                processed: false,
+                processed_at: null,
+                title: material.title || material.filename || 'Source',
+            };
+
+            const { data: newMaterial, error: materialError } = await supabase
+                .from('materials')
+                .insert(materialData)
+                .select()
+                .single();
+
+            if (materialError) {
+                throw materialError;
+            }
+
+            // Step 4: Update notebook status to extracting since new content is being added
+            await supabase
+                .from('notebooks')
+                .update({ status: 'extracting' })
+                .eq('id', notebookId);
+
+            return { newMaterial, isFileUpload, storagePath };
+        } catch (error) {
+            const appError = await handleError(error, {
+                operation: 'add_material_to_notebook',
+                component: 'notebook-service',
+                userId,
+                metadata: { notebookId, userId }
             });
             throw appError;
         }

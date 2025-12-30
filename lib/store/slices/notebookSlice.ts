@@ -24,7 +24,10 @@ export interface NotebookSlice {
   ) => Promise<string>;
   deleteNotebook: (id: string) => Promise<void>;
   updateNotebook: (id: string, updates: Partial<Notebook>) => Promise<void>;
-  addMaterial: (notebookId: string, material: Omit<Material, 'id' | 'createdAt'>) => void;
+  addMaterial: (
+    notebookId: string,
+    material: Omit<Material, 'id' | 'createdAt'> & { fileUri?: string; filename?: string }
+  ) => Promise<void>;
   deleteMaterial: (notebookId: string, materialId: string) => void;
   loadChatMessages: (notebookId: string) => Promise<void>;
   addChatMessage: (notebookId: string, message: ChatMessage) => void;
@@ -69,8 +72,14 @@ export const createNotebookSlice: StateCreator<
           notebooksUserId: effectiveUserId,
         });
 
-        if (notebooks.length > 0 && get().setHasCreatedNotebook) {
-          get().setHasCreatedNotebook!(true);
+        if (notebooks.length > 0) {
+          if (get().setHasCreatedNotebook) {
+            get().setHasCreatedNotebook!(true);
+          }
+          // Award foundational task if missed
+          if ((get() as any).checkAndAwardTask) {
+            (get() as any).checkAndAwardTask('create_notebook');
+          }
         }
 
         return;
@@ -151,6 +160,12 @@ export const createNotebookSlice: StateCreator<
         notebooks: [transformedNotebook, ...state.notebooks],
         // Update hasCreatedNotebook locally if not already set, though service tries to update profile too
       }));
+
+      // Award foundational task for first notebook
+      if ((get() as any).checkAndAwardTask) {
+        (get() as any).checkAndAwardTask('create_notebook');
+      }
+
       if (get().setHasCreatedNotebook) {
         get().setHasCreatedNotebook!(true);
       }
@@ -206,24 +221,70 @@ export const createNotebookSlice: StateCreator<
     }
   },
 
-  addMaterial: (notebookId, material) =>
-    set((state) => ({
-      notebooks: state.notebooks.map((n) =>
-        n.id === notebookId
-          ? {
-            ...n,
-            materials: [
-              ...n.materials,
-              {
-                ...material,
-                id: `material-${Date.now()}`,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          }
-          : n
-      ),
-    })),
+  addMaterial: async (notebookId, material) => {
+    const { authUser } = get();
+    if (!authUser) return;
+
+    try {
+      // 1. Service Call (Upload + DB)
+      const { newMaterial, isFileUpload, storagePath } = await notebookService.addMaterialToNotebook(
+        authUser.id,
+        notebookId,
+        material as any
+      );
+
+      // 2. Optimistic/Local Update
+      const materialObj: Material = {
+        id: newMaterial.id,
+        type: newMaterial.kind as Material['type'],
+        uri: newMaterial.storage_path || newMaterial.external_url || undefined,
+        filename: getFilenameFromPath(newMaterial.storage_path || undefined),
+        content: newMaterial.content || undefined,
+        preview_text: newMaterial.preview_text || undefined,
+        title: material.title || 'New Source',
+        createdAt: newMaterial.created_at || new Date().toISOString(),
+        thumbnail: newMaterial.thumbnail || undefined,
+      };
+
+      set((state) => ({
+        notebooks: state.notebooks.map((n) =>
+          n.id === notebookId
+            ? {
+              ...n,
+              status: 'extracting',
+              materials: [...n.materials, materialObj],
+            }
+            : n
+        ),
+      }));
+
+      // 3. Trigger Processing
+      notebookService.triggerProcessing(
+        notebookId,
+        newMaterial.id,
+        !!isFileUpload,
+        storagePath,
+        authUser.id
+      ).then((result) => {
+        if (result.status === 'failed') {
+          set((state) => ({
+            notebooks: state.notebooks.map((n) =>
+              n.id === notebookId ? { ...n, status: 'failed' as const } : n
+            ),
+          }));
+        }
+      });
+
+      // Award task for adding material
+      if ((get() as any).checkAndAwardTask) {
+        (get() as any).checkAndAwardTask('add_material_daily');
+      }
+
+    } catch (error) {
+      console.error('Error adding material:', error);
+      throw error;
+    }
+  },
 
   deleteMaterial: (notebookId, materialId) =>
     set((state) => ({

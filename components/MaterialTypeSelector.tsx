@@ -188,12 +188,12 @@ export default function MaterialTypeSelector({
   };
 
   const materialOptions = [
-    { type: 'pdf' as MaterialType, iconName: 'description' as const, iconSet: 'MaterialIcons' as const, label: 'PDF' },
-    { type: 'audio' as MaterialType, iconName: 'equalizer' as const, iconSet: 'MaterialIcons' as const, label: 'Audio' },
-    { type: 'image' as MaterialType, iconName: 'image' as const, iconSet: 'MaterialIcons' as const, label: 'Image' },
-    { type: 'website' as MaterialType, iconName: 'globe' as const, iconSet: 'Ionicons' as const, label: 'Website' },
-    { type: 'youtube' as MaterialType, iconName: 'logo-youtube' as const, iconSet: 'Ionicons' as const, label: 'YouTube' },
-    { type: 'copied-text' as MaterialType, iconName: 'assignment' as const, iconSet: 'MaterialIcons' as const, label: 'Copied text' },
+    { type: 'pdf' as MaterialType, iconName: 'description' as const, iconSet: 'MaterialIcons' as const, label: 'PDF', description: 'Upload notes or past papers' },
+    { type: 'audio' as MaterialType, iconName: 'equalizer' as const, iconSet: 'MaterialIcons' as const, label: 'Audio', description: 'Record or upload lectures' },
+    { type: 'image' as MaterialType, iconName: 'image' as const, iconSet: 'MaterialIcons' as const, label: 'Image', description: 'Scan textbooks or exam sheets' },
+    { type: 'website' as MaterialType, iconName: 'globe' as const, iconSet: 'Ionicons' as const, label: 'Website', description: 'Import articles or online docs' },
+    { type: 'youtube' as MaterialType, iconName: 'logo-youtube' as const, iconSet: 'Ionicons' as const, label: 'YouTube', description: 'Import educational videos' },
+    { type: 'copied-text' as MaterialType, iconName: 'assignment' as const, iconSet: 'MaterialIcons' as const, label: 'Copied text', description: 'Paste notes or question text' },
   ];
 
   return (
@@ -313,7 +313,12 @@ export default function MaterialTypeSelector({
                           style={styles.buttonIcon}
                         />
                       )}
-                      <Text style={[styles.buttonLabel, { color: colors.text }]}>{option.label}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.buttonLabel, { color: colors.text }]}>{option.label}</Text>
+                        <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2, fontFamily: 'Nunito-Regular' }}>
+                          {option.description}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   ))}
                 </View>

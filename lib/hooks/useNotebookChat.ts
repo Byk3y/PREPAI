@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
+import { handleError } from '@/lib/errors';
 import type { ChatMessage } from '@/lib/store/types';
 
 export function useNotebookChat(notebookId: string) {
@@ -72,11 +73,16 @@ export function useNotebookChat(notebookId: string) {
             // 5. Update assistant message with final content
             updateLastChatMessage(notebookId, content);
 
-            // 6. Award task
+            // 6. Award tasks
             checkAndAwardTask('chat_with_notebook');
+            checkAndAwardTask('first_notebook_chat');
 
         } catch (err: any) {
-            console.error('Chat error:', err);
+            await handleError(err, {
+                operation: 'notebook_chat',
+                component: 'useNotebookChat',
+                metadata: { notebookId, messageLength: message.length },
+            });
             setError(err.message);
 
             // Update with a helpful error message if we hit a snag

@@ -59,7 +59,7 @@ export const GenerateOptionsSection: React.FC<GenerateOptionsSectionProps> = ({
         type="flashcards"
         icon="albums-outline"
         color="#dc2626"
-        label="Flashcards"
+        label="Active Drills"
         bgColor="bg-red-50"
         textColor="text-red-600"
         isGenerating={generatingType === 'flashcards'}
@@ -72,7 +72,7 @@ export const GenerateOptionsSection: React.FC<GenerateOptionsSectionProps> = ({
         type="quiz"
         icon="help-circle-outline"
         color="#0891b2"
-        label="Quiz"
+        label="Mock Exam"
         bgColor="bg-cyan-50"
         textColor="text-cyan-600"
         isGenerating={generatingType === 'quiz'}

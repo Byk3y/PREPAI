@@ -9,14 +9,14 @@ export const StudioEmptyState: React.FC = () => {
 
   return (
     <View style={{ alignItems: 'center', paddingVertical: 48, paddingHorizontal: 24 }}>
-      <View style={{ 
-        width: 80, 
-        height: 80, 
-        backgroundColor: colors.surfaceAlt, 
-        borderRadius: 40, 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        marginBottom: 16 
+      <View style={{
+        width: 80,
+        height: 80,
+        backgroundColor: colors.surfaceAlt,
+        borderRadius: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16
       }}>
         <Ionicons name="sparkles-outline" size={32} color={colors.iconMuted} />
       </View>

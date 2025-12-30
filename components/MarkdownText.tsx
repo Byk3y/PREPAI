@@ -8,9 +8,10 @@ import { Text, TextProps } from 'react-native';
 
 interface MarkdownTextProps extends TextProps {
   children: string;
+  highlightColor?: string;
 }
 
-export const MarkdownText: React.FC<MarkdownTextProps> = ({ children, style, ...props }) => {
+export const MarkdownText: React.FC<MarkdownTextProps> = ({ children, style, highlightColor, ...props }) => {
   // Parse markdown and create styled text segments
   const parseMarkdown = (text: string): React.ReactNode[] => {
     const segments: React.ReactNode[] = [];
@@ -36,11 +37,17 @@ export const MarkdownText: React.FC<MarkdownTextProps> = ({ children, style, ...
 
       // Handle the match
       if (match[1].startsWith('**')) {
-        // Bold text: **text** - use Nunito-Bold if base font is Nunito
+        // Bold text: **text** - use color if highlightColor is provided
         const baseFont = (style as any)?.fontFamily;
         const boldFont = baseFont?.includes('Nunito') ? 'Nunito-Bold' : undefined;
         segments.push(
-          <Text key={key++} style={[style, { fontWeight: '700', fontFamily: boldFont }]}>
+          <Text
+            key={key++}
+            style={[
+              style,
+              highlightColor ? { color: highlightColor, fontWeight: '600' } : { fontWeight: '700', fontFamily: boldFont }
+            ]}
+          >
             {match[2]}
           </Text>
         );
