@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { getThemeColors } from '@/lib/ThemeContext';
 import { useTheme } from '@/lib/ThemeContext';
 
@@ -13,6 +13,7 @@ interface OnboardingButtonProps {
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'commitment';
   disabled?: boolean;
+  loading?: boolean;
 }
 
 export function OnboardingButton({
@@ -20,6 +21,7 @@ export function OnboardingButton({
   onPress,
   variant = 'secondary',
   disabled = false,
+  loading = false,
 }: OnboardingButtonProps) {
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
@@ -28,27 +30,31 @@ export function OnboardingButton({
   return (
     <TouchableOpacity
       onPress={onPress}
-      disabled={disabled}
+      disabled={disabled || loading}
       activeOpacity={0.8}
       style={[
         styles.button,
         {
           backgroundColor: isPrimary ? colors.primaryLight : 'transparent',
-          opacity: disabled ? 0.5 : 1,
+          opacity: disabled || loading ? 0.5 : 1,
           shadowColor: colors.shadowColor,
         },
       ]}
     >
-      <Text
-        style={[
-          styles.buttonText,
-          {
-            color: isPrimary ? colors.white : colors.primaryLight,
-          },
-        ]}
-      >
-        {text}
-      </Text>
+      {loading ? (
+        <ActivityIndicator color={isPrimary ? colors.white : colors.primaryLight} />
+      ) : (
+        <Text
+          style={[
+            styles.buttonText,
+            {
+              color: isPrimary ? colors.white : colors.primaryLight,
+            },
+          ]}
+        >
+          {text}
+        </Text>
+      )}
     </TouchableOpacity>
   );
 }

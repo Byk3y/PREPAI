@@ -99,7 +99,7 @@ export function Screen6({ colors }: Screen6Props) {
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>More effective than reading</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: '#3B82F608', borderColor: '#3B82F620' }]}>
-            <Ionicons name={"brain" as any} size={24} color="#3B82F6" />
+            <Ionicons name={"bulb-outline" as any} size={24} color="#3B82F6" />
             <Text style={[styles.statValue, { color: colors.text }]}>200%</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Better retention rates</Text>
           </View>

@@ -45,6 +45,7 @@ import { Screen4_Notifications } from '@/components/onboarding/screens/Screen4_N
 import { Screen5 } from '@/components/onboarding/screens/Screen5';
 import { Screen6 } from '@/components/onboarding/screens/Screen6';
 import { Screen7 } from '@/components/onboarding/screens/Screen7';
+import { Screen4_Education } from '@/components/onboarding/screens/Screen4_Education';
 
 export default function OnboardingScreen() {
   const [currentScreen, setCurrentScreen] = useState(0);
@@ -62,6 +63,8 @@ export default function OnboardingScreen() {
     updatePetName,
     petState,
     loadPetState,
+    educationLevel,
+    ageBracket,
   } = useStore();
 
   // Load saved screen on mount if resuming after auth
@@ -219,8 +222,10 @@ export default function OnboardingScreen() {
       return;
     }
 
-    // All other screens - just advance
-    setCurrentScreen((prev) => prev + 1);
+    // All other screens - save progress and advance
+    const nextScreen = getNextScreen(currentScreen);
+    setCurrentOnboardingScreen(nextScreen);
+    setCurrentScreen(nextScreen);
   };
 
 
@@ -235,6 +240,8 @@ export default function OnboardingScreen() {
         return "Let's personalize my experience →";
       case SCREEN_INDICES.SCREEN_4_PET_NAMING:
         return "Meet my new mentor →";
+      case SCREEN_INDICES.SCREEN_4_EDUCATION:
+        return "Calibrate Brigo →";
       case SCREEN_INDICES.SCREEN_7_TRIAL_OFFER: // Last screen
         return "I'm ready to study smarter";
       default:
@@ -263,6 +270,8 @@ export default function OnboardingScreen() {
         );
       case SCREEN_INDICES.SCREEN_4_RESULTS:
         return <Screen4_Results colors={colors} />;
+      case SCREEN_INDICES.SCREEN_4_EDUCATION:
+        return <Screen4_Education colors={colors} />;
       case SCREEN_INDICES.SCREEN_4_PET_NAMING:
         return <Screen4_PetNaming petName={petName} onNameChange={setPetName} colors={colors} />;
       case SCREEN_INDICES.SCREEN_4_NOTIFICATIONS:
@@ -318,7 +327,12 @@ export default function OnboardingScreen() {
             text={continueButtonText}
             onPress={handleContinue}
             variant={isLastScreenValue ? 'commitment' : 'primary'}
-            disabled={isNavigating || (currentScreen === SCREEN_INDICES.SCREEN_4_PET_NAMING && !petName.trim())}
+            loading={isNavigating}
+            disabled={
+              isNavigating ||
+              (currentScreen === SCREEN_INDICES.SCREEN_4_PET_NAMING && !petName.trim()) ||
+              (currentScreen === SCREEN_INDICES.SCREEN_4_EDUCATION && (!educationLevel || !ageBracket))
+            }
           />
         </View>
       )}

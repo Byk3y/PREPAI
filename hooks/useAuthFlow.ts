@@ -149,117 +149,77 @@ export function useAuthFlow(): UseAuthFlowReturn {
       if (data.session && data.user) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-        // Explicitly set the session to ensure RLS policies work
-        // This is important because verifyOtp might not immediately set the session in the client
-        // (especially in Expo Go where native modules may have timing issues)
-        try {
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: data.session.access_token,
-            refresh_token: data.session.refresh_token,
-          });
-
-          if (sessionError) {
-            console.warn('Error setting session after OTP verification:', sessionError);
-            // Continue anyway - session might already be set from verifyOtp
-          }
-        } catch (sessionErr) {
-          console.warn('Network error setting session (will continue):', sessionErr);
-          // Continue - verifyOtp already set the session
-        }
+        // Supabase verifyOtp already sets the session in the client.
+        // We removed the redundant setSession call here to prevent potential 
+        // storage adapter deadlocks/hangs reported in some Expo/Supabase environments.
 
         // Retry logic for profile query (RLS might need a moment to recognize the session)
-        // Also handles network errors gracefully
-        let profile = null;
-        let profileError = null;
+        let profile: any = null;
+        let profileError: any = null;
         let retries = 0;
-        const maxRetries = 3;
-        let networkError = false;
+        const maxRetries = 2; // Reduced retries for faster feedback
 
-        while (retries < maxRetries) {
-          try {
-            const result = await supabase
-              .from('profiles')
-              .select('first_name, last_name, meta')
-              .eq('id', data.user.id)
-              .single();
+        // Safety timeout for the entire profile fetch process
+        const profileTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Profile check timed out')), 8000)
+        );
 
-            profile = result.data;
-            profileError = result.error;
+        const fetchProfile = async () => {
+          while (retries < maxRetries) {
+            try {
+              const { data: profileData, error: pError } = await supabase
+                .from('profiles')
+                .select('first_name, last_name, meta')
+                .eq('id', data.user!.id)
+                .single();
 
-            // If we got the profile, break
-            if (profile) {
-              break;
-            }
+              if (profileData) {
+                profile = profileData;
+                break;
+              }
 
-            // If it's a "no rows" error, wait a bit and retry (session might not be set yet)
-            if (profileError?.code === 'PGRST116') {
+              if (pError?.code === 'PGRST116') {
+                // New user - profile doesn't exist yet
+                profileError = pError;
+                retries++;
+                if (retries < maxRetries) {
+                  await new Promise(resolve => setTimeout(resolve, 500 * retries));
+                  continue;
+                }
+              } else if (pError) {
+                profileError = pError;
+                break;
+              }
+            } catch (err: any) {
+              if (__DEV__) console.warn('Profile fetch attempt failed:', err);
               retries++;
-              if (retries < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, 200 * retries)); // Exponential backoff
-                continue;
-              }
-            } else {
-              // Other errors (including network) - break and handle below
-              if (profileError?.message?.includes('Network') || profileError?.message?.includes('fetch')) {
-                networkError = true;
-              }
-              break;
-            }
-          } catch (err: any) {
-            // Network error caught
-            networkError = true;
-            retries++;
-            if (retries < maxRetries) {
-              console.warn(`Network error fetching profile (retry ${retries}/${maxRetries}):`, err);
-              await new Promise(resolve => setTimeout(resolve, 200 * retries));
-            } else {
-              console.error('Network error fetching profile after retries:', err);
-              break;
             }
           }
+          return { profile, profileError };
+        };
+
+        try {
+          // Call with timeout to prevent "Infinite Verifying" state
+          await Promise.race([fetchProfile(), profileTimeout]);
+        } catch (timeoutErr) {
+          if (__DEV__) console.error('[Auth] Profile check timed out, falling back to names step');
         }
 
-        // Handle profile query result
-        if (networkError && !profile) {
-          // Network error - proceed as if new user (safer than blocking)
-          // The auth state change handler will load the profile when network is available
-          console.warn('Network error checking profile - proceeding as new user');
-          setLoading(false);
+        // Handle the result (transition or fallback)
+        if (profileError && profileError.code === 'PGRST116') {
+          // New user - send to names collection
           setFlowStep('names');
-          return;
-        }
-
-        if (profileError) {
-          console.error('Error checking profile:', profileError);
-
-          // PGRST116 = no rows returned (profile doesn't exist yet - new user)
-          if (profileError.code === 'PGRST116') {
-            // New user - show name collection screen
-            setLoading(false);
-            setFlowStep('names');
-            return;
-          }
-
-          // Other errors - assume names are missing (safer fallback)
-          setLoading(false);
-          setFlowStep('names');
-          return;
-        }
-
-        // Check if names exist and are valid
-        const hasValidFirstName =
-          profile?.first_name &&
-          profile.first_name.trim() !== '' &&
-          !profile.first_name.includes('@');
-        const hasValidLastName = profile?.last_name && profile.last_name.trim() !== '';
-
-        if (hasValidFirstName && hasValidLastName) {
-          // Names exist - route to appropriate screen
+        } else if (profile?.first_name && profile?.last_name) {
+          // Existing user with profile - route home
           await routeAfterAuth(profile.meta as ProfileMeta);
         } else {
-          // Names missing - show name collection screen
+          // Fallback: missing profile or missing names - send to names step
           setFlowStep('names');
         }
+      } else {
+        // No session returned - check if error but usually caught above
+        if (__DEV__) console.warn('[Auth] verifyOtp returned successfully but with no session');
+        Alert.alert('Verification failed', 'We could not sign you in. Please try again.');
       }
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -269,6 +229,7 @@ export function useAuthFlow(): UseAuthFlowReturn {
         metadata: { email: email.trim() },
       });
     } finally {
+      if (__DEV__) console.log('[Auth] OTP Verification flow complete, cleaning up loading state');
       setLoading(false);
     }
   }, [email, otpCode, handleError, routeAfterAuth]);

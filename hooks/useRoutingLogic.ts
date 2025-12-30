@@ -27,53 +27,52 @@ export function useRoutingLogic(fontsLoaded: boolean) {
   useEffect(() => {
     // Wait for fonts, auth initialization, AND store hydration before routing
     if (!fontsLoaded || !_hasHydrated || !isInitialized) {
-      if (__DEV__) {
-        console.log('Waiting for hydration...', { fontsLoaded, _hasHydrated, isInitialized });
-      }
       return;
     }
 
-    // Marking routing ready allows RootLayout to render Stack
-    setIsRoutingReady(true);
-
-    // Define route variables for immediate use
+    // Define route variables
     const currentRoute = segments[0];
     const inAuthGroup = currentRoute === 'auth';
     const inOnboardingGroup = currentRoute === 'onboarding';
-
-    // Source of truth for routing branch
     const user = authUser;
 
+    // 1. Determine redirection path
+    let redirectPath: string | null = null;
+
     if (!user) {
-      // NOT LOGGED IN - Use persisted state for immediate routing
       if (!hasCompletedOnboarding && !inOnboardingGroup && !inAuthGroup) {
-        if (__DEV__) console.log('→ Routing to /onboarding (first time)');
-        router.replace('/onboarding');
+        redirectPath = '/onboarding';
       } else if (hasCompletedOnboarding && !inAuthGroup && !inOnboardingGroup) {
-        // In DEV, we allow staying on onboarding if manually navigated there
-        if (__DEV__) console.log('→ Routing to /auth (returning user)');
-        router.replace('/auth');
+        redirectPath = '/auth';
       }
     } else {
-      // LOGGED IN - Use persisted state for IMMEDIATE render
       if (!hasCompletedOnboarding) {
-        if (currentOnboardingScreen >= 3 && currentOnboardingScreen < 9) {
-          if (!inOnboardingGroup) {
-            if (__DEV__) console.log('→ Routing to /onboarding (persisted resume)');
-            router.replace('/onboarding');
-          }
-        } else if (currentOnboardingScreen === 0 && !inOnboardingGroup) {
-          // New user just logged in - send to onboarding (but only if not already there)
-          if (__DEV__) console.log('→ Routing to /onboarding (new user)');
-          router.replace('/onboarding');
+        if (!inOnboardingGroup) {
+          redirectPath = '/onboarding';
         }
       } else if (inAuthGroup || (inOnboardingGroup && !__DEV__)) {
-        // User logged in and onboarding complete - go home (unless in DEV on onboarding)
-        if (__DEV__) console.log('→ Routing to / (persisted complete)');
-        router.replace('/');
+        redirectPath = '/';
       }
+    }
 
-      // BACKGROUND VERIFICATION - Check database to ensure persisted state isn't stale
+    // 2. Execute Redirection if needed
+    // Skip if we are already on the target path group to avoid flicker and loops
+    const isOnTargetPath =
+      (redirectPath === '/onboarding' && inOnboardingGroup) ||
+      (redirectPath === '/auth' && inAuthGroup) ||
+      (redirectPath === '/' && (!inOnboardingGroup && !inAuthGroup));
+
+    if (redirectPath && !isOnTargetPath) {
+      if (__DEV__) console.log(`→ Routing: [${currentRoute || 'root'}] to ${redirectPath}`);
+      router.replace(redirectPath as any);
+      return; // Wait for segments update
+    }
+
+    // 3. Mark Routing Ready
+    setIsRoutingReady(true);
+
+    // 4. Background Verification Check (Logged-in only)
+    if (user) {
       let cancelled = false;
 
       const verifyRoutingWithDatabase = async () => {

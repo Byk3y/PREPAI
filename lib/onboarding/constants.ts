@@ -13,17 +13,18 @@ export const SCREEN_INDICES = {
   SCREEN_3_SOLUTION: 2,
   SCREEN_4_ASSESSMENT: 3,
   SCREEN_4_RESULTS: 4,
-  SCREEN_4_PET_NAMING: 5,
-  SCREEN_4_NOTIFICATIONS: 6,
-  SCREEN_5_DREAM: 7,
-  SCREEN_6_SOCIAL_PROOF: 8,
-  SCREEN_7_TRIAL_OFFER: 9,
+  SCREEN_4_EDUCATION: 5,
+  SCREEN_4_PET_NAMING: 6,
+  SCREEN_4_NOTIFICATIONS: 7,
+  SCREEN_5_DREAM: 8,
+  SCREEN_6_SOCIAL_PROOF: 9,
+  SCREEN_7_TRIAL_OFFER: 10,
 } as const;
 
 /**
  * Total number of screens in the onboarding flow
  */
-export const TOTAL_SCREENS = 10;
+export const TOTAL_SCREENS = 11;
 
 /**
  * First screen index (always 0)

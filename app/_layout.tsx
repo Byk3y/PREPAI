@@ -1,5 +1,11 @@
 import { useEffect } from 'react';
+import * as SplashScreen from 'expo-splash-screen';
 import { initSentry } from '@/lib/sentry';
+
+// Prevent the splash screen from auto-hiding before asset loading is complete.
+SplashScreen.preventAutoHideAsync().catch(() => {
+  /* reloading the app might cause some errors here, safe to ignore */
+});
 
 initSentry();
 
@@ -10,12 +16,14 @@ if (typeof console !== 'undefined' && console.error) {
     const error = args[0];
     const message = (typeof error === 'string' ? error : error?.message || error?.toString()) || '';
 
-    // Suppress expected auth errors when logged out
+    // Suppress expected auth or SDK race condition errors
     if (
       message.includes('Invalid Refresh Token') ||
       message.includes('Refresh Token Not Found') ||
       message.includes('refresh_token_not_found') ||
       message.includes('AuthApiError') ||
+      message.includes('operation is already in progress') ||
+      message.includes('Network request failed') ||
       (message.includes('rate limit') && message.includes('Auth'))
     ) {
       if (__DEV__) return;
@@ -44,6 +52,7 @@ import { ErrorNotificationProvider } from '@/lib/contexts/ErrorNotificationConte
 import { ErrorNotificationContainer } from '@/components/ErrorNotificationContainer';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { InAppNotification } from '@/components/InAppNotification';
+import { SecondarySplashScreen } from '@/components/SecondarySplashScreen';
 import '../global.css';
 
 // Custom hooks for modular functionality
@@ -93,15 +102,21 @@ function RootLayoutInner() {
   // Handle routing logic (waits for fonts and hydration)
   const isRoutingReady = useRoutingLogic(fontsLoaded);
 
+  // Hide splash screen once app is ready
+  useEffect(() => {
+    if (fontsLoaded && isRoutingReady) {
+      // Small delay to ensure the UI has actually painted
+      const timer = setTimeout(async () => {
+        await SplashScreen.hideAsync().catch(() => { });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [fontsLoaded, isRoutingReady]);
+
   // Don't render Stack until fonts are loaded AND routing logic has run at least once
   // This prevents the home screen from flashing before redirect
-  // Show a loading screen with proper background color instead of null to prevent dark flash
   if (!fontsLoaded || !isRoutingReady) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
-        <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-      </View>
-    );
+    return <SecondarySplashScreen />;
   }
 
   return (
