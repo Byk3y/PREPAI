@@ -165,138 +165,81 @@ async function generateTitleAndPreview(
   model: string;
   latency: number;
 }> {
-  const systemPrompt = `You are an elite academic summarizer. Generate a scannable title, a concise narrative overview, and three curiosity-gap suggested questions for study material.
+  const systemPrompt = `You are Brigo, an elite academic architect. Your mission is to provide a "Premium Glimpse" into new study material. 
 
-Output ONLY valid JSON in this exact format:
+TASK: Generate a scannable title, a concise narrative overview, and three curiosity-gap suggested questions.
+
+OUTPUT FORMAT (JSON only):
 {
-  "title": "Concise, professional headline (max 60 characters)",
-  "emoji": "A single atmospheric/premium emoji (e.g. ✨, 🧘, 🧠, 🧬, 🌌) that fits the vibe",
-  "color": "One of: blue, green, orange, purple, pink (choose what fits the topic best)",
-  "overview": "A clear, narrative overview (60-85 words) as a single continuous paragraph. Explain the central themes and why it matters.",
-  "suggested_questions": [
-    "A content-specific question that sparks curiosity",
-    "A practical application question",
-    "A deep-dive question about a core concept"
-  ]
+  "title": "Synthesis headline (max 60 chars)",
+  "emoji": "Atmospheric/premium emoji (e.g. ✨, 🧬, 🌌)",
+  "color": "One of: blue, green, orange, purple, pink",
+  "overview": "Single continuous paragraph (60-85 words). Explain the central themes and the 'So what?' factor.",
+  "suggested_questions": ["Question 1", "Question 2", "Question 3"]
 }
 
-CRITICAL RULES:
-1. The overview MUST be 60-85 words.
-2. Write exactly 1 paragraph for the overview.
-3. Jump DIRECTLY into the insight. DO NOT start with "The text reveals...", "This document explores...", "This video discusses...", or any similar meta-commentary.
-4. Use **bold** strategically (3-5 key phrases) in the overview only.
-5. Avoid generic emojis like 📚 or 📖. Use emojis that capture the *feeling* of the content.
-6. TITLE STYLE: Concise and professional. Avoid clickbait or "social media" punchy headlines. DO NOT use abbreviations like "EQ" for "Emotional Intelligence". Focus on a clear, synthesis headline.
-7. suggested_questions MUST be specific to the text.
-8. The title field must be plain text with NO markdown formatting.`;
+ELITE RULES:
+1. **NO META-COMMENTARY**: Jump directly into the insight. Never start with "This text..." or "In this video...".
+2. **STYLE**: Use **bold** for 3-5 key concepts inside the overview.
+3. **THE MASTERY GAP**: End the overview with a single tactical sentence identifying a concept NOT fully covered in the sources that the user should investigate next to be exam-ready.
+4. **TITLE**: Professional and high-level. Avoid abbreviations.
+5. **QUESTIONS**: Must be specific to the text, designed to spark a "need to know" feeling.
+6. **WORD COUNT**: The overview (including the Mastery Gap) MUST be between 75 and 100 words. Quality over quantity.`;
 
-  // Use more content for better context (7000 chars instead of 3000)
-  const contentWindow = Math.min(7000, extractedContent.length);
-  const userPrompt = `Read the provided document and produce the requested JSON.
-
-Current title (improve it): ${currentTitle || 'Untitled'}
-
-Document content (first ${contentWindow} characters):
+  // With Grok 4.1 Fast (2M context), we can analyze a massive portion of the material
+  const contentWindow = Math.min(200000, extractedContent.length);
+  const userPrompt = `Existing Notebook Title: ${currentTitle || 'Untitled'}
+Combined Material Content:
 ${extractedContent.substring(0, contentWindow)}
 
-Generate the JSON with title, narrative overview, and suggested questions.`;
+Provide the premium preview JSON that synthesizes all available source material.`;
 
-  // Call LLM with retry (uses cheap model: Grok)
-  // Increased temperature to 0.5 for better synthesis
+  // Call LLM with retry
   const result = await callLLMWithRetry('preview', systemPrompt, userPrompt, {
-    temperature: 0.5,
-    maxRetries: 3,
+    temperature: 0.6,
+    maxRetries: 2,
   });
 
-  // Parse JSON response
   try {
     const response = JSON.parse(result.content);
 
-    // Validate structure and types
-    if (
-      !response.title ||
-      typeof response.title !== 'string' ||
-      !response.emoji ||
-      typeof response.emoji !== 'string' ||
-      !response.color ||
-      !['blue', 'green', 'orange', 'purple', 'pink'].includes(response.color) ||
-      !response.overview ||
-      typeof response.overview !== 'string'
-    ) {
-      throw new Error('Invalid response structure: missing or invalid fields');
+    // Basic structure validation
+    if (!response.title || !response.emoji || !response.overview) {
+      throw new Error('Invalid response structure from LLM');
     }
 
-    // Trim, strip markdown, and validate title length
-    let cleanedTitle = response.title.trim();
-    // Strip any markdown formatting that might have been added (defensive programming)
-    cleanedTitle = stripMarkdown(cleanedTitle).trim();
-    if (cleanedTitle.length === 0) {
-      throw new Error('Title cannot be empty');
-    }
-    if (cleanedTitle.length > 60) {
-      throw new Error(`Title too long: ${cleanedTitle.length} characters(max 60)`);
-    }
-
-    // Validate overview length (60-85 words target - quick, scannable overview)
-    // Remove any paragraph breaks/newlines and convert to single paragraph
-    let trimmedOverview = response.overview.trim();
+    let cleanedTitle = stripMarkdown(response.title.trim()).substring(0, 60);
     // Replace multiple newlines/paragraph breaks with a single space
-    trimmedOverview = trimmedOverview.replace(/\n\s*\n/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    let trimmedOverview = response.overview.trim().replace(/\n\s*\n/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
 
-    if (trimmedOverview.length === 0) {
-      throw new Error('Overview cannot be empty');
-    }
     const wordCount = trimmedOverview.split(/\s+/).length;
 
-    // STRICT VALIDATION: Reject if less than 55 words (allowing small margin for 60 word minimum)
-    if (wordCount < 55) {
-      // Throw error to force retry - the model must generate a proper overview
-      throw new Error(
-        `Overview too short: ${wordCount} words(minimum 60 words required). ` +
-        `The overview must be a clear, concise narrative(60 - 85 words), not a brief summary. ` +
-        `It should explain what the document is about, central themes, author's perspective, purpose and context, and why it matters. ` +
-        `Write in a neutral, polished, professional tone. Do not write a TL;DR or bullet list. Aim for concise but informative.`
-      );
+    // ELASTIC CONSTRAINTS: Only retry if it's way off.
+    // We want to avoid "infinite retry loops" that cause 500s for users.
+    if (wordCount < 40) {
+      throw new Error(`Overview too short (${wordCount} words). Brigo requires more depth.`);
     }
-    // STRICT VALIDATION: Reject if too long (over 90 words - allowing small margin for 85 word maximum)
-    if (wordCount > 90) {
-      // Throw error to force retry - the model must generate a concise overview
-      throw new Error(
-        `Overview too long: ${wordCount} words (maximum 85 words required). ` +
-        `The overview must be a quick, scannable summary (60-85 words), not a lengthy description. ` +
-        `Focus on the most important information: what the document is about, central themes, and why it matters. ` +
-        `Write in a neutral, polished, professional tone. Be concise and informative.`
-      );
-    }
-    // Warn if slightly outside ideal range but still acceptable
-    if (wordCount < 60 || wordCount > 85) {
-      console.log(`Overview word count: ${wordCount} (target: 60-85 words for quick, scannable overview)`);
+    if (wordCount > 130) {
+      throw new Error(`Overview too long (${wordCount} words). Brigo requires more conciseness.`);
     }
 
-    // Extract preview
-    const preview = {
-      overview: trimmedOverview,
-      suggested_questions: response.suggested_questions || [],
-    };
-
-    // Return cleaned title (markdown stripped), preview with actual usage statistics from LLM
+    // Return cleaned title, preview with actual usage statistics
     return {
       title: cleanedTitle,
       emoji: response.emoji,
-      color: response.color,
-      preview,
+      color: response.color || 'blue',
+      preview: {
+        overview: trimmedOverview,
+        suggested_questions: response.suggested_questions || [],
+      },
       usage: result.usage,
       costCents: result.costCents,
       model: result.model,
       latency: result.latency,
     };
-  } catch (parseError) {
+  } catch (parseError: any) {
     console.error('Failed to parse LLM response:', result.content);
-    const errorDetails = parseError instanceof Error ? parseError.message : String(parseError);
-    const responsePreview = result.content?.substring(0, 200) || '[empty response]';
-    throw new Error(
-      `Failed to parse LLM response: ${errorDetails}. Response preview: ${responsePreview}`
-    );
+    throw new Error(`Preview generation failed to produce valid JSON: ${parseError.message}`);
   }
 }
 
@@ -351,27 +294,24 @@ Deno.serve(async (req) => {
       .single();
 
     if (materialError || !material) {
-      return new Response(
-        JSON.stringify({
-          error: 'Material not found',
-          details: materialError,
-        }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Material not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Get notebook and verify user ownership
+    // Get notebook from the new notebook_id column
+    const notebookId = material.notebook_id;
+
+    if (!notebookId) {
+      return new Response(JSON.stringify({ error: 'Material is not associated with a notebook' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const { data: notebook, error: notebookError } = await supabase
       .from('notebooks')
       .select('id, user_id, title')
-      .eq('material_id', material_id)
+      .eq('id', notebookId)
       .single();
 
     if (notebookError || !notebook) {
-      return new Response(JSON.stringify({ error: 'Associated notebook not found' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(JSON.stringify({ error: 'Notebook not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // AUTHORIZATION: Verify user owns this notebook/material
@@ -384,7 +324,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const notebookId = notebook.id;
     const userId = notebook.user_id;
     const originalTitle = notebook.title; // Store original title for error recovery
 
@@ -557,14 +496,7 @@ Deno.serve(async (req) => {
 
       console.log(`Extracted ${extractedContent.length} characters`);
 
-      // Guard: Validate content length before processing
-      if (!extractedContent || extractedContent.trim().length < 10) {
-        throw new Error(
-          'Content too short to generate meaningful title and preview (minimum 10 characters required)'
-        );
-      }
-
-      // STEP 2: Save extracted content (partial success - show even if preview fails)
+      // STEP 2: Save extracted content
       await supabase
         .from('materials')
         .update({
@@ -578,22 +510,41 @@ Deno.serve(async (req) => {
         })
         .eq('id', material_id);
 
-      // STEP 3: Generate AI title and preview
-      console.log('Generating AI title and preview...');
+      // STEP 3: Fetch ALL processed materials for this notebook to generate a combined preview
+      const { data: allMaterials } = await supabase
+        .from('materials')
+        .select('content, meta, kind')
+        .eq('notebook_id', notebookId)
+        .eq('processed', true);
+
+      let combinedContent = "";
+      if (allMaterials && allMaterials.length > 0) {
+        combinedContent = allMaterials
+          .map((m: any, i: number) => {
+            const title = m.meta?.title || m.meta?.filename || `Source ${i + 1}`;
+            return `--- SOURCE: ${title} (${m.kind}) ---\n${m.content}\n--- END ---`;
+          })
+          .join('\n\n');
+      } else {
+        combinedContent = extractedContent; // Fallback to current
+      }
+
+      // STEP 4: Generate AI title and preview based on COMBINED content
+      console.log('Generating AI title and preview from combined sources...');
       const previewStartTime = Date.now();
 
-      const llmResult = await generateTitleAndPreview(extractedContent, notebook.title);
+      const llmResult = await generateTitleAndPreview(combinedContent, notebook.title);
       const aiTitle = llmResult.title;
       const preview = llmResult.preview;
 
       const previewLatency = Date.now() - previewStartTime;
       console.log(`AI title and preview generated in ${previewLatency}ms`);
 
-      // STEP 4: Update material with preview_text (use overview for preview_text)
+      // STEP 5: Update material with preview_text (use overview for preview_text)
       await supabase
         .from('materials')
         .update({
-          preview_text: preview.overview,
+          preview_text: preview.overview.substring(0, 500), // Scannable preview
         })
         .eq('id', material_id);
 

@@ -77,12 +77,13 @@ Rules for overview:
 - Write exactly 1 paragraph with NO paragraph breaks
 - Write in a neutral, polished, professional tone`;
 
-    const contentWindow = Math.min(7000, extractedContent.length);
+    // With Grok 4.1 Fast (2M context), we can analyze a massive portion of the material
+    const contentWindow = Math.min(100000, extractedContent.length);
     const userPrompt = `Read the provided document and produce a clear, concise overview (60-85 words).
 
 Current title (may be auto-generated, improve it): ${currentTitle || 'Untitled'}
 
-Document content (first ${contentWindow} characters):
+Document content analysis:
 ${extractedContent.substring(0, contentWindow)}
 
 Generate title and overview JSON.`;

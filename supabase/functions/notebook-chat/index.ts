@@ -1,6 +1,7 @@
 import { createClient } from 'supabase';
 import { getRequiredEnv } from '../_shared/env.ts';
 import { getCorsHeaders, getCorsPreflightHeaders } from '../_shared/cors.ts';
+import { callLLMWithRetry } from '../_shared/openrouter.ts';
 
 interface ChatRequest {
     notebook_id: string;
@@ -20,7 +21,6 @@ Deno.serve(async (req: Request) => {
         const supabaseUrl = getRequiredEnv('SUPABASE_URL');
         const supabaseServiceKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
-        const openRouterApiKey = getRequiredEnv('OPENROUTER_API_KEY');
 
         // 1. AUTHENTICATION
         const authHeader = req.headers.get('authorization');
@@ -36,10 +36,44 @@ Deno.serve(async (req: Request) => {
             });
         }
 
-        // 2. PARSE REQUEST
+        // 2. PARSE REQUEST & FETCH METADATA
         const { notebook_id, message, selected_material_ids } = await req.json() as ChatRequest;
 
-        // 3. CONTEXT RETRIEVAL
+        // Fetch User Personalization (Pet Name, Education, Age)
+        const [{ data: petData }, { data: profile }] = await Promise.all([
+            supabase
+                .from('pet_states')
+                .select('name')
+                .eq('user_id', user.id)
+                .single(),
+            supabase
+                .from('profiles')
+                .select('meta')
+                .eq('id', user.id)
+                .single()
+        ]);
+
+        const petName = petData?.name || 'Sparky';
+        const educationLevel = (profile?.meta as any)?.education_level || 'lifelong';
+        const ageBracket = (profile?.meta as any)?.age_bracket || '25_34';
+
+        // 3. FETCH CHAT HISTORY (Last 10 messages)
+        const { data: historyData } = await supabase
+            .from('notebook_chat_messages')
+            .select('role, content')
+            .eq('notebook_id', notebook_id)
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        const history = (historyData || [])
+            .reverse()
+            .map((m: any) => ({
+                role: m.role as 'user' | 'assistant',
+                content: m.content
+            }));
+
+        // 4. CONTEXT RETRIEVAL
         let context = "";
         if (selected_material_ids && selected_material_ids.length > 0) {
             const { data: materials } = await supabase
@@ -58,7 +92,7 @@ Deno.serve(async (req: Request) => {
             }
         }
 
-        // 4. SAVE USER MESSAGE
+        // 5. SAVE USER MESSAGE (Optimistic save already happened in UI, but we save to DB here)
         await supabase.from('notebook_chat_messages').insert({
             notebook_id,
             user_id: user.id,
@@ -67,64 +101,33 @@ Deno.serve(async (req: Request) => {
             sources: selected_material_ids || [],
         });
 
-        // 5. CALL LLM (NON-STREAMING)
-        const systemPrompt = `You are Brigo, an elite AI study partner. Your goal is to make learning feel effortless and digestible for someone on a mobile phone.
+        // 6. CALL LLM (Brigo Persona 4.0 - Surgical Consultant)
+        const systemPrompt = `You are Brigo, a Surgical Exam Consultant. You provide elite, tactical advice for high-performers preparing for exams. Your job is to extract maximum value from the provided material.
 
-GOLDEN RULE: **Honor the user's request first.** If they ask for a specific format (e.g., "3 sentences", "one word", "bullet points only"), give them EXACTLY that. Do not add extra sections.
+OPERATIONAL RULES:
+- **No Headers or Templates**: Do not use headers like "SYNOPSIS" or "STRATEGIC BREAKDOWN". Reply with naturally structured intelligence.
+- **Surgical Precision**: If you can explain a concept in 2 powerhouse sentences, do it. Never summarize just to fill space.
+- **The Tactical Edge**: Identify gaps in the user's logic and push them toward mastery. Use bolding ONLY for critical exam concepts.
+- **Strict Professionalism**: Do not mention the pet (${petName}) or act as a "companion". You are a senior specialist conducting a consultation.
+- **Clinically Authoritative Citations**: When referencing the provided material, integrate the source naturally (e.g., "According to your notes on [Topic]..." or "Based on the [FileName] past paper..."). Do not use academic bracket citations like [1].
 
-ADAPTIVE RESPONSE GUIDELINES:
-
-**For simple/direct questions:**
-Give a direct, concise answer. No extra sections needed.
-
-**For complex analysis or "explain this" requests (when no format is specified):**
-Structure your response like this:
-• **Quick Answer**: 1-2 sentences hitting the main point.
-• **Key Points**: 2-4 bullet points breaking down the core ideas. Use **bold** for key terms.
-• **Takeaway**: One sentence on why this matters (optional, include only if genuinely valuable).
-
-**For summarization requests:**
-Match the requested length. If they say "3 sentences", give exactly 3 sentences. If they say "brief", keep it under 50 words.
-
-**For Q&A / quiz-style questions:**
-Be direct. Give the answer, then a 1-line explanation if helpful.
-
-STYLE GUIDELINES:
-- Mobile-first: Avoid walls of text. Use whitespace and bullets generously.
-- Tone: Intelligent, warm, and clear. Like a brilliant friend explaining things.
-- Markdown: Use **bold** for key terms. Avoid deep nesting.
-- Source Rule: Use ONLY the provided context. If the context doesn't cover the question, say so briefly and offer general knowledge if helpful.
+TONE:
+- Direct, clinical, and high-stakes. You are a senior partner guiding a high-performer.
 
 CONTEXT:
-${context || "No sources selected. Using general knowledge."}
-`;
+${context || "No source materials currently active. Providing baseline tactical knowledge."}`;
 
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${openRouterApiKey}`,
-                'Content-Type': 'application/json',
-                'X-Title': 'Brigo Chat',
-            },
-            body: JSON.stringify({
-                model: 'x-ai/grok-4.1-fast',
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: message },
-                ],
-                stream: false,
-                temperature: 0.7,
-                max_tokens: 1500,
-            }),
-        });
+        // Append the current message to history for the call
+        const fullConversation = [...history, { role: 'user' as const, content: message }];
 
-        if (!response.ok) {
-            const err = await response.text();
-            throw new Error(`LLM Error: ${err}`);
-        }
+        const llmResponse = await callLLMWithRetry(
+            'notebook_chat',
+            systemPrompt,
+            fullConversation,
+            { temperature: 0.75 }
+        );
 
-        const result = await response.json();
-        const assistantContent = result.choices[0]?.message?.content || "I couldn't generate a response.";
+        const assistantContent = llmResponse.content;
 
         // 6. SAVE ASSISTANT MESSAGE
         await supabase.from('notebook_chat_messages').insert({

@@ -27,37 +27,37 @@ interface LLMResponse {
 // Model configurations for different job types
 const MODELS: Record<string, ModelConfig> = {
   preview: {
-    name: 'x-ai/grok-4.1-fast', // FREE on OpenRouter! 2M context window
-    maxTokens: 1000, // Increased for comprehensive narrative overview (150-200 words)
-    costPer1kInput: 0.0, // FREE
-    costPer1kOutput: 0.0, // FREE
-  },
-  studio: {
-    name: 'x-ai/grok-4.1-fast', // High quality for flashcards/quiz with 128k context window
-    maxTokens: 4000, // Increased for batch generation
-    costPer1kInput: 0.0005, // $0.50 per 1M tokens
-    costPer1kOutput: 0.0015, // $1.50 per 1M tokens
-  },
-  audio_script: {
-    name: 'anthropic/claude-3.5-sonnet',
-    maxTokens: 1500,
-    costPer1kInput: 0.003,
-    costPer1kOutput: 0.015,
-  },
-  notebook_chat: {
-    name: 'x-ai/grok-4.1-fast', // User request
-    maxTokens: 2000,
+    name: 'google/gemini-2.0-flash-exp:free', // Fast & Reliable with 1M context
+    maxTokens: 1000,
     costPer1kInput: 0.0,
     costPer1kOutput: 0.0,
+  },
+  studio: {
+    name: 'google/gemini-2.0-flash-exp', // Consistent JSON generation for tools
+    maxTokens: 4000,
+    costPer1kInput: 0.0001, // Very cheap
+    costPer1kOutput: 0.0004,
+  },
+  audio_script: {
+    name: 'x-ai/grok-4.1-fast', // Ultra-fast creative dialogue
+    maxTokens: 1500,
+    costPer1kInput: 0.0005, // Pricing estimate for Grok Fast
+    costPer1kOutput: 0.0015,
+  },
+  notebook_chat: {
+    name: 'x-ai/grok-4.1-fast', // Omniscient chat with 2M context
+    maxTokens: 2000,
+    costPer1kInput: 0.0005,
+    costPer1kOutput: 0.0015,
   },
 };
 
 // Fallback models if primary fails
 const FALLBACK_MODELS: Record<string, string[]> = {
-  preview: ['deepseek/deepseek-chat', 'qwen/qwen-2.5-7b-instruct', 'mistralai/mistral-small'],
-  studio: ['anthropic/claude-3.5-sonnet', 'openai/gpt-4o', 'google/gemini-2.0-flash-exp'],
+  preview: ['deepseek/deepseek-chat', 'mistralai/mistral-small'],
+  studio: ['x-ai/grok-4.1-fast', 'openai/gpt-4o'],
   audio_script: ['openai/gpt-4o-mini'],
-  notebook_chat: ['google/gemini-2.0-flash-exp', 'anthropic/claude-3.5-haiku'],
+  notebook_chat: ['x-ai/grok-4.1-fast', 'openai/gpt-4o'],
 };
 
 /**
@@ -66,7 +66,7 @@ const FALLBACK_MODELS: Record<string, string[]> = {
 export async function callLLM(
   jobType: 'preview' | 'studio' | 'audio_script' | 'notebook_chat',
   systemPrompt: string,
-  userPrompt: string,
+  messages: { role: 'user' | 'assistant'; content: string }[] | string,
   options: {
     temperature?: number;
     model?: string; // Optional: override default model
@@ -78,6 +78,11 @@ export async function callLLM(
   const startTime = Date.now();
 
   const apiKey = getRequiredEnv('OPENROUTER_API_KEY');
+
+  // Convert string prompt to message format for internal use
+  const history = typeof messages === 'string'
+    ? [{ role: 'user' as const, content: messages }]
+    : messages;
 
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -92,7 +97,7 @@ export async function callLLM(
         model: modelName,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
+          ...history,
         ],
         max_tokens: config.maxTokens,
         temperature: options.temperature ?? 0.7,
@@ -140,7 +145,7 @@ export async function callLLM(
     const fallbacks = FALLBACK_MODELS[jobType];
     if (fallbacks && fallbacks.length > 0 && !options.model) {
       console.warn(`Primary model failed, trying fallback: ${fallbacks[0]}`);
-      return callLLM(jobType, systemPrompt, userPrompt, {
+      return callLLM(jobType, systemPrompt, messages, {
         ...options,
         model: fallbacks[0],
       });
@@ -157,7 +162,7 @@ export async function callLLM(
 export async function callLLMWithRetry(
   jobType: 'preview' | 'studio' | 'audio_script' | 'notebook_chat',
   systemPrompt: string,
-  userPrompt: string,
+  messages: { role: 'user' | 'assistant'; content: string }[] | string,
   options?: { temperature?: number; maxRetries?: number; stream?: boolean }
 ): Promise<LLMResponse> {
   const maxRetries = options?.maxRetries || 3;
@@ -165,7 +170,7 @@ export async function callLLMWithRetry(
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      return await callLLM(jobType, systemPrompt, userPrompt, options);
+      return await callLLM(jobType, systemPrompt, messages, options);
     } catch (error: unknown) {
       const err = error instanceof Error ? error : new Error(String(error));
       lastError = err;
