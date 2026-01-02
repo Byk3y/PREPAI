@@ -54,23 +54,34 @@ export default function AuthCallbackScreen() {
           let accessToken = (queryParams.access_token || params.access_token) as string | undefined;
           let refreshToken = (queryParams.refresh_token || params.refresh_token) as string | undefined;
 
+          // SECURITY: Sanitize raw params
+          if (accessToken) accessToken = accessToken.trim();
+          if (refreshToken) refreshToken = refreshToken.trim();
+
           // If not in query params, check hash fragment (OAuth callbacks use hash)
           if (!accessToken || !refreshToken) {
             try {
               const urlObj = new URL(url);
-              const fragment = urlObj.hash.substring(1); // Remove the '#'
+              // Supabase OAuth callbacks often use #access_token=...&refresh_token=...
+              // We check both the hash and potentially query if URL parsing differed
+              const fragment = urlObj.hash.substring(1) || urlObj.search.substring(1);
+
               if (fragment) {
-                const hashParams = new URLSearchParams(fragment);
-                accessToken = accessToken || (hashParams.get('access_token') as string | undefined);
-                refreshToken = refreshToken || (hashParams.get('refresh_token') as string | undefined);
+                const searchParams = new URLSearchParams(fragment);
+                accessToken = accessToken || (searchParams.get('access_token')?.trim() as string | undefined);
+                refreshToken = refreshToken || (searchParams.get('refresh_token')?.trim() as string | undefined);
+
+                // Fallback for types if they are in different keys
+                if (!accessToken) accessToken = searchParams.get('token')?.trim() as string | undefined;
               }
             } catch (e) {
-              // URL parsing failed, try regex fallback
-              const hashMatch = url.match(/#access_token=([^&]+).*refresh_token=([^&]+)/);
-              if (hashMatch) {
-                accessToken = accessToken || decodeURIComponent(hashMatch[1]);
-                refreshToken = refreshToken || decodeURIComponent(hashMatch[2]);
-              }
+              console.warn('[Auth Callback] URL parsing failed, using regex fallback:', e);
+              // Regex fallback for malformed URLs or specific deep link formats
+              const accessTokenMatch = url.match(/[#?&]access_token=([^&]+)/);
+              const refreshTokenMatch = url.match(/[#?&]refresh_token=([^&]+)/);
+
+              if (accessTokenMatch) accessToken = accessToken || decodeURIComponent(accessTokenMatch[1]).trim();
+              if (refreshTokenMatch) refreshToken = refreshToken || decodeURIComponent(refreshTokenMatch[2]).trim();
             }
           }
 
@@ -182,8 +193,7 @@ export default function AuthCallbackScreen() {
                 if (!hasValidFirstName || !hasValidLastName) {
                   // Extract name from OAuth metadata
                   const oauthName = user.user_metadata?.name ||
-                    user.user_metadata?.full_name ||
-                    user.raw_user_meta_data?.name;
+                    user.user_metadata?.full_name;
 
                   if (oauthName && typeof oauthName === 'string' && oauthName.trim() !== '') {
                     // Parse OAuth name into first and last
@@ -241,14 +251,14 @@ export default function AuthCallbackScreen() {
             const defaultNames = ['Nova', 'Sparky'];
 
             try {
-              const { data: existingPetState, error: petStateError } = await supabase
-                .from('pet_states')
+              const { data: existingPetState, error: petStateError } = await (supabase
+                .from('pet_states' as any) as any)
                 .select('name')
                 .eq('user_id', user.id)
                 .single();
 
               // PGRST116 = no rows returned (pet state doesn't exist yet)
-              if (petStateError && petStateError.code === 'PGRST116') {
+              if (petStateError && (petStateError as any).code === 'PGRST116') {
                 // No pet state exists - save the new name from onboarding
                 // This will create the pet state with the new name
                 let retryCount = 0;
@@ -280,15 +290,15 @@ export default function AuthCallbackScreen() {
                 throw petStateError;
               }
 
-              // Check if pet already has a customized name (not default)
-              const hasCustomName = existingPetState &&
-                existingPetState.name &&
-                existingPetState.name.trim() !== '' &&
-                !defaultNames.includes(existingPetState.name.trim());
+              const petState = existingPetState as any;
+              const hasCustomName = petState &&
+                petState.name &&
+                petState.name.trim() !== '' &&
+                !defaultNames.includes(petState.name.trim());
 
               if (hasCustomName) {
                 // Pet already has a customized name - preserve it, don't overwrite
-                console.log('Pet name already customized, preserving:', existingPetState.name);
+                console.log('Pet name already customized, preserving:', petState.name);
                 store.clearPendingPetName(); // Clear pending name since we're not using it
               } else {
                 // No custom name exists - save the new name from onboarding

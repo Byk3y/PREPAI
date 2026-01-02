@@ -53,6 +53,7 @@ export default function HomeScreen() {
     handleCameraUpload,
     handleTextSave,
     handleYouTubeImport,
+    handleWebsiteImport,
     showUpgradeModal: showCreateUpgradeModal,
     setShowUpgradeModal: setShowCreateUpgradeModal,
     upgradeModalProps,
@@ -118,7 +119,7 @@ export default function HomeScreen() {
         break;
       case 'website':
         if (providedUrl) {
-          Alert.alert('Coming Soon', 'Website import feature will be available soon.');
+          newNotebookId = await handleWebsiteImport(providedUrl);
         } else {
           Alert.prompt(
             'Import Website',
@@ -127,8 +128,11 @@ export default function HomeScreen() {
               { text: 'Cancel', style: 'cancel' },
               {
                 text: 'Import',
-                onPress: (url: string | undefined) => {
-                  if (url) Alert.alert('Coming Soon', 'Website import feature will be available soon.');
+                onPress: async (url: string | undefined) => {
+                  if (url) {
+                    const id = await handleWebsiteImport(url);
+                    if (id) navigateToNotebook(id);
+                  }
                 }
               }
             ],

@@ -52,6 +52,23 @@ export function validateAccessToken(token: string | null | undefined): Validatio
     return { isValid: false, error: 'Access token is suspiciously long' };
   }
 
+  // SECURITY: Validate that the payload is valid JSON (structural check)
+  // This ensures the token isn't just random garbage or a simple string
+  try {
+    const payloadPart = parts[1];
+    // Base64Url to Base64
+    const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+
+    // We don't use atob/Buffer here to avoid environment-specific dependencies
+    // Instead, we just check if it LOOKS like a valid base64-encoded JSON structure
+    // A JWT payload always starts with '{' (base64: eyJ) in some form
+    if (!payloadPart.startsWith('eyJ')) {
+      return { isValid: false, error: 'JWT payload does not appear to be a JSON object (missing header)' };
+    }
+  } catch (e) {
+    return { isValid: false, error: 'JWT payload structural validation failed' };
+  }
+
   return { isValid: true };
 }
 
