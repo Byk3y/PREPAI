@@ -243,26 +243,6 @@ export default function AuthScreen() {
           </View>
 
           {/* Note: No separate login link needed - magic link works for both signup and login */}
-
-          {/* Debug: Force Onboarding - ONLY IN DEV */}
-          {__DEV__ && (
-            <TouchableOpacity
-              onPress={() => router.replace('/onboarding')}
-              style={{
-                marginTop: 20,
-                padding: 10,
-                borderRadius: 8,
-                backgroundColor: colors.surfaceElevated,
-                borderWidth: 1,
-                borderColor: colors.border,
-                borderStyle: 'dashed',
-              }}
-            >
-              <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: 'SpaceGrotesk-Medium' }}>
-                👨‍💻 Debug: Enter Onboarding Flow
-              </Text>
-            </TouchableOpacity>
-          )}
         </View>
       </View>
     </SafeAreaView>

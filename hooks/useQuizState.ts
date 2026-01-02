@@ -8,6 +8,7 @@ import type { Quiz, AnswerOption } from '@/lib/quiz/types';
 import { useStore } from '@/lib/store';
 import { completionService } from '@/lib/services/completionService';
 import { calculateScore, calculateMetrics } from '@/lib/quiz/utils';
+import { track } from '@/lib/services/analyticsService';
 import type { UseQuizStateReturn } from '@/lib/quiz/types';
 
 interface UseQuizStateProps {
@@ -34,10 +35,22 @@ export function useQuizState({
 
   // Task completion tracking
   const completionRecordedRef = useRef(false);
+  const sessionStartRef = useRef(Date.now());
+  const trackingInitRef = useRef(false);
   const { authUser, checkAndAwardTask, refreshTaskProgress, getUserTimezone } = useStore();
 
   const totalQuestions = quiz.questions.length;
   const currentQuestion = quiz.questions[currentQuestionIndex];
+
+  // Track quiz start (only once)
+  if (!trackingInitRef.current && totalQuestions > 0) {
+    trackingInitRef.current = true;
+    track('quiz_started', {
+      quiz_id: quiz.id,
+      notebook_id: quiz.notebook_id,
+      total_questions: totalQuestions,
+    });
+  }
 
   // Validate quiz has questions
   if (totalQuestions === 0) {
@@ -84,19 +97,30 @@ export function useQuizState({
   // Calculate and show results
   const calculateResults = useCallback(async () => {
     const scorePercent = calculateScore(answers, quiz.questions);
+    const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
 
     setShowResults(true);
     if (onComplete) {
       onComplete(scorePercent);
     }
 
+    // Track quiz completion
+    const metrics = calculateMetrics(answers, quiz.questions);
+    track('quiz_completed', {
+      quiz_id: quiz.id,
+      notebook_id: quiz.notebook_id,
+      score_percent: scorePercent,
+      correct_count: metrics.correctCount,
+      total_questions: totalQuestions,
+      duration_seconds: durationSeconds,
+      is_perfect_score: scorePercent === 100,
+    });
+
     // Record quiz completion for daily task (only once per quiz session)
     if (!completionRecordedRef.current && authUser) {
       completionRecordedRef.current = true;
 
       try {
-        const metrics = calculateMetrics(answers, quiz.questions);
-
         // Record quiz completion via service
         await completionService.recordQuizCompletion(
           authUser.id,

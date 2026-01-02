@@ -33,6 +33,7 @@ import {
 import { usePetTasks } from '@/hooks/usePetTasks';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 import { BrigoLogo } from '@/components/BrigoLogo';
+import { track } from '@/lib/services/analyticsService';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -60,6 +61,15 @@ export default function PetSheetScreen() {
       loadDailyTasks();
     }
   }, [foundationalTasks, dailyTasks.length, loadDailyTasks]);
+
+  // Track pet sheet opened
+  React.useEffect(() => {
+    track('pet_sheet_opened', {
+      streak: user.streak,
+      pet_stage: currentStage,
+      is_at_risk: isAtRiskChecked || isStreakLost,
+    });
+  }, []);
 
   // Derive stage from petState (automatically calculated from points)
   // Clamp to valid stage range for UI (1-3)
@@ -95,6 +105,10 @@ export default function PetSheetScreen() {
     if (!canRestore) return;
     const result = await restoreStreak();
     if (result.success) {
+      track('streak_restored', {
+        restored_streak: recoverableStreak,
+        restores_remaining: user.streak_restores - 1,
+      });
       setHasJustRestored(true);
     }
   };
@@ -109,6 +123,9 @@ export default function PetSheetScreen() {
   const handleNameChange = async (newName: string) => {
     // Use updatePetName instead of setPetState to trigger task completion check
     await updatePetName(newName);
+    track('pet_name_changed', {
+      pet_stage: currentStage,
+    });
   };
 
   // Dark mode gradient colors - slightly muted version of the golden theme

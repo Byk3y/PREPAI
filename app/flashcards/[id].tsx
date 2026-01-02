@@ -3,7 +3,7 @@
  * Route: /flashcards/[id] where id = notebook_id
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FlashcardViewer } from '@/components/studio/FlashcardViewer';
@@ -14,6 +14,7 @@ import { studioService } from '@/lib/services/studioService';
 import { notebookService } from '@/lib/services/notebookService';
 import { useStore } from '@/lib/store';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import { track } from '@/lib/services/analyticsService';
 
 export default function FlashcardsScreen() {
   const { id, setId } = useLocalSearchParams<{ id: string; setId?: string }>(); // id is notebook_id
@@ -24,6 +25,7 @@ export default function FlashcardsScreen() {
   const [initialIndex, setInitialIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const sessionStartRef = useRef(Date.now());
 
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
@@ -69,6 +71,13 @@ export default function FlashcardsScreen() {
 
       setFlashcards(targetCards);
 
+      // Track flashcard session started
+      track('flashcard_session_started', {
+        notebook_id: id,
+        set_id: activeSetId,
+        total_cards: targetCards.length,
+      });
+
       // Determine starting card specifically for this set
       let startIndex = 0;
       if (progressResult && targetCards.length > 0) {
@@ -96,6 +105,14 @@ export default function FlashcardsScreen() {
   };
 
   const handleClose = () => {
+    // Track session end
+    const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    track('flashcard_session_ended', {
+      notebook_id: id,
+      set_id: setId,
+      total_cards: flashcards.length,
+      duration_seconds: durationSeconds,
+    });
     router.back();
   };
 

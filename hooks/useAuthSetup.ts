@@ -6,7 +6,7 @@
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useStore } from '@/lib/store';
-import { identify, clearUser } from '@/lib/services/analyticsService';
+import { identify, clearUser, track, setUserProperties } from '@/lib/services/analyticsService';
 import { identifyPurchaser, logoutPurchaser } from '@/lib/purchases';
 import { isOnboardingComplete } from '@/lib/auth/onboardingStatus';
 
@@ -66,6 +66,12 @@ export function useAuthSetup() {
           // Identify user in Mixpanel (only on new sign-in or user change)
           if (userIdChanged || event === 'SIGNED_IN') {
             identify(session.user.id);
+
+            // Track sign in event
+            track('user_signed_in', {
+              auth_event: event,
+            });
+
             // Run RevenueCat login in background - don't block auth flow
             // The subscription check will use database tier initially
             identifyPurchaser(session.user.id).catch((err) => {
@@ -111,6 +117,32 @@ export function useAuthSetup() {
             const hasCompleted = isOnboardingComplete(meta);
             setHasCompletedOnboarding(hasCompleted);
 
+            // Sync rich user properties to Mixpanel for segmentation
+            const storeState = useStore.getState() as any;
+            const { notebooks, petState, user } = storeState;
+            const subscriptionData = storeState.subscriptionData; // May not exist
+            const createdAt = session.user.created_at;
+            const daysSinceSignup = createdAt
+              ? Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24))
+              : 0;
+
+            setUserProperties({
+              // Subscription & monetization
+              subscription_tier: subscriptionData?.tier || 'free',
+              is_trial: subscriptionData?.is_trial || false,
+              // Engagement metrics
+              streak: user?.streak || 0,
+              total_notebooks: notebooks?.length || 0,
+              pet_stage: petState?.stage || 1,
+              pet_points: petState?.points || 0,
+              // Lifecycle
+              days_since_signup: daysSinceSignup,
+              onboarding_completed: hasCompleted,
+              // Profile
+              education_level: meta?.education_level,
+              learning_style: meta?.learning_style,
+            });
+
             if (__DEV__) console.log('[Auth] User data fetched, setting isInitialized to true', { hasCompleted });
 
             // Mark initialization as complete ONLY after we have correct onboarding status
@@ -124,6 +156,9 @@ export function useAuthSetup() {
       } else {
         // Logged out
         if (wasLoggedIn && !isNowLoggedIn) {
+          // Track sign out
+          track('user_signed_out', {});
+
           const { resetPetState, resetUserProfile } = useStore.getState();
           resetPetState();
           resetUserProfile();

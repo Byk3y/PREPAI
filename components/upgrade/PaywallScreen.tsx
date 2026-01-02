@@ -26,6 +26,7 @@ import { useStore } from '@/lib/store';
 import { getOfferings, purchasePackage, restorePurchases } from '@/lib/purchases';
 import { useUpgrade } from '@/lib/hooks/useUpgrade';
 import { PurchasesPackage } from 'react-native-purchases';
+import { track } from '@/lib/services/analyticsService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -91,6 +92,11 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
             }
         };
         fetchOfferings();
+
+        // Track paywall viewed
+        track('paywall_viewed', {
+            source: source,
+        });
     }, []);
 
     const selectedPackage = packages.find(pkg =>
@@ -117,6 +123,13 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
             if ('userCancelled' in result && result.userCancelled) return;
 
             if (result.isPro) {
+                // Track successful purchase
+                track('subscription_purchased', {
+                    source: source,
+                    plan: billingCycle,
+                    price: selectedPackage?.product.price,
+                });
+
                 if (authUser) await loadSubscription(authUser.id);
                 Alert.alert('🎉 Welcome to Pro!', 'Your study superpowers are now active.', [
                     { text: 'Let\'s Go!', onPress: () => { onPurchaseSuccess?.(); onClose(); } }
@@ -134,6 +147,11 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
         try {
             const { isPro } = await restorePurchases();
             if (isPro) {
+                // Track restore
+                track('subscription_restored', {
+                    source: source,
+                });
+
                 if (authUser) await loadSubscription(authUser.id);
                 Alert.alert('Restored!', 'Your Pro access has been restored.', [{ text: 'Great!', onPress: onClose }]);
             } else {
@@ -199,6 +217,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
                             onPress={() => {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                                 setBillingCycle('annual');
+                                track('paywall_plan_changed', { plan: 'annual' });
                             }}
                         >
                             <View style={styles.toggleLabelRow}>
@@ -213,6 +232,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
                             onPress={() => {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                                 setBillingCycle('monthly');
+                                track('paywall_plan_changed', { plan: 'monthly' });
                             }}
                         >
                             <Text style={[styles.toggleText, billingCycle === 'monthly' && styles.toggleTextActive]}>Monthly</Text>
