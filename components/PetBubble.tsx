@@ -45,13 +45,17 @@ export const PetBubble: React.FC = () => {
 
   // Reduce scale for Stage 2 if dying as per user request
   if (isDying && petState.stage === 2) {
-    stageScale = 1.05; // Further reduced from 1.20 to be even more compact
+    stageScale = 0.85; // Reduced - water bubble image is large
   }
 
   const bubbleSize = PET_SIZE * stageScale;
 
   // Position management
-  const { position, setPosition, positionRef, screenDimensions, insets } = usePetBubblePosition(stageScale);
+  const { position, setPosition, positionRef, screenDimensions, insets } = usePetBubblePosition({
+    scale: stageScale,
+    stage: petState.stage,
+    isDying,
+  });
 
   // Animation management
   const animations = usePetBubbleAnimations(position, stageScale);
@@ -69,6 +73,8 @@ export const PetBubble: React.FC = () => {
     screenDimensions,
     insets,
     scale: stageScale,
+    stage: petState.stage,
+    isDying,
     scaleAnim: animations.scaleAnim,
     panX: animations.panX,
     panY: animations.panY,

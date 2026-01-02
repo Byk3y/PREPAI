@@ -1,4 +1,4 @@
-import { EDGE_PADDING, TOP_PADDING, BOTTOM_PADDING, PET_SIZE, ANIMATION_CONFIG } from '../constants';
+import { EDGE_PADDING, TOP_PADDING, BOTTOM_PADDING, PET_SIZE, ANIMATION_CONFIG, PET_IMAGE_EDGE_OFFSETS } from '../constants';
 
 export interface Position {
   x: number;
@@ -69,17 +69,20 @@ export function calculateTopLeftBounds(
 }
 
 /**
- * Calculate initial position (upper-right area, about 20% from top)
+ * Calculate initial position (upper-right area, about 40% from top)
  */
 export function calculateInitialPosition(
   screenDimensions: ScreenDimensions,
   insets: SafeAreaInsets,
-  scale: number = 1.0
+  scale: number = 1.0,
+  stage: number = 1,
+  isDying: boolean = false
 ): Position {
   const size = PET_SIZE * scale;
+  const edgeOffset = getEdgeOffset(stage, isDying);
 
   return {
-    x: screenDimensions.width - insets.right - size / 2 - EDGE_PADDING,
+    x: screenDimensions.width - insets.right - size / 2 - EDGE_PADDING - edgeOffset,
     y: insets.top + (screenDimensions.height * ANIMATION_CONFIG.initialTopOffset),
   };
 }
@@ -131,22 +134,39 @@ export function convertTopLeftToCenter(left: number, top: number, scale: number 
 }
 
 /**
+ * Get the edge offset for a specific pet state
+ * Returns the number of pixels to adjust edge position
+ */
+export function getEdgeOffset(stage: number, isDying: boolean): number {
+  const key = `stage${stage}_${isDying ? 'dying' : 'normal'}`;
+  return PET_IMAGE_EDGE_OFFSETS[key] ?? 0;
+}
+
+/**
  * Determine which edge to snap to (horizontal only)
  * Returns the target X coordinate for edge snapping
+ * @param stage - Pet stage (1, 2, or 3)
+ * @param isDying - Whether pet is in dying state
  */
 export function calculateEdgeSnapTarget(
   currentX: number,
   screenDimensions: ScreenDimensions,
   insets: SafeAreaInsets,
-  scale: number = 1.0
+  scale: number = 1.0,
+  stage: number = 1,
+  isDying: boolean = false
 ): number {
   const screenMidpoint = screenDimensions.width / 2;
   const size = PET_SIZE * scale;
   const halfSize = size / 2;
 
+  // Get per-image edge offset compensation
+  const edgeOffset = getEdgeOffset(stage, isDying);
+
   // Directly calculate the possible min/max center X values
-  const minCenterX = insets.left + halfSize + EDGE_PADDING;
-  const maxCenterX = screenDimensions.width - insets.right - halfSize - EDGE_PADDING;
+  // Apply edge offset to compensate for transparent padding in images
+  const minCenterX = insets.left + halfSize + EDGE_PADDING + edgeOffset;
+  const maxCenterX = screenDimensions.width - insets.right - halfSize - EDGE_PADDING - edgeOffset;
 
   const targetX = currentX < screenMidpoint ? minCenterX : maxCenterX;
 

@@ -40,13 +40,16 @@ interface UsePetBubbleGesturesConfig {
   setAllAnimatedValues: (position: Position, panXValue: number, panYValue: number) => void;
   startIdleAnimation: () => void;
   scale?: number;
+  // Pet state for per-image edge offsets
+  stage?: number;
+  isDying?: boolean;
 }
 
 /**
  * Hook to manage pet bubble gesture handling (drag, tap, edge snapping)
  */
 export function usePetBubbleGestures(config: UsePetBubbleGesturesConfig) {
-  const { scale = 1.0 } = config;
+  const { scale = 1.0, stage = 1, isDying: isPetDying = false } = config;
   const router = useRouter();
   const { authUser } = useStore();
   const { play } = useFeedback();
@@ -242,7 +245,9 @@ export function usePetBubbleGestures(config: UsePetBubbleGesturesConfig) {
           clampedCenter.x,
           currentScreenDimensions,
           currentInsets,
-          scale
+          scale,
+          stage,
+          isPetDying
         );
 
         // Calculate current position and pan values
