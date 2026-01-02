@@ -100,6 +100,29 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
   );
   const petName = useStore(state => state.petState.name);
 
+  // Auto-update selection when new materials are added in background
+  const prevMaterialCount = useRef(materialCount);
+  useEffect(() => {
+    if (materialCount > prevMaterialCount.current) {
+      // If we previously had all materials selected, or if this is an addition,
+      // auto-select the new ones to keep the experience seamless
+      const allIds = notebook.materials?.map(m => m.id) || [];
+      const newIds = allIds.filter(id => !selectedMaterialIds.includes(id));
+
+      if (newIds.length > 0) {
+        setSelectedMaterialIds(prev => {
+          // If we had everything selected before, select everything now too
+          if (prev.length === prevMaterialCount.current) {
+            return allIds;
+          }
+          // Otherwise just append the new ones
+          return [...prev, ...newIds];
+        });
+      }
+    }
+    prevMaterialCount.current = materialCount;
+  }, [materialCount, notebook.materials, selectedMaterialIds]);
+
   // Theme
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
@@ -219,9 +242,34 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
     sendMessage(msg, selectedMaterialIds);
   };
 
+  // Strip markdown formatting for clipboard copy
+  const stripMarkdown = (text: string): string => {
+    return text
+      // Remove bold: **text** or __text__
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      // Remove italic: *text* or _text_
+      .replace(/\*(.+?)\*/g, '$1')
+      .replace(/_(.+?)_/g, '$1')
+      // Remove strikethrough: ~~text~~
+      .replace(/~~(.+?)~~/g, '$1')
+      // Remove inline code: `text`
+      .replace(/`(.+?)`/g, '$1')
+      // Remove headers: # Header
+      .replace(/^#{1,6}\s+/gm, '')
+      // Remove bullet points: - or *
+      .replace(/^[\-\*]\s+/gm, '• ')
+      // Remove numbered lists: 1.
+      .replace(/^\d+\.\s+/gm, '')
+      // Clean up extra whitespace
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  };
+
   const handleCopy = async (content: string) => {
     if (!content) return;
-    await Clipboard.setStringAsync(content);
+    const plainText = stripMarkdown(content);
+    await Clipboard.setStringAsync(plainText);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
@@ -244,9 +292,10 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
   // Show progress indicator if extracting
   const isExtracting = notebook.status === 'extracting';
   const isBackgroundProcessing = (notebook.meta as any)?.background_processing === true;
+  const hasExistingContent = !!briefing;
 
-  // Render loading state with skeleton or background indicator
-  if (isExtracting) {
+  // Render loading state with skeleton ONLY if we don't have existing content to show
+  if (isExtracting && !hasExistingContent) {
     return (
       <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
         <View style={{ paddingHorizontal: 24, paddingVertical: 24 }}>
