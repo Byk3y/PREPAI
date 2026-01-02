@@ -1,14 +1,10 @@
-/**
- * Notebook Detail Screen - NotebookLM Style
- * Shows material details with Sources/Chat/Studio tabs
- */
-
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -26,11 +22,17 @@ import { useNotebookDetail } from '@/hooks/useNotebookDetail';
 import { useNotebookSubscription } from '@/hooks/useNotebookSubscription';
 import { useNotebookAccess } from '@/hooks/useNotebookAccess';
 import { useNotebookActions } from '@/hooks/useNotebookActions';
+import { useMaterialAddition } from '@/lib/hooks/useMaterialAddition';
+import MaterialTypeSelector from '@/components/MaterialTypeSelector';
+import TextInputModal from '@/components/TextInputModal';
+import { TikTokLoader } from '@/components/TikTokLoader';
+import { UpgradeModal } from '@/components/upgrade/UpgradeModal';
+import { useUpgrade } from '@/lib/hooks/useUpgrade';
 
 export default function NotebookDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { notebooks } = useStore();
+  const { user, flashcardsStudied, notebooks } = useStore();
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const [triggerQuizGeneration, setTriggerQuizGeneration] = useState(false);
 
@@ -42,6 +44,67 @@ export default function NotebookDetailScreen() {
 
   // Check access control
   const { showLockedOverlay, setShowLockedOverlay } = useNotebookAccess(id);
+
+  // Material Addition Logic (Hoisted to parent to survive tab switches)
+  const {
+    isAddingMaterial,
+    handleAudioUpload,
+    handlePDFUpload,
+    handlePhotoUpload,
+    handleCameraUpload,
+    handleTextSave,
+    handleYouTubeImport,
+    handleWebsiteImport,
+    showUpgradeModal: showAddUpgradeModal,
+    setShowUpgradeModal: setShowAddUpgradeModal,
+    limitReason,
+  } = useMaterialAddition(id || '');
+
+  const { trackUpgradeModalDismissed } = useUpgrade();
+
+  // Modal states for material addition
+  const [showMaterialSelector, setShowMaterialSelector] = useState(false);
+  const [showTextInput, setShowTextInput] = useState(false);
+  const [textInputType, setTextInputType] = useState<'text' | 'note'>('text');
+
+  const handleMaterialTypeSelected = async (
+    type: 'pdf' | 'audio' | 'image' | 'website' | 'youtube' | 'copied-text',
+    providedUrl?: string
+  ) => {
+    switch (type) {
+      case 'pdf': await handlePDFUpload(); break;
+      case 'image': await handlePhotoUpload(); break;
+      case 'audio': await handleAudioUpload(); break;
+      case 'website':
+        if (providedUrl) {
+          await handleWebsiteImport(providedUrl);
+        } else {
+          Alert.prompt('Import Website', 'Paste URL below', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Import', onPress: (url: string | undefined) => url && handleWebsiteImport(url) }
+          ], 'plain-text');
+        }
+        break;
+      case 'youtube':
+        if (providedUrl) await handleYouTubeImport(providedUrl);
+        else {
+          Alert.prompt('Import YouTube', 'Paste URL below', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Import', onPress: (url: string | undefined) => url && handleYouTubeImport(url) }
+          ], 'plain-text');
+        }
+        break;
+      case 'copied-text':
+        setTextInputType('text');
+        setShowTextInput(true);
+        break;
+    }
+  };
+
+  const onTextSave = async (title: string, content: string) => {
+    await handleTextSave(title, content, textInputType);
+    setShowTextInput(false);
+  };
 
   // Notebook actions
   const {
@@ -107,7 +170,14 @@ export default function NotebookDetailScreen() {
 
       {/* Tab Content */}
       <View style={{ flex: 1 }}>
-        {activeTab === 'sources' && <SourcesTab notebook={notebook} />}
+        {activeTab === 'sources' && (
+          <SourcesTab
+            notebook={notebook}
+            onAddPress={() => setShowMaterialSelector(true)}
+            onCameraPress={handleCameraUpload}
+            isAddingMaterial={isAddingMaterial}
+          />
+        )}
         {activeTab === 'chat' && <ChatTab notebook={notebook} onTakeQuiz={handleTakeQuiz} />}
         {activeTab === 'studio' && (
           <StudioTab
@@ -127,6 +197,35 @@ export default function NotebookDetailScreen() {
         onValueChange={setRenameValue}
         onSave={handleSaveRename}
         onDismiss={setRenameModalVisible}
+      />
+
+      {/* Shared Modals for Material Addition */}
+      <MaterialTypeSelector
+        visible={showMaterialSelector}
+        onClose={() => setShowMaterialSelector(false)}
+        onSelectType={handleMaterialTypeSelected}
+      />
+
+      <TextInputModal
+        visible={showTextInput}
+        type={textInputType}
+        onClose={() => setShowTextInput(false)}
+        onSave={onTextSave}
+      />
+
+      <UpgradeModal
+        visible={showAddUpgradeModal}
+        onDismiss={() => {
+          trackUpgradeModalDismissed('create_attempt');
+          setShowAddUpgradeModal(false);
+        }}
+        source="create_attempt"
+        notebooksCount={notebooks.length}
+        flashcardsStudied={flashcardsStudied}
+        streakDays={user.streak || 0}
+        petName={user.name || 'Sparky'}
+        petLevel={Math.floor((user.streak || 0) / 7) + 1}
+        limitReason={limitReason}
       />
 
       {/* Locked Notebook Overlay */}
