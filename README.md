@@ -1,168 +1,161 @@
-# Brigo — Expo UI Starter
+# Brigo — AI-Powered Study Companion
 
-A UI-first Expo + TypeScript starter for a gamified study app. This scaffold includes mock data and is ready for quick prototyping and demos.
+A gamified mobile study app that helps students learn effectively using AI-generated content, spaced repetition, and gamification mechanics.
+
+## 🎯 Product Overview
+
+Brigo transforms uploaded study materials (PDFs, text, YouTube videos) into:
+- **AI-powered quizzes** with adaptive difficulty
+- **Smart flashcards** using spaced repetition
+- **Audio overviews** (podcast-style summaries)
+- **Interactive AI tutor** chat
+
+Users are motivated through a **virtual pet system** that grows as they complete daily study tasks and maintain streaks.
+
+## 📊 Key Metrics
+
+| Metric | Description |
+|--------|-------------|
+| DAU/MAU | Daily/Monthly active users ratio |
+| Retention | D1, D7, D30 cohort retention |
+| Streak Rate | % of users maintaining 7+ day streaks |
+| Conversion | Free → Trial → Paid conversion rates |
+| LTV | Lifetime value per subscriber |
+
+*Analytics tracked via Mixpanel (EU data residency)*
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ installed
-- Expo CLI installed globally: `npm install -g expo-cli`
-- Expo Go app on your iOS/Android device (or iOS Simulator / Android Emulator)
+- Node.js 18+
+- Xcode 15+ (for iOS development)
+- Ruby & CocoaPods
+- Expo CLI: `npm install -g expo-cli`
 
-### Setup & Run
+### Setup
 
-1. **Install dependencies:**
+1. **Clone and install:**
    ```bash
+   git clone <repo>
+   cd brigo
    npm install
    ```
 
-2. **Start the development server:**
-   ```bash
-   npm start
-   # or
-   expo start
+2. **Environment variables:**
+   Create `.env` file with:
+   ```
+   EXPO_PUBLIC_SUPABASE_URL=<your-supabase-url>
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+   EXPO_PUBLIC_MIXPANEL_TOKEN=<your-mixpanel-token>
    ```
 
-3. **Run on device:**
-   - Scan the QR code with Expo Go (iOS) or Camera app (Android)
-   - Or press `i` for iOS Simulator / `a` for Android Emulator
+3. **Install iOS dependencies:**
+   ```bash
+   cd ios && pod install && cd ..
+   ```
 
-## 📱 Demo Flows
+4. **Run development build:**
+   ```bash
+   npx expo run:ios
+   ```
 
-### Home Screen (`/`)
-- View daily progress (streak, coins, tasks)
-- Tap "Study for an Exam" → Exam Hub
-- Tap "Learn Something New" → Lesson screen
-- Tap pet bubble (bottom-right) → Pet half-sheet modal
-- Scroll to see "Continue Studying" list
-
-### Exam Hub (`/exam`)
-- View list of mock exams
-- Tap "Start Exam Plan" to create a plan (shows alert)
-- Tap "Practice" to go to flashcard screen
-
-### Lesson Screen (`/lesson/[id]`)
-- View lesson content
-- See animated PetWidget on the right side
-- Tap "Start Quiz" → Flashcard screen
-- Tap "Mark Complete" → Triggers pet reaction
-
-### Flashcard Player (`/flashcard/[id]`)
-- Answer multiple choice questions
-- See visual feedback (green = correct, red = incorrect)
-- PetWidget reacts to answers (happy for correct, sad for incorrect)
-- XP is awarded for correct answers
-
-### Pet Half-Sheet (`/pet-sheet`)
-- Modal overlay showing pet details
-- View streak, XP progress bar
-- See missions list with progress
-- Tap outside or swipe down to close
-
-## 🏗️ Project Structure
+## 🏗️ Architecture
 
 ```
 ├── app/                    # Expo Router screens
-│   ├── _layout.tsx        # Root layout with NativeWind setup
-│   ├── index.tsx          # Home screen
-│   ├── exam/
-│   │   └── index.tsx      # Exam hub
-│   ├── lesson/
-│   │   └── [id].tsx       # Lesson screen (dynamic route)
-│   ├── flashcard/
-│   │   └── [id].tsx       # Flashcard player
-│   └── pet-sheet.tsx      # Pet modal (half-sheet)
-├── components/            # Reusable components
-│   ├── PetBubble.tsx      # Small pet bubble for Home
-│   ├── PetWidget.tsx      # Full pet widget with animations
-│   ├── EmptyState.tsx     # Empty state component
-│   ├── NotebookCard.tsx   # Notebook card component
-│   └── MaterialTypeSelector.tsx # Material type selector modal
+│   ├── (tabs)/            # Main tab navigation
+│   ├── onboarding/        # Onboarding flow
+│   ├── quiz/              # Quiz player
+│   ├── flashcards/        # Flashcard viewer
+│   ├── audio-player/      # Audio overview player
+│   └── paywall.tsx        # Subscription paywall
+├── components/            # Reusable UI components
+│   ├── onboarding/        # Onboarding screens
+│   ├── studio/            # Quiz/Flashcard viewers
+│   ├── pet-sheet/         # Pet modal components
+│   └── upgrade/           # Paywall components
 ├── lib/
-│   ├── theme.ts           # Design tokens (colors, spacing)
-│   └── store.ts           # Zustand store with mock data
-├── assets/                # Images, fonts, etc.
-├── package.json
-├── app.json               # Expo config
-├── tailwind.config.js     # NativeWind/Tailwind config
-└── tsconfig.json          # TypeScript config
+│   ├── store/             # Zustand state management
+│   │   └── slices/        # Modular store slices
+│   ├── services/          # API and business logic
+│   │   ├── analyticsService.ts
+│   │   ├── notebookService.ts
+│   │   ├── studioService.ts
+│   │   └── taskService.ts
+│   ├── supabase.ts        # Database client
+│   └── purchases.ts       # RevenueCat integration
+├── hooks/                 # Custom React hooks
+└── assets/                # Images, fonts
 ```
-
-## 🎨 Theme & Design
-
-- **Primary Color:** `#FFCB3C` (warm yellow)
-- **Secondary:** `#4A90E2` (blue)
-- **Accent:** `#FF6B6B` (coral)
-- Design tokens are centralized in `lib/theme.ts`
-- Uses NativeWind (Tailwind CSS for React Native)
 
 ## 🧩 Tech Stack
 
-- **Framework:** Expo (React Native)
-- **Navigation:** Expo Router (file-based routing)
-- **Styling:** NativeWind (Tailwind CSS)
-- **State:** Zustand
-- **Animations:** Moti (micro-animations)
-- **Language:** TypeScript
+| Category | Technology |
+|----------|------------|
+| Framework | Expo (React Native) |
+| Navigation | Expo Router |
+| State | Zustand |
+| Database | Supabase (PostgreSQL) |
+| Auth | Supabase Auth (Email, Google, Apple) |
+| Storage | Supabase Storage |
+| Payments | RevenueCat |
+| Analytics | Mixpanel |
+| Animations | Moti |
+| AI | OpenAI GPT-4 (via Edge Functions) |
 
-## 📝 Mock Data
+## 💰 Monetization
 
-All data is stored in `lib/store.ts` using Zustand:
-- User profile (name, streak, coins)
-- Pet state (level, XP, mood)
-- Flashcards, exams, lessons
-- Recent items for "Continue Studying"
+- **Subscription Model:** Monthly/Annual via App Store
+- **Free Tier:** Limited notebooks, basic features
+- **Pro Tier:** Unlimited everything, priority AI access
+- **Payment Processing:** RevenueCat (handles receipts, entitlements)
 
-## 🔄 Current Status
+## 📈 Analytics Events
 
-### ✅ Completed
-- **Supabase Integration:** Database schema, RLS policies, authentication, file uploads
-- **Authentication:** Magic link + social logins (Google, Apple)
-- **Notebooks & Materials:** Full CRUD with Supabase persistence
-- **File Uploads:** PDF, image, audio uploads to Supabase Storage
-- **Zero-Friction UX:** Auto-create notebooks on upload/paste
+The app tracks comprehensive user behavior:
 
-### 🚧 In Progress / TODO
-- **Storage Setup:** Create `uploads` bucket and set RLS policies (see `docs/SUPABASE_SETUP.md`)
-- **Edge Functions:** Deploy processing function for material extraction
-- **Flashcards/Lessons:** Connect to Supabase (currently using mock data)
-- **OpenAI/Gemini Integration:**
-  - Generate flashcards dynamically
-  - Create lesson content
-  - Quiz generation
+| Category | Events Tracked |
+|----------|---------------|
+| Onboarding | Flow completion, screen drop-offs, auth method |
+| Study | Quiz scores, flashcard sessions, audio plays |
+| Engagement | Pet interactions, streaks, task completions |
+| Monetization | Paywall views, plan selection, purchases |
 
-3. **Superwall:**
-   - Add paywall logic
-   - Verify entitlements
-   - Note: Requires EAS builds (see `eas.json`)
+## 🗄️ Database Schema
 
-4. **Lottie Animations:**
-   - Replace placeholder pet emoji with Lottie JSON files
-   - Example usage pattern is shown in `PetWidget.tsx`
+Core tables (Supabase):
+- `profiles` - User metadata, preferences
+- `notebooks` - Study material containers
+- `notebook_materials` - Uploaded content
+- `studio_quizzes` - Generated quizzes
+- `studio_flashcard_sets` - Flashcard collections
+- `daily_task_completions` - Task tracking
+- `user_study_scores` - Performance history
 
-## 🛠️ Development Notes
+## 🔐 Security
 
-- All screens are runnable in Expo Go / EAS Dev Client
-- Components are modular and easy to replace
-- Animations use Moti for smooth micro-interactions
-- Theme tokens are centralized for easy customization
+- Row Level Security (RLS) enforced on all tables
+- Auth tokens via Supabase
+- No hardcoded secrets (all via environment variables)
 
-## 📦 Building for Production
+## 📦 Deployment
 
-For production builds (required for Superwall native SDK):
+### Development Build
+```bash
+npx expo run:ios
+```
 
-1. Install EAS CLI: `npm install -g eas-cli`
-2. Configure `eas.json` (see file for notes)
-3. Build: `eas build --platform ios` or `eas build --platform android`
-
-## 🐛 Troubleshooting
-
-- **Metro bundler issues:** Clear cache with `expo start -c`
-- **NativeWind not working:** Ensure `global.css` is imported in `_layout.tsx`
-- **TypeScript errors:** Run `npx tsc --noEmit` to check types
+### Production Build (EAS)
+```bash
+eas build --platform ios --profile production
+eas submit --platform ios
+```
 
 ## 📄 License
 
-Private project — All rights reserved
+Proprietary — All rights reserved
 
+---
+
+*For acquisition inquiries, contact: [your-email]*

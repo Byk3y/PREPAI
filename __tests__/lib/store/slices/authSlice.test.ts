@@ -6,11 +6,26 @@ import { create } from 'zustand';
 import { createAuthSlice, type AuthSlice } from '@/lib/store/slices/authSlice';
 import type { SupabaseUser } from '@/lib/store/types';
 
+// Helper to create a mock user with minimal required properties
+const createMockUser = (overrides: Partial<SupabaseUser> = {}): SupabaseUser => ({
+  id: 'user-123',
+  email: 'test@example.com',
+  created_at: new Date().toISOString(),
+  app_metadata: {},
+  user_metadata: {},
+  aud: 'authenticated',
+  confirmed_at: new Date().toISOString(),
+  last_sign_in_at: new Date().toISOString(),
+  role: 'authenticated',
+  updated_at: new Date().toISOString(),
+  ...overrides,
+});
+
 describe('authSlice', () => {
-  let useAuthStore: ReturnType<typeof create<AuthSlice>>;
+  let useAuthStore: { getState: () => AuthSlice };
 
   beforeEach(() => {
-    useAuthStore = create<AuthSlice>()(createAuthSlice);
+    useAuthStore = create<AuthSlice>(createAuthSlice as any);
   });
 
   describe('initial state', () => {
@@ -27,52 +42,13 @@ describe('authSlice', () => {
 
   describe('setAuthUser', () => {
     it('should set auth user', () => {
-      const mockUser: SupabaseUser = {
-        id: 'user-123',
-        email: 'test@example.com',
-        created_at: new Date().toISOString(),
-        app_metadata: {},
-        user_metadata: {},
-        aud: 'authenticated',
-        confirmation_sent_at: null,
-        recovery_sent_at: null,
-        email_change_sent_at: null,
-        new_email: null,
-        invited_at: null,
-        action_link: null,
-        phone: null,
-        confirmed_at: new Date().toISOString(),
-        last_sign_in_at: new Date().toISOString(),
-        role: 'authenticated',
-        updated_at: new Date().toISOString(),
-      };
-
+      const mockUser = createMockUser();
       useAuthStore.getState().setAuthUser(mockUser);
-
       expect(useAuthStore.getState().authUser).toEqual(mockUser);
     });
 
     it('should set auth user to null', () => {
-      const mockUser: SupabaseUser = {
-        id: 'user-123',
-        email: 'test@example.com',
-        created_at: new Date().toISOString(),
-        app_metadata: {},
-        user_metadata: {},
-        aud: 'authenticated',
-        confirmation_sent_at: null,
-        recovery_sent_at: null,
-        email_change_sent_at: null,
-        new_email: null,
-        invited_at: null,
-        action_link: null,
-        phone: null,
-        confirmed_at: new Date().toISOString(),
-        last_sign_in_at: new Date().toISOString(),
-        role: 'authenticated',
-        updated_at: new Date().toISOString(),
-      };
-
+      const mockUser = createMockUser();
       useAuthStore.getState().setAuthUser(mockUser);
       expect(useAuthStore.getState().authUser).toEqual(mockUser);
 
@@ -96,25 +72,7 @@ describe('authSlice', () => {
 
   describe('integration', () => {
     it('should handle complete auth flow', () => {
-      const mockUser: SupabaseUser = {
-        id: 'user-123',
-        email: 'test@example.com',
-        created_at: new Date().toISOString(),
-        app_metadata: {},
-        user_metadata: {},
-        aud: 'authenticated',
-        confirmation_sent_at: null,
-        recovery_sent_at: null,
-        email_change_sent_at: null,
-        new_email: null,
-        invited_at: null,
-        action_link: null,
-        phone: null,
-        confirmed_at: new Date().toISOString(),
-        last_sign_in_at: new Date().toISOString(),
-        role: 'authenticated',
-        updated_at: new Date().toISOString(),
-      };
+      const mockUser = createMockUser();
 
       // Initialize
       useAuthStore.getState().setIsInitialized(true);
@@ -131,13 +89,3 @@ describe('authSlice', () => {
     });
   });
 });
-
-
-
-
-
-
-
-
-
-
