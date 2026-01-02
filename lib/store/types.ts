@@ -101,6 +101,7 @@ export interface Material {
   title?: string; // Optional: For backward compatibility, but notebooks.title is the source of truth
   filename?: string; // Extracted from storage_path for display
   createdAt: string;
+  processed: boolean; // True if backend extraction/analysis is complete
   thumbnail?: string; // Optional preview image
   meta?: {
     ocr_quality?: {

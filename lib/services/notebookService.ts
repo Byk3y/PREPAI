@@ -13,7 +13,8 @@ export const notebookService = {
                 materials!materials_notebook_id_fkey (*)
             `)
             .eq('user_id', userId)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .order('created_at', { foreignTable: 'materials', ascending: false });
 
         if (error) {
             // Use centralized error handling
@@ -42,12 +43,14 @@ export const notebookService = {
                 id: m.id,
                 type: m.kind as Material['type'],
                 uri: m.storage_path || m.external_url,
-                filename: getFilenameFromPath(m.storage_path),
+                filename: m.meta?.filename || getFilenameFromPath(m.storage_path),
                 content: m.content,
                 preview_text: m.preview_text,
-                title: nb.title,
+                title: m.meta?.title || nb.title,
                 createdAt: m.created_at,
+                processed: !!m.processed,
                 thumbnail: m.thumbnail,
+                meta: m.meta,
             })),
         }));
     },
@@ -133,7 +136,7 @@ export const notebookService = {
                 .insert(notebookData)
                 .select(`
           *,
-          materials (*)
+          materials!materials_notebook_id_fkey (*)
         `)
                 .single();
 
@@ -146,6 +149,12 @@ export const notebookService = {
                 });
                 throw appError;
             }
+
+            // Step 5: Update material with notebook_id (needed for Edge Function processing)
+            await supabase
+                .from('materials')
+                .update({ notebook_id: newNotebook.id })
+                .eq('id', material.id);
 
             // Update user profile - set has_created_notebook flag (non-blocking)
             try {
@@ -220,7 +229,10 @@ export const notebookService = {
                 preview_text: null,
                 processed: false,
                 processed_at: null,
-                title: material.title || material.filename || 'Source',
+                meta: {
+                    title: material.title || material.filename || 'Source',
+                    filename: material.filename
+                }
             };
 
             const { data: newMaterial, error: materialError } = await supabase
@@ -363,7 +375,7 @@ export const notebookService = {
                 .from('notebooks')
                 .select(`
           *,
-          materials (*)
+          materials!materials_notebook_id_fkey (*)
         `)
                 .eq('id', notebookId)
                 .eq('user_id', userId)
@@ -470,9 +482,10 @@ export const notebookService = {
                 .from('notebooks')
                 .select(`
           *,
-          materials (*)
+          materials!materials_notebook_id_fkey (*)
         `)
                 .eq('id', notebookId)
+                .order('created_at', { foreignTable: 'materials', ascending: false })
                 .single();
 
             if (error) {
@@ -505,21 +518,19 @@ export const notebookService = {
                 color: (data as any).color as Notebook['color'],
                 status: data.status as Notebook['status'],
                 meta: (data.meta as any) || {},
-                materials: materialObj
-                    ? [
-                        {
-                            id: materialObj.id,
-                            type: materialObj.kind as Material['type'],
-                            uri: materialObj.storage_path || materialObj.external_url || undefined,
-                            filename: getFilenameFromPath(materialObj.storage_path || undefined),
-                            content: materialObj.content || undefined,
-                            preview_text: materialObj.preview_text || undefined,
-                            title: data.title,
-                            createdAt: materialObj.created_at || new Date().toISOString(),
-                            thumbnail: materialObj.thumbnail || undefined,
-                        },
-                    ]
-                    : [],
+                materials: materialsArr.map((m: any) => ({
+                    id: m.id,
+                    type: m.kind as Material['type'],
+                    uri: m.storage_path || m.external_url || undefined,
+                    filename: m.meta?.filename || getFilenameFromPath(m.storage_path || undefined),
+                    content: m.content || undefined,
+                    preview_text: m.preview_text || undefined,
+                    title: m.meta?.title || data.title,
+                    createdAt: m.created_at || new Date().toISOString(),
+                    processed: !!m.processed,
+                    thumbnail: m.thumbnail || undefined,
+                    meta: m.meta,
+                })),
             };
         } catch (error) {
             await handleError(error, {

@@ -137,30 +137,35 @@ export const createNotebookSlice: StateCreator<
         color: (newNotebook as any).color as Notebook['color'],
         status: newNotebook.status as Notebook['status'],
         meta: (newNotebook.meta as any) || {},
-        materials: materialObj
-          ? [
-            {
-              id: materialObj.id,
-              type: materialObj.kind as Material['type'],
-              uri:
-                materialObj.storage_path ||
-                materialObj.external_url ||
-                undefined,
-              filename: getFilenameFromPath(materialObj.storage_path || undefined),
-              content: materialObj.content || undefined,
-              preview_text: materialObj.preview_text || undefined,
-              title: newNotebook.title,
-              createdAt: materialObj.created_at || new Date().toISOString(),
-              thumbnail: materialObj.thumbnail || undefined,
-            },
-          ]
-          : [],
+        materials: materialsArr.map((m: any) => ({
+          id: m.id,
+          type: m.kind as Material['type'],
+          uri: m.storage_path || m.external_url || undefined,
+          filename: m.meta?.filename || getFilenameFromPath(m.storage_path || undefined),
+          content: m.content || undefined,
+          preview_text: m.preview_text || undefined,
+          title: m.meta?.title || newNotebook.title,
+          createdAt: m.created_at || new Date().toISOString(),
+          processed: !!m.processed,
+          thumbnail: m.thumbnail || undefined,
+          meta: m.meta,
+        })),
       };
 
-      set((state) => ({
-        notebooks: [transformedNotebook, ...state.notebooks],
-        // Update hasCreatedNotebook locally if not already set, though service tries to update profile too
-      }));
+      set((state) => {
+        // Prevent duplicate notebooks (e.g. if real-time event already added it)
+        const exists = state.notebooks.some((n) => n.id === transformedNotebook.id);
+        if (exists) {
+          return {
+            notebooks: state.notebooks.map((n) =>
+              n.id === transformedNotebook.id ? transformedNotebook : n
+            ),
+          };
+        }
+        return {
+          notebooks: [transformedNotebook, ...state.notebooks],
+        };
+      });
 
       // Award foundational task for first notebook
       if ((get() as any).checkAndAwardTask) {
@@ -243,15 +248,17 @@ export const createNotebookSlice: StateCreator<
 
       // 2. Optimistic/Local Update
       const materialObj: Material = {
-        id: newMaterial.id,
-        type: newMaterial.kind as Material['type'],
-        uri: newMaterial.storage_path || newMaterial.external_url || undefined,
-        filename: getFilenameFromPath(newMaterial.storage_path || undefined),
-        content: newMaterial.content || undefined,
-        preview_text: newMaterial.preview_text || undefined,
-        title: material.title || 'New Source',
-        createdAt: newMaterial.created_at || new Date().toISOString(),
-        thumbnail: newMaterial.thumbnail || undefined,
+        id: (newMaterial as any).id,
+        type: (newMaterial as any).kind as Material['type'],
+        uri: (newMaterial as any).storage_path || (newMaterial as any).external_url || undefined,
+        filename: (newMaterial as any).meta?.filename || getFilenameFromPath((newMaterial as any).storage_path || undefined),
+        content: (newMaterial as any).content || undefined,
+        preview_text: (newMaterial as any).preview_text || undefined,
+        title: (newMaterial as any).meta?.title || material.title || 'New Source',
+        createdAt: (newMaterial as any).created_at || new Date().toISOString(),
+        thumbnail: (newMaterial as any).thumbnail || undefined,
+        processed: (newMaterial as any).processed || false,
+        meta: (newMaterial as any).meta,
       };
 
       set((state) => ({
@@ -260,7 +267,10 @@ export const createNotebookSlice: StateCreator<
             ? {
               ...n,
               status: 'extracting',
-              materials: [...n.materials, materialObj],
+              // Prevent duplicate material IDs in the local array
+              materials: n.materials.some(m => m.id === materialObj.id)
+                ? n.materials.map(m => m.id === materialObj.id ? materialObj : m)
+                : [materialObj, ...n.materials],
             }
             : n
         ),
