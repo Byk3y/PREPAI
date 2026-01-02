@@ -37,7 +37,7 @@ export const useMaterialAddition = (notebookId: string) => {
     const handleAudioUpload = useCallback(async () => {
         if (!checkCanAdd()) return null;
 
-        return withErrorHandling(async () => {
+        const wrapped = withErrorHandling(async () => {
             const result = await pickDocument({ type: 'audio/*' });
             if (!result || result.cancelled) return null;
 
@@ -52,12 +52,13 @@ export const useMaterialAddition = (notebookId: string) => {
             setIsAddingMaterial(false);
             return true;
         }, { operation: 'add_audio' });
+        return await wrapped();
     }, [checkCanAdd, pickDocument, addMaterial, notebookId, withErrorHandling]);
 
     const handlePDFUpload = useCallback(async () => {
         if (!checkCanAdd()) return null;
 
-        return withErrorHandling(async () => {
+        const wrapped = withErrorHandling(async () => {
             const result = await pickDocument({ type: 'application/pdf' });
             if (!result || result.cancelled) return null;
 
@@ -72,12 +73,13 @@ export const useMaterialAddition = (notebookId: string) => {
             setIsAddingMaterial(false);
             return true;
         }, { operation: 'add_pdf' });
+        return await wrapped();
     }, [checkCanAdd, pickDocument, addMaterial, notebookId, withErrorHandling]);
 
     const handlePhotoUpload = useCallback(async () => {
         if (!checkCanAdd()) return null;
 
-        return withErrorHandling(async () => {
+        const wrapped = withErrorHandling(async () => {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') {
                 Alert.alert('Permission Required', 'Please enable photo library access.');
@@ -103,12 +105,13 @@ export const useMaterialAddition = (notebookId: string) => {
             setIsAddingMaterial(false);
             return true;
         }, { operation: 'add_photo' });
+        return await wrapped();
     }, [checkCanAdd, addMaterial, notebookId, withErrorHandling]);
 
     const handleCameraUpload = useCallback(async () => {
         if (!checkCanAdd()) return null;
 
-        return withErrorHandling(async () => {
+        const wrapped = withErrorHandling(async () => {
             const result = await takePhoto();
             if (!result || result.cancelled) return null;
 
@@ -123,12 +126,13 @@ export const useMaterialAddition = (notebookId: string) => {
             setIsAddingMaterial(false);
             return true;
         }, { operation: 'add_camera' });
+        return await wrapped();
     }, [checkCanAdd, takePhoto, addMaterial, notebookId, withErrorHandling]);
 
     const handleTextSave = useCallback(async (title: string, content: string, type: 'note' | 'text') => {
         if (!checkCanAdd()) return null;
 
-        return withErrorHandling(async () => {
+        const wrapped = withErrorHandling(async () => {
             setIsAddingMaterial(true);
             await addMaterial(notebookId, {
                 type: type,
@@ -138,12 +142,13 @@ export const useMaterialAddition = (notebookId: string) => {
             setIsAddingMaterial(false);
             return true;
         }, { operation: 'add_text' });
+        return await wrapped();
     }, [checkCanAdd, addMaterial, notebookId, withErrorHandling]);
 
     const handleYouTubeImport = useCallback(async (url: string) => {
         if (!checkCanAdd()) return null;
 
-        return withErrorHandling(async () => {
+        const wrapped = withErrorHandling(async () => {
             let cleanUrl = url.trim();
             if (!cleanUrl.includes('youtube.com') && !cleanUrl.includes('youtu.be')) {
                 throw new Error('Invalid YouTube URL');
@@ -158,6 +163,67 @@ export const useMaterialAddition = (notebookId: string) => {
             setIsAddingMaterial(false);
             return true;
         }, { operation: 'add_youtube' });
+        return await wrapped();
+    }, [checkCanAdd, addMaterial, notebookId, withErrorHandling]);
+
+    const handleWebsiteImport = useCallback(async (url: string) => {
+        if (!checkCanAdd()) return null;
+
+        const wrapped = withErrorHandling(async () => {
+            // SECURITY: Comprehensive URL validation
+            let cleanUrl = url.trim();
+
+            // Ensure URL has a protocol
+            if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+                cleanUrl = 'https://' + cleanUrl;
+            }
+
+            // Validate URL format
+            let parsedUrl: URL;
+            try {
+                parsedUrl = new URL(cleanUrl);
+            } catch {
+                throw new Error('Please provide a valid website URL');
+            }
+
+            // SECURITY: Block dangerous protocols
+            if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+                throw new Error('Only HTTP and HTTPS URLs are supported');
+            }
+
+            // SECURITY: Block localhost and local network
+            const hostname = parsedUrl.hostname.toLowerCase();
+            if (hostname === 'localhost' ||
+                hostname === '127.0.0.1' ||
+                hostname === '0.0.0.0' ||
+                hostname.endsWith('.local') ||
+                hostname.endsWith('.localhost')) {
+                throw new Error('Local network URLs are not supported');
+            }
+
+            // SECURITY: Block private IP addresses
+            const ipPattern = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+            const ipMatch = hostname.match(ipPattern);
+            if (ipMatch) {
+                const [, a, b] = ipMatch.map(Number);
+                if (a === 10 || a === 127 || a === 0 ||
+                    (a === 172 && b >= 16 && b <= 31) ||
+                    (a === 192 && b === 168) ||
+                    (a === 169 && b === 254)) {
+                    throw new Error('Private network URLs are not supported');
+                }
+            }
+
+            setIsAddingMaterial(true);
+            await addMaterial(notebookId, {
+                type: 'website',
+                uri: cleanUrl,
+                title: 'Website Article',
+            });
+            setIsAddingMaterial(false);
+            return true;
+        }, { operation: 'add_website' });
+        return await wrapped();
     }, [checkCanAdd, addMaterial, notebookId, withErrorHandling]);
 
     return {
@@ -168,6 +234,7 @@ export const useMaterialAddition = (notebookId: string) => {
         handleCameraUpload,
         handleTextSave,
         handleYouTubeImport,
+        handleWebsiteImport,
         showUpgradeModal,
         setShowUpgradeModal,
         limitReason,

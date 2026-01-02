@@ -32,7 +32,7 @@ export function useNotebookDetail(id: string | undefined) {
       // Get fresh notebooks from store after loading (avoid stale closure)
       const currentNotebooks = useStore.getState().notebooks;
       const found = currentNotebooks.find((n) => n.id === id);
-      
+
       if (found) {
         setNotebook(found);
         setLoading(false);
@@ -64,6 +64,16 @@ export function useNotebookDetail(id: string | undefined) {
     // Real-time updates will handle state changes directly
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Keep local notebook state in sync with global store for optimistic updates
+  useEffect(() => {
+    if (!id || notebooks.length === 0) return;
+
+    const found = notebooks.find(n => n.id === id);
+    if (found) {
+      setNotebook(found);
+    }
+  }, [id, notebooks]);
 
   return { notebook, loading, setNotebook };
 }
