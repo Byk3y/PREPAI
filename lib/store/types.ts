@@ -15,6 +15,7 @@ export interface ProfileMeta {
   onboarding_completed_at?: string; // ISO timestamp
 
   // Assessment fields (new - from onboarding assessment)
+  education_level?: string;
   learning_style?: 'visual' | 'auditory' | 'reading' | 'practice';
   study_goal?: 'exam_prep' | 'retention' | 'quick_review' | 'all';
   daily_commitment_minutes?: number; // 5, 15, 30, 60, etc.

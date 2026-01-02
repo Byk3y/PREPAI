@@ -10,6 +10,7 @@
 import type { StateCreator } from 'zustand';
 import { taskService } from '@/lib/services/taskService';
 import { userService } from '@/lib/services/userService';
+import { track } from '@/lib/services/analyticsService';
 import type { SupabaseUser, DailyTask, TaskProgress } from '../types';
 
 // Type definition for award_task_points RPC response
@@ -224,6 +225,13 @@ export const createTaskSlice: StateCreator<
                 // Update local points/stage immediately if points were awarded > 0
                 if (data.points_awarded && data.points_awarded > 0) {
                     addPetPoints(data.points_awarded);
+
+                    // Track task completion
+                    track('task_completed', {
+                        task_key: taskKey,
+                        points_awarded: data.points_awarded,
+                        new_stage: data.new_stage,
+                    });
                 }
 
                 // Auto-save Pet Logic:

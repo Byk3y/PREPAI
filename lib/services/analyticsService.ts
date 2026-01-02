@@ -13,12 +13,17 @@
 import Constants from 'expo-constants';
 
 // Safely import Mixpanel - it may not be available if native module isn't linked
-let Mixpanel: any = null;
+let MixpanelClass: any = null;
 try {
-  Mixpanel = require('mixpanel-react-native').default;
+  // Mixpanel is a NAMED export from mixpanel-react-native, not default
+  const mixpanelModule = require('mixpanel-react-native');
+  MixpanelClass = mixpanelModule.Mixpanel;
+  if (__DEV__) {
+    console.log('[Mixpanel] Module loaded:', MixpanelClass ? 'success' : 'failed');
+  }
 } catch (error) {
   if (__DEV__) {
-    console.warn('[Mixpanel] Native module not available:', error);
+    console.warn('[Mixpanel] Failed to load module:', error);
   }
 }
 
@@ -28,13 +33,12 @@ let isInitialized = false;
 /**
  * Initialize Mixpanel with project token
  * Should be called as early as possible, before React renders
- * Uses static init method which is the recommended approach for React Native/Expo
  */
-export function initMixpanel() {
+export async function initMixpanel() {
   // Check if Mixpanel module is available
-  if (!Mixpanel || typeof Mixpanel.init !== 'function') {
+  if (!MixpanelClass) {
     if (__DEV__) {
-      console.warn('[Mixpanel] Native module not available. Skipping initialization.');
+      console.warn('[Mixpanel] Mixpanel class not available. Skipping initialization.');
     }
     return;
   }
@@ -50,7 +54,6 @@ export function initMixpanel() {
   }
 
   // Check if we're in Expo Go (which doesn't support native modules)
-  // Mixpanel React Native requires a development build or production build
   const isExpoGo = Constants.executionEnvironment === 'storeClient';
   if (isExpoGo) {
     if (__DEV__) {
@@ -59,28 +62,39 @@ export function initMixpanel() {
     return;
   }
 
-  // Use static init method for proper initialization
-  // This is the recommended way for React Native/Expo
-  // We don't await it since this is called at module load time
   try {
-    Mixpanel.init(token, true) // true = trackAutomaticEvents
-      .then((instance: any) => {
-        mixpanelInstance = instance;
-        isInitialized = true;
+    if (__DEV__) {
+      console.log('[Mixpanel] Creating instance...');
+    }
 
-        if (__DEV__) {
-          console.log('[Mixpanel] Initialized successfully');
-        }
-      })
-      .catch((error: any) => {
-        console.error('[Mixpanel] Initialization error:', error);
-        // Don't crash the app if Mixpanel fails to initialize
-        mixpanelInstance = null;
-        isInitialized = false;
-      });
+    // Create Mixpanel instance (token, trackAutomaticEvents)
+    const instance = new MixpanelClass(token, true);
+
+    // Initialize the instance with EU server
+    await instance.init(
+      false, // optOutTrackingDefault
+      {},    // superProperties
+      'https://api-eu.mixpanel.com' // EU serverURL
+    );
+
+    mixpanelInstance = instance;
+    isInitialized = true;
+
+    if (__DEV__) {
+      console.log('[Mixpanel] Initialized successfully (EU server)');
+    }
+
+    // Send a test event to verify connection
+    instance.track('app_launched', {
+      timestamp: new Date().toISOString(),
+      platform: 'ios',
+    });
+
+    if (__DEV__) {
+      console.log('[Mixpanel] Test event sent: app_launched');
+    }
   } catch (error) {
-    console.error('[Mixpanel] Failed to call init:', error);
-    // Don't crash the app if Mixpanel fails to initialize
+    console.error('[Mixpanel] Initialization error:', error);
     mixpanelInstance = null;
     isInitialized = false;
   }

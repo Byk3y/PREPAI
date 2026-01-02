@@ -6,6 +6,7 @@ import type { StateCreator } from 'zustand';
 import { supabase } from '@/lib/supabase'; // Kept for auth check in addNotebook if needed, though service might handle auth context or we pass it
 import { notebookService } from '@/lib/services/notebookService';
 import { getFilenameFromPath } from '@/lib/utils'; // Keep if needed for local transformations, otherwise remove
+import { track } from '@/lib/services/analyticsService';
 import type { Notebook, Material, SupabaseUser, ChatMessage } from '../types';
 
 export interface NotebookSlice {
@@ -170,6 +171,13 @@ export const createNotebookSlice: StateCreator<
         get().setHasCreatedNotebook!(true);
       }
 
+      // Track notebook creation
+      track('notebook_created', {
+        notebook_id: newNotebook.id,
+        has_material: !!material,
+        material_type: material?.kind,
+      });
+
 
       // 3. Trigger Processing (Edge Function)
       // Run in background, don't await blocking the UI return
@@ -279,6 +287,12 @@ export const createNotebookSlice: StateCreator<
       if ((get() as any).checkAndAwardTask) {
         (get() as any).checkAndAwardTask('add_material_daily');
       }
+
+      // Track material added
+      track('material_added', {
+        notebook_id: notebookId,
+        material_type: newMaterial.kind,
+      });
 
     } catch (error) {
       console.error('Error adding material:', error);

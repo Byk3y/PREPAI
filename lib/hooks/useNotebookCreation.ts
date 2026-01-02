@@ -68,9 +68,15 @@ export const useNotebookCreation = () => {
                 return null;
             }
             setIsAddingNotebook(true);
+            // SECURITY: Sanitize filename and enforce length limits
+            const sanitizedTitle = result.name
+                .replace(/\.(mp3|wav|m4a|aac)$/i, '')
+                .substring(0, 100)
+                .trim() || 'Untitled Audio';
+
             // Zero-friction: auto-create notebook with audio material
             const notebookId = await addNotebook({
-                title: result.name.replace(/\.(mp3|wav|m4a|aac)$/i, ''),
+                title: sanitizedTitle,
                 flashcardCount: 0,
                 progress: 0,
                 color: getRandomColor(),
@@ -114,9 +120,15 @@ export const useNotebookCreation = () => {
             }
 
             setIsAddingNotebook(true);
+            // SECURITY: Sanitize filename and enforce length limits
+            const sanitizedTitle = result.name
+                .replace(/\.pdf$/i, '')
+                .substring(0, 100)
+                .trim() || 'Untitled Document';
+
             // Zero-friction: auto-create notebook with PDF material
             const notebookId = await addNotebook({
-                title: result.name.replace('.pdf', ''),
+                title: sanitizedTitle,
                 flashcardCount: 0,
                 progress: 0,
                 color: getRandomColor(),
@@ -181,9 +193,14 @@ export const useNotebookCreation = () => {
             }
 
             setIsAddingNotebook(true);
+            // SECURITY: Sanitize filename and enforce length limits
+            const sanitizedTitle = (image.fileName?.replace(/\.[^/.]+$/, '') || 'Image Notes')
+                .substring(0, 100)
+                .trim() || 'Image Notes';
+
             // Zero-friction: auto-create notebook with image material
             const notebookId = await addNotebook({
-                title: image.fileName?.replace(/\.[^/.]+$/, '') || 'Image Notes',
+                title: sanitizedTitle,
                 flashcardCount: 0,
                 progress: 0,
                 color: getRandomColor(),
@@ -270,9 +287,12 @@ export const useNotebookCreation = () => {
 
         const wrappedFn = withErrorHandling(async () => {
             setIsAddingNotebook(true);
+            // SECURITY: Sanitize title and enforce length limits
+            const sanitizedTitle = title.substring(0, 100).trim() || 'Untitled Note';
+
             // Zero-friction: auto-create notebook with text/note material (processed=true, status=preview_ready)
             const notebookId = await addNotebook({
-                title: title,
+                title: sanitizedTitle,
                 flashcardCount: 0,
                 progress: 0,
                 color: getRandomColor(),
@@ -309,11 +329,15 @@ export const useNotebookCreation = () => {
         const wrappedFn = withErrorHandling(async () => {
             setIsAddingNotebook(true);
 
-            // Clean URL (remove channel info, etc.)
+            // SECURITY: Strict YouTube URL validation to prevent malicious URLs
             let cleanUrl = url.trim();
-            // Simple check to ensure it looks like a YouTube URL
-            if (!cleanUrl.includes('youtube.com') && !cleanUrl.includes('youtu.be')) {
-                throw new Error('Please provide a valid YouTube URL');
+
+            // Validate URL is actually a YouTube URL (not youtube.com.attacker.com)
+            // Matches: youtube.com/watch?v=..., youtube.com/shorts/..., youtu.be/...
+            const youtubeUrlRegex = /^https?:\/\/(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)[\w-]{11}/;
+
+            if (!youtubeUrlRegex.test(cleanUrl)) {
+                throw new Error('Please provide a valid YouTube URL (e.g., https://youtube.com/watch?v=...)');
             }
 
             // Zero-friction: auto-create notebook with youtube material
