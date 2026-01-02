@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Image } from 'react-native';
 import { MotiView } from 'moti';
 import { getThemeColors } from '@/lib/ThemeContext';
@@ -11,22 +11,23 @@ const { width } = Dimensions.get('window');
 // Use Stage 1 pet for consistency
 const PetStage1 = require('../../../assets/pets/stage-1/full-view.png');
 
-interface Screen4_EducationProps {
+interface Screen4_TimeGoalProps {
     colors: ReturnType<typeof getThemeColors>;
 }
 
-const EDUCATION_OPTIONS = [
-    { id: 'middle_high', label: 'Student', description: 'Middle school, high school, or college', icon: 'school-outline' },
-    { id: 'professional', label: 'Working professional', description: 'Career-focused learning', icon: 'briefcase-outline' },
-    { id: 'lifelong', label: 'Lifelong learner', description: 'Learning for curiosity & growth', icon: 'sparkles-outline' },
+const TIME_OPTIONS = [
+    { id: '10', label: '5-15 minutes', description: 'Quick daily boost', icon: 'cafe-outline' },
+    { id: '25', label: '15-30 minutes', description: 'Balanced sessions', icon: 'timer-outline' },
+    { id: '45', label: '30-60 minutes', description: 'Deep focus time', icon: 'flame-outline' },
+    { id: '75', label: '60+ minutes', description: 'Intensive learning', icon: 'rocket-outline' },
 ];
 
-export function Screen4_Education({ colors }: Screen4_EducationProps) {
-    const { educationLevel, setEducationLevel } = useStore();
+export function Screen4_TimeGoal({ colors }: Screen4_TimeGoalProps) {
+    const { dailyCommitmentMinutes, setDailyCommitment } = useStore();
 
     const handleSelect = (id: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setEducationLevel(id);
+        setDailyCommitment(parseInt(id, 10));
     };
 
     return (
@@ -50,17 +51,17 @@ export function Screen4_Education({ colors }: Screen4_EducationProps) {
             {/* Headline */}
             <View style={styles.headlineSection}>
                 <Text style={[styles.headline, { color: colors.text }]}>
-                    What describes you best?
+                    Daily study goal?
                 </Text>
                 <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                    This helps personalize your experience
+                    Consistency beats intensity!
                 </Text>
             </View>
 
             {/* Options List */}
             <View style={styles.optionsSection}>
-                {EDUCATION_OPTIONS.map((option, index) => {
-                    const isSelected = educationLevel === option.id;
+                {TIME_OPTIONS.map((option, index) => {
+                    const isSelected = dailyCommitmentMinutes?.toString() === option.id;
                     return (
                         <MotiView
                             key={option.id}

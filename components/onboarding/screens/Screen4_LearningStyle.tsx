@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Image } from 'react-native';
 import { MotiView } from 'moti';
 import { getThemeColors } from '@/lib/ThemeContext';
@@ -11,22 +11,23 @@ const { width } = Dimensions.get('window');
 // Use Stage 1 pet for consistency
 const PetStage1 = require('../../../assets/pets/stage-1/full-view.png');
 
-interface Screen4_EducationProps {
+interface Screen4_LearningStyleProps {
     colors: ReturnType<typeof getThemeColors>;
 }
 
-const EDUCATION_OPTIONS = [
-    { id: 'middle_high', label: 'Student', description: 'Middle school, high school, or college', icon: 'school-outline' },
-    { id: 'professional', label: 'Working professional', description: 'Career-focused learning', icon: 'briefcase-outline' },
-    { id: 'lifelong', label: 'Lifelong learner', description: 'Learning for curiosity & growth', icon: 'sparkles-outline' },
+const LEARNING_OPTIONS = [
+    { id: 'visual', label: 'Visual', description: 'I like diagrams & images', icon: 'images-outline' },
+    { id: 'auditory', label: 'Listening', description: 'I learn by hearing', icon: 'headset-outline' },
+    { id: 'reading', label: 'Reading', description: 'I prefer written notes', icon: 'reader-outline' },
+    { id: 'practice', label: 'Hands-on', description: 'I learn by doing', icon: 'construct-outline' },
 ];
 
-export function Screen4_Education({ colors }: Screen4_EducationProps) {
-    const { educationLevel, setEducationLevel } = useStore();
+export function Screen4_LearningStyle({ colors }: Screen4_LearningStyleProps) {
+    const { learningStyle, setLearningStyle } = useStore();
 
     const handleSelect = (id: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setEducationLevel(id);
+        setLearningStyle(id as 'visual' | 'auditory' | 'reading' | 'practice');
     };
 
     return (
@@ -50,17 +51,17 @@ export function Screen4_Education({ colors }: Screen4_EducationProps) {
             {/* Headline */}
             <View style={styles.headlineSection}>
                 <Text style={[styles.headline, { color: colors.text }]}>
-                    What describes you best?
+                    How do you learn best?
                 </Text>
                 <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                    This helps personalize your experience
+                    Pick what feels most natural
                 </Text>
             </View>
 
             {/* Options List */}
             <View style={styles.optionsSection}>
-                {EDUCATION_OPTIONS.map((option, index) => {
-                    const isSelected = educationLevel === option.id;
+                {LEARNING_OPTIONS.map((option, index) => {
+                    const isSelected = learningStyle === option.id;
                     return (
                         <MotiView
                             key={option.id}

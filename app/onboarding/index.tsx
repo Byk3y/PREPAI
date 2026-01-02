@@ -27,7 +27,6 @@ import {
   FIRST_SCREEN,
   LAST_SCREEN,
   AUTH_REQUIRED_SCREEN,
-  ASSESSMENT_START_SCREEN,
   isLastScreen,
   isFirstScreen,
   shouldHideFooter,
@@ -38,14 +37,28 @@ import {
 import { Screen1 } from '@/components/onboarding/screens/Screen1';
 import { Screen2 } from '@/components/onboarding/screens/Screen2';
 import { Screen3 } from '@/components/onboarding/screens/Screen3';
-import { Screen4_Assessment } from '@/components/onboarding/screens/Screen4_Assessment';
-import { Screen4_Results } from '@/components/onboarding/screens/Screen4_Results';
+import { Screen3_AhaMoment } from '@/components/onboarding/screens/AhaMoment';
 import { Screen4_PetNaming } from '@/components/onboarding/screens/Screen4_PetNaming';
-import { Screen4_Notifications } from '@/components/onboarding/screens/Screen4_Notifications';
-import { Screen5 } from '@/components/onboarding/screens/Screen5';
-import { Screen6 } from '@/components/onboarding/screens/Screen6';
-import { Screen7 } from '@/components/onboarding/screens/Screen7';
 import { Screen4_Education } from '@/components/onboarding/screens/Screen4_Education';
+import { Screen4_LearningStyle } from '@/components/onboarding/screens/Screen4_LearningStyle';
+import { Screen4_TimeGoal } from '@/components/onboarding/screens/Screen4_TimeGoal';
+import { Screen4_Notifications } from '@/components/onboarding/screens/Screen4_Notifications';
+
+// Analytics
+import { track } from '@/lib/services/analyticsService';
+
+// Screen names for analytics
+const SCREEN_NAMES: Record<number, string> = {
+  0: 'problem',
+  1: 'science',
+  2: 'aha_moment',
+  3: 'auth',
+  4: 'pet_naming',
+  5: 'education',
+  6: 'learning_style',
+  7: 'time_goal',
+  8: 'notifications',
+};
 
 export default function OnboardingScreen() {
   const [currentScreen, setCurrentScreen] = useState(0);
@@ -64,13 +77,36 @@ export default function OnboardingScreen() {
     petState,
     loadPetState,
     educationLevel,
-    ageBracket,
+    learningStyle,
+    dailyCommitmentMinutes,
   } = useStore();
+
+  const [onboardingStartTime] = useState(() => Date.now());
+
+  // Track onboarding started on mount
+  useEffect(() => {
+    track('onboarding_started', {
+      timestamp: new Date().toISOString(),
+    });
+  }, []);
+
+  // Track screen views
+  useEffect(() => {
+    track('onboarding_screen_viewed', {
+      screen_number: currentScreen + 1,
+      screen_name: SCREEN_NAMES[currentScreen] || 'unknown',
+      total_screens: TOTAL_SCREENS,
+    });
+  }, [currentScreen]);
 
   // Load saved screen on mount if resuming after auth
   useEffect(() => {
-    if (authUser && savedScreen >= ASSESSMENT_START_SCREEN && savedScreen < TOTAL_SCREENS) {
+    if (authUser && savedScreen >= SCREEN_INDICES.SCREEN_5_PET_NAMING && savedScreen < TOTAL_SCREENS) {
       console.log('Resuming onboarding at screen', savedScreen);
+      track('onboarding_resumed', {
+        resumed_at_screen: savedScreen + 1,
+        screen_name: SCREEN_NAMES[savedScreen] || 'unknown',
+      });
       setCurrentScreen(savedScreen);
     }
   }, [authUser, savedScreen]);
@@ -78,7 +114,7 @@ export default function OnboardingScreen() {
   // Load existing pet name when reaching pet naming screen
   useEffect(() => {
     // Only run when reaching pet naming screen and user is logged in
-    if (currentScreen !== SCREEN_INDICES.SCREEN_4_PET_NAMING || !authUser) {
+    if (currentScreen !== SCREEN_INDICES.SCREEN_5_PET_NAMING || !authUser) {
       return;
     }
 
@@ -144,7 +180,7 @@ export default function OnboardingScreen() {
     // But keeping the logic in case it's needed elsewhere
 
     // Pet Naming Screen - Save pet name before advancing
-    if (currentScreen === SCREEN_INDICES.SCREEN_4_PET_NAMING) {
+    if (currentScreen === SCREEN_INDICES.SCREEN_5_PET_NAMING) {
       const trimmedName = petName.trim();
 
       // Validate pet name is not empty
@@ -232,18 +268,14 @@ export default function OnboardingScreen() {
   // Enhanced button text with commitment language
   const getContinueButtonText = () => {
     switch (currentScreen) {
-      case SCREEN_INDICES.SCREEN_3_SOLUTION: // Auth break point
-        return "Let's get started →";
-      case SCREEN_INDICES.SCREEN_4_ASSESSMENT: // Handled internally by component
-        return 'Continue →';
-      case SCREEN_INDICES.SCREEN_4_RESULTS:
-        return "Let's personalize my experience →";
-      case SCREEN_INDICES.SCREEN_4_PET_NAMING:
-        return "Meet my new mentor →";
-      case SCREEN_INDICES.SCREEN_4_EDUCATION:
-        return "Calibrate Brigo →";
-      case SCREEN_INDICES.SCREEN_7_TRIAL_OFFER: // Last screen
-        return "I'm ready to study smarter";
+      case SCREEN_INDICES.SCREEN_5_PET_NAMING:
+        return "Name my companion →";
+      case SCREEN_INDICES.SCREEN_6_EDUCATION:
+        return "Continue →";
+      case SCREEN_INDICES.SCREEN_7_LEARNING_STYLE:
+        return "Continue →";
+      case SCREEN_INDICES.SCREEN_8_TIME_GOAL:
+        return "Finish setup →";
       default:
         return 'Continue →';
     }
@@ -259,42 +291,54 @@ export default function OnboardingScreen() {
         return <Screen1 colors={colors} />;
       case SCREEN_INDICES.SCREEN_2_SCIENCE:
         return <Screen2 colors={colors} />;
-      case SCREEN_INDICES.SCREEN_3_SOLUTION:
-        return <Screen3 colors={colors} onContinue={handleContinue} />;
-      case SCREEN_INDICES.SCREEN_4_ASSESSMENT:
+      case SCREEN_INDICES.SCREEN_3_AHA_MOMENT:
         return (
-          <Screen4_Assessment
+          <Screen3_AhaMoment
             colors={colors}
-            onComplete={() => setCurrentScreen(SCREEN_INDICES.SCREEN_4_RESULTS)}
+            onComplete={() => setCurrentScreen(SCREEN_INDICES.SCREEN_4_AUTH)}
           />
         );
-      case SCREEN_INDICES.SCREEN_4_RESULTS:
-        return <Screen4_Results colors={colors} />;
-      case SCREEN_INDICES.SCREEN_4_EDUCATION:
-        return <Screen4_Education colors={colors} />;
-      case SCREEN_INDICES.SCREEN_4_PET_NAMING:
+      case SCREEN_INDICES.SCREEN_4_AUTH:
+        return <Screen3 colors={colors} onContinue={handleContinue} />;
+      case SCREEN_INDICES.SCREEN_5_PET_NAMING:
         return <Screen4_PetNaming petName={petName} onNameChange={setPetName} colors={colors} />;
-      case SCREEN_INDICES.SCREEN_4_NOTIFICATIONS:
+      case SCREEN_INDICES.SCREEN_6_EDUCATION:
+        return <Screen4_Education colors={colors} />;
+      case SCREEN_INDICES.SCREEN_7_LEARNING_STYLE:
+        return <Screen4_LearningStyle colors={colors} />;
+      case SCREEN_INDICES.SCREEN_8_TIME_GOAL:
+        return <Screen4_TimeGoal colors={colors} />;
+      case SCREEN_INDICES.SCREEN_9_NOTIFICATIONS:
         return (
           <Screen4_Notifications
             petName={petName}
             colors={colors}
-            onDone={() => setCurrentScreen(SCREEN_INDICES.SCREEN_5_DREAM)}
+            onDone={async () => {
+              // Track onboarding completion
+              const totalDurationSeconds = Math.round((Date.now() - onboardingStartTime) / 1000);
+              track('onboarding_completed', {
+                total_duration_seconds: totalDurationSeconds,
+                education_level: educationLevel,
+                learning_style: learningStyle,
+                daily_commitment_minutes: dailyCommitmentMinutes,
+              });
+
+              // Mark onboarding complete and go to paywall
+              await markOnboardingComplete();
+              router.replace('/paywall?source=onboarding');
+            }}
           />
         );
-      case SCREEN_INDICES.SCREEN_5_DREAM:
-        return <Screen5 colors={colors} />;
-      case SCREEN_INDICES.SCREEN_6_SOCIAL_PROOF:
-        return <Screen6 colors={colors} />;
-      case SCREEN_INDICES.SCREEN_7_TRIAL_OFFER:
-        return <Screen7 colors={colors} />;
       default:
         return <Screen1 colors={colors} />;
     }
   };
 
+  // Determine background color based on current screen
+  const screenBackground = colors.background;
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: screenBackground }]} edges={['top', 'bottom']}>
       {/* Progress bar with milestones */}
       <ProgressBar
         current={currentScreen + 1}
@@ -304,6 +348,7 @@ export default function OnboardingScreen() {
             setCurrentScreen((prev) => prev - 1);
           }
         }}
+        barColor={undefined}
       />
 
       {/* Current screen with animation */}
@@ -330,8 +375,10 @@ export default function OnboardingScreen() {
             loading={isNavigating}
             disabled={
               isNavigating ||
-              (currentScreen === SCREEN_INDICES.SCREEN_4_PET_NAMING && !petName.trim()) ||
-              (currentScreen === SCREEN_INDICES.SCREEN_4_EDUCATION && (!educationLevel || !ageBracket))
+              (currentScreen === SCREEN_INDICES.SCREEN_5_PET_NAMING && !petName.trim()) ||
+              (currentScreen === SCREEN_INDICES.SCREEN_6_EDUCATION && !educationLevel) ||
+              (currentScreen === SCREEN_INDICES.SCREEN_7_LEARNING_STYLE && !learningStyle) ||
+              (currentScreen === SCREEN_INDICES.SCREEN_8_TIME_GOAL && !dailyCommitmentMinutes)
             }
           />
         </View>

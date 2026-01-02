@@ -14,11 +14,18 @@ interface ProgressBarProps {
   current: number;
   total: number;
   onBack?: () => void;
+  barColor?: string;
 }
 
-export function ProgressBar({ current, total, onBack }: ProgressBarProps) {
+export function ProgressBar({ current, total, onBack, barColor }: ProgressBarProps) {
   const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
+
+  // Use barColor or default orange
+  const fillColor = barColor || '#F97316';
+
+  const textColor = colors.text;
+  const mutedTextColor = colors.textMuted;
 
   // Calculate milestones
   const isMidpoint = current === Math.ceil(total / 2);
@@ -43,7 +50,7 @@ export function ProgressBar({ current, total, onBack }: ProgressBarProps) {
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             activeOpacity={0.7}
           >
-            <Ionicons name="chevron-back" size={20} color={colors.text} />
+            <Ionicons name="chevron-back" size={20} color={textColor} />
           </TouchableOpacity>
         )}
         <View style={[styles.progressBarTrack, { backgroundColor: colors.borderLight, flex: 1 }]}>
@@ -53,15 +60,15 @@ export function ProgressBar({ current, total, onBack }: ProgressBarProps) {
               type: 'spring',
               damping: 15,
               stiffness: 100,
-            }}
-            style={[styles.progressBarFill, { backgroundColor: '#F97316' }]}
+            } as any}
+            style={[styles.progressBarFill, { backgroundColor: fillColor }]}
           />
         </View>
       </View>
 
       {/* Progress text with step counter */}
       <View style={styles.progressTextContainer}>
-        <Text style={[styles.progressText, { color: colors.textMuted }]}>
+        <Text style={[styles.progressText, { color: mutedTextColor }]}>
           Step {current} of {total}
         </Text>
       </View>
@@ -71,7 +78,7 @@ export function ProgressBar({ current, total, onBack }: ProgressBarProps) {
         <MotiView
           from={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', damping: 12 }}
+          transition={{ type: 'spring', damping: 12 } as any}
           style={styles.milestoneContainer}
         >
           <MotiText style={[styles.milestoneText, { color: colors.text }]}>
@@ -84,7 +91,7 @@ export function ProgressBar({ current, total, onBack }: ProgressBarProps) {
         <MotiView
           from={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', damping: 12 }}
+          transition={{ type: 'spring', damping: 12 } as any}
           style={styles.milestoneContainer}
         >
           <MotiText style={[styles.milestoneText, { color: colors.text }]}>

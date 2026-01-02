@@ -35,20 +35,20 @@ export function OnboardingButton({
       style={[
         styles.button,
         {
-          backgroundColor: isPrimary ? colors.primaryLight : 'transparent',
+          backgroundColor: isPrimary ? colors.primary : 'transparent',
           opacity: disabled || loading ? 0.5 : 1,
           shadowColor: colors.shadowColor,
         },
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={isPrimary ? colors.white : colors.primaryLight} />
+        <ActivityIndicator color={isPrimary ? colors.white : colors.primary} />
       ) : (
         <Text
           style={[
             styles.buttonText,
             {
-              color: isPrimary ? colors.white : colors.primaryLight,
+              color: isPrimary ? colors.white : colors.primary,
             },
           ]}
         >
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   button: {
     paddingVertical: 18,
     paddingHorizontal: 24,
-    borderRadius: 16,
+    borderRadius: 30,
     width: '100%',
     alignItems: 'center',
     // shadowColor will be set inline

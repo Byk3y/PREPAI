@@ -4,6 +4,7 @@
 
 import { StateCreator } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import { TOTAL_SCREENS } from '@/lib/onboarding/constants';
 
 export interface OnboardingSlice {
   // State
@@ -11,7 +12,6 @@ export interface OnboardingSlice {
   pendingPetName: string | null;
   currentOnboardingScreen: number;
   educationLevel: string | null;
-  ageBracket: string | null;
 
   // Actions
   setHasCompletedOnboarding: (completed: boolean) => void;
@@ -19,7 +19,6 @@ export interface OnboardingSlice {
   clearPendingPetName: () => void;
   setCurrentOnboardingScreen: (screen: number) => void;
   setEducationLevel: (level: string) => void;
-  setAgeBracket: (bracket: string) => void;
   markOnboardingComplete: () => Promise<void>;
 }
 
@@ -34,7 +33,6 @@ export const createOnboardingSlice: StateCreator<
   pendingPetName: null,
   currentOnboardingScreen: 0,
   educationLevel: null,
-  ageBracket: null,
 
   // Set completion status
   setHasCompletedOnboarding: (completed: boolean) => {
@@ -60,16 +58,17 @@ export const createOnboardingSlice: StateCreator<
     set({ educationLevel: level });
   },
 
-  setAgeBracket: (bracket: string) => {
-    set({ ageBracket: bracket });
-  },
-
   // Mark onboarding as complete in database
   markOnboardingComplete: async () => {
     try {
-      // Get auth user from store (assuming it's available in the combined store)
+      // Get state from the combined store
       const state = get() as any;
-      const { educationLevel, ageBracket, authUser } = state;
+      const {
+        educationLevel,
+        learningStyle,
+        dailyCommitmentMinutes,
+        authUser
+      } = state;
 
       if (!authUser) {
         console.warn('Cannot mark onboarding complete: no auth user');
@@ -83,7 +82,8 @@ export const createOnboardingSlice: StateCreator<
           has_completed_onboarding: true,
           onboarding_completed_at: new Date().toISOString(),
           education_level: educationLevel,
-          age_bracket: ageBracket,
+          learning_style: learningStyle,
+          daily_commitment_minutes: dailyCommitmentMinutes,
         },
       });
 
@@ -94,10 +94,10 @@ export const createOnboardingSlice: StateCreator<
       // Update local state
       set({
         hasCompletedOnboarding: true,
-        currentOnboardingScreen: 10, // Update to new last screen index
+        currentOnboardingScreen: TOTAL_SCREENS, // Final index in our 9-screen flow
       });
 
-      console.log('Onboarding marked as complete');
+      console.log('Onboarding marked as complete with personalized data');
     } catch (error) {
       console.error('Failed to mark onboarding complete:', error);
       throw error;

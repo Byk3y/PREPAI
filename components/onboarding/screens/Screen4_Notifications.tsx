@@ -7,10 +7,11 @@ import { TypewriterText } from '../components/TypewriterText';
 import Svg, { Path } from 'react-native-svg';
 import { notificationService } from '@/lib/services/notificationService';
 import { useStore } from '@/lib/store';
+import { track } from '@/lib/services/analyticsService';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
-import NovaFull from '../../../assets/pets/stage-1/full-view.png';
+import BrigoAnalytical from '../../../assets/onboarding-ui/mascot/brigo_analytical.png';
 
 interface Screen4NotificationsProps {
     colors: ReturnType<typeof getThemeColors>;
@@ -22,7 +23,7 @@ export function Screen4_Notifications({ colors, petName, onDone }: Screen4Notifi
     const [headlineComplete, setHeadlineComplete] = useState(false);
     const [isRequesting, setIsRequesting] = useState(false);
     const authUser = useStore((state) => state.authUser);
-    const nameToUse = petName || 'your pet';
+    const nameToUse = petName || 'Brigo';
 
     const handleHeadlineComplete = useCallback(() => {
         setHeadlineComplete(true);
@@ -37,8 +38,18 @@ export function Screen4_Notifications({ colors, petName, onDone }: Screen4Notifi
             if (token && authUser?.id) {
                 await notificationService.saveTokenToProfile(authUser.id, token);
             }
+
+            // Track notification enabled
+            track('onboarding_notifications', {
+                enabled: !!token,
+                action: 'enabled',
+            });
         } catch (error) {
             console.error('Failed to enable notifications:', error);
+            track('onboarding_notifications', {
+                enabled: false,
+                action: 'error',
+            });
         } finally {
             setIsRequesting(false);
             onDone();
@@ -48,40 +59,54 @@ export function Screen4_Notifications({ colors, petName, onDone }: Screen4Notifi
     return (
         <View style={styles.container}>
             <View style={styles.topSection}>
-                <MotiView
-                    from={{ opacity: 0, scale: 0.5, translateY: 20 }}
-                    animate={{ opacity: 1, scale: 1, translateY: 0 }}
-                    transition={{ type: 'spring', damping: 15, delay: 300 } as any}
-                    style={styles.petContainer}
-                >
+                {/* Mascot + Shadow Group */}
+                <View style={styles.mascotGroup}>
                     <MotiView
-                        animate={{ translateY: [-8, 8, -8] }}
-                        transition={{ loop: true, type: 'timing', duration: 3000 } as any}
+                        animate={{
+                            scale: [0.8, 1.05, 0.8],
+                            opacity: [0.03, 0.08, 0.03]
+                        }}
+                        transition={{ loop: true, type: 'timing', duration: 3200 } as any}
+                        style={[styles.shadow, { backgroundColor: '#000' }]}
+                    />
+                    <MotiView
+                        from={{ opacity: 0, scale: 0.5, translateY: 20 }}
+                        animate={{ opacity: 1, scale: 1, translateY: 0 }}
+                        transition={{ type: 'spring', damping: 15, delay: 300 } as any}
+                        style={styles.petContainer}
                     >
-                        <Image
-                            source={NovaFull}
-                            style={styles.petImage}
-                            resizeMode="contain"
-                        />
+                        <MotiView
+                            animate={{ translateY: [-8, 8, -8] }}
+                            transition={{ loop: true, type: 'timing', duration: 3000 } as any}
+                        >
+                            <Image
+                                source={BrigoAnalytical}
+                                style={styles.petImage}
+                                resizeMode="contain"
+                            />
+                        </MotiView>
                     </MotiView>
-                </MotiView>
+                </View>
 
                 <MotiView
-                    from={{ opacity: 0, scale: 0.8, translateY: 10 }}
+                    from={{ opacity: 0, scale: 0.9, translateY: 10 }}
                     animate={{ opacity: 1, scale: 1, translateY: 0 }}
-                    transition={{ type: 'spring', damping: 12, delay: 600 } as any}
+                    transition={{ type: 'spring', damping: 28, delay: 600 } as any}
                     style={[styles.bubbleContainer, { backgroundColor: colors.surfaceElevated }]}
                 >
                     <TypewriterText
-                        text={`I'm so excited to help you grow! Can I send you a nudge if I see you're about to lose our streak?`}
+                        text={`Can I send you gentle reminders? I'll help you stay on track!`}
                         style={[styles.headline, { color: colors.text }]}
                         speed={40}
                         delay={1000}
                         onComplete={handleHeadlineComplete}
                     />
                     <View style={styles.bubbleTail}>
-                        <Svg width="24" height="16" viewBox="0 0 24 16">
-                            <Path d="M12 16L0 0H24L12 16Z" fill={colors.surfaceElevated} />
+                        <Svg width="20" height="12" viewBox="0 0 20 12">
+                            <Path
+                                d="M10 12C10 12 7.5 4 0 0L20 0C12.5 4 10 12 10 12Z"
+                                fill={colors.surfaceElevated}
+                            />
                         </Svg>
                     </View>
                 </MotiView>
@@ -97,10 +122,10 @@ export function Screen4_Notifications({ colors, petName, onDone }: Screen4Notifi
                     onPress={handleEnable}
                     disabled={isRequesting}
                     activeOpacity={0.8}
-                    style={[styles.enableButton, { backgroundColor: '#F97316' }]}
+                    style={[styles.enableButton, { backgroundColor: colors.primary }]}
                 >
                     <Text style={styles.enableButtonText}>
-                        {isRequesting ? 'Enabling...' : 'Yes, please!'}
+                        {isRequesting ? 'Enabling...' : 'Turn on notifications'}
                     </Text>
                 </TouchableOpacity>
 
@@ -115,9 +140,9 @@ export function Screen4_Notifications({ colors, petName, onDone }: Screen4Notifi
                     </Text>
                 </TouchableOpacity>
 
-                <View style={[styles.infoCard, { backgroundColor: '#3B82F608', borderColor: '#3B82F620' }]}>
+                <View style={[styles.infoCard, { backgroundColor: colors.primary + '05', borderColor: colors.primary + '20' }]}>
                     <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-                        I promise not to be annoying. I'll only ping you for important stuff like streaks and finished notebooks.
+                        I'll only send helpful study reminders & streak alerts. No spam, promise!
                     </Text>
                 </View>
             </MotiView>
@@ -135,38 +160,51 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 40,
     },
-    petContainer: {
-        width: width * 0.45,
+    mascotGroup: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: width,
         height: width * 0.45,
+    },
+    petContainer: {
+        width: width * 0.4,
+        height: width * 0.4,
         zIndex: 1,
     },
     petImage: {
         width: '100%',
         height: '100%',
     },
+    shadow: {
+        position: 'absolute',
+        bottom: 25,
+        width: 60,
+        height: 10,
+        borderRadius: 30,
+        zIndex: 0,
+    },
     bubbleContainer: {
-        marginTop: -5,
+        marginTop: 5,
         paddingHorizontal: 24,
-        paddingVertical: 16,
+        paddingVertical: 18,
         borderRadius: 24,
         width: '100%',
         zIndex: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
+        shadowOpacity: 0.08,
         shadowRadius: 10,
         elevation: 3,
     },
     bubbleTail: {
         position: 'absolute',
-        bottom: -15,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
+        bottom: -11,
+        left: '50%',
+        marginLeft: -10,
     },
     headline: {
         fontSize: 17,
-        fontWeight: '700',
+        fontWeight: '800',
         fontFamily: 'SpaceGrotesk-Bold',
         lineHeight: 24,
         textAlign: 'center',
@@ -178,40 +216,43 @@ const styles = StyleSheet.create({
     enableButton: {
         width: '100%',
         height: 64,
-        borderRadius: 20,
+        borderRadius: 32,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 16,
-        shadowColor: '#F97316',
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 4,
     },
     enableButtonText: {
         color: '#FFFFFF',
-        fontSize: 18,
+        fontSize: 16,
+        fontWeight: '900',
         fontFamily: 'SpaceGrotesk-Bold',
+        letterSpacing: 2,
     },
     skipButton: {
         paddingVertical: 12,
         marginBottom: 32,
     },
     skipButtonText: {
-        fontSize: 15,
-        fontFamily: 'SpaceGrotesk-SemiBold',
+        fontSize: 14,
+        fontFamily: 'SpaceGrotesk-Bold',
+        opacity: 0.6,
+        fontWeight: '700',
     },
     infoCard: {
-        padding: 20,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderStyle: 'dashed',
+        padding: 24,
+        borderRadius: 28,
+        borderWidth: 1.5,
         width: '100%',
     },
     infoText: {
-        fontSize: 14,
+        fontSize: 13,
         fontFamily: 'SpaceGrotesk-Medium',
-        lineHeight: 20,
+        lineHeight: 18,
         textAlign: 'center',
     },
 });
