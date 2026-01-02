@@ -16,7 +16,7 @@
 
 import { createClient } from 'supabase';
 import { callLLMWithRetry } from '../_shared/openrouter.ts';
-import { extractPDF, extractImageText, transcribeAudio } from '../_shared/extraction.ts';
+import { extractPDF, extractImageText, transcribeAudio, extractWebsiteContent } from '../_shared/extraction.ts';
 import { checkQuota } from '../_shared/quota.ts';
 import { getRequiredEnv, getOptionalEnv } from '../_shared/env.ts';
 import { getCorsHeaders, getCorsPreflightHeaders } from '../_shared/cors.ts';
@@ -103,8 +103,26 @@ async function extractContent(
 
     return { text };
   } else if (kind === 'website') {
-    // TODO: Implement website scraping
-    throw new Error('Website scraping not implemented yet');
+    // Extract content from website URL using Jina Reader
+    if (!external_url) {
+      throw new Error('Website material missing external_url');
+    }
+
+    const websiteResult = await extractWebsiteContent(external_url);
+
+    return {
+      text: websiteResult.text,
+      metadata: {
+        website_extraction: {
+          source: websiteResult.metadata.source,
+          extractedTitle: websiteResult.title,
+          url: websiteResult.metadata.url,
+          processingTime: websiteResult.metadata.processingTime,
+          contentLength: websiteResult.metadata.contentLength,
+          warning: websiteResult.metadata.warning,
+        },
+      },
+    };
   } else if (kind === 'youtube') {
     const { getRequiredEnv } = await import('../_shared/env.ts');
     const { getYoutubeTranscript, cleanTranscriptWithAI } = await import('../_shared/youtube.ts');
@@ -252,7 +270,16 @@ Provide the premium preview JSON that synthesizes all available source material.
   });
 
   try {
-    const response = JSON.parse(result.content);
+    // Strip markdown code blocks if present (LLMs often wrap JSON in ```json ... ```)
+    let jsonContent = result.content.trim();
+    if (jsonContent.startsWith('```')) {
+      // Remove opening code fence (```json or ```)
+      jsonContent = jsonContent.replace(/^```(?:json)?\s*\n?/, '');
+      // Remove closing code fence
+      jsonContent = jsonContent.replace(/\n?```\s*$/, '');
+    }
+
+    const response = JSON.parse(jsonContent);
 
     // SECURITY: Validate LLM response structure
     const titleValidation = validateString(response.title, {
@@ -402,7 +429,7 @@ Deno.serve(async (req) => {
 
     const { data: notebook, error: notebookError } = await supabase
       .from('notebooks')
-      .select('id, user_id, title')
+      .select('id, user_id, title, emoji, color')
       .eq('id', notebookId)
       .single();
 
@@ -682,20 +709,29 @@ Deno.serve(async (req) => {
       console.log(`Content summary: ${contentSummary.material_count} materials, has_past_paper: ${contentSummary.has_past_paper}, has_notes: ${contentSummary.has_notes}`);
 
       // STEP 6: Update notebook with AI-generated title, preview, classification, and summary
+      const notebookUpdate: any = {
+        title: aiTitle,
+        status: 'preview_ready',
+        meta: {
+          preview,
+          content_classification: contentClassification, // Latest material's classification
+          content_summary: contentSummary, // Summary of ALL materials
+        },
+        preview_generated_at: new Date().toISOString(),
+      };
+
+      // PERSISTENCE FIRST: Only set emoji and color if they don't already exist.
+      // This prevents the "ruler changing to chart" issue when adding new sources.
+      if (!notebook.emoji) {
+        notebookUpdate.emoji = llmResult.emoji;
+      }
+      if (!notebook.color) {
+        notebookUpdate.color = llmResult.color;
+      }
+
       await supabase
         .from('notebooks')
-        .update({
-          title: aiTitle,
-          emoji: llmResult.emoji,
-          color: llmResult.color,
-          status: 'preview_ready',
-          meta: {
-            preview,
-            content_classification: contentClassification, // Latest material's classification
-            content_summary: contentSummary, // Summary of ALL materials
-          },
-          preview_generated_at: new Date().toISOString(),
-        })
+        .update(notebookUpdate)
         .eq('id', notebookId);
 
       // STEP 6: Log usage with ACTUAL token counts from LLM API
