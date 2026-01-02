@@ -372,6 +372,94 @@ export const useNotebookCreation = () => {
         return await wrappedFn();
     }, [addNotebook, loadNotebooks, withErrorHandling, checkCanCreate]);
 
+    const handleWebsiteImport = useCallback(async (url: string) => {
+        // Check if user can create content
+        if (!checkCanCreate()) {
+            return null;
+        }
+
+        const wrappedFn = withErrorHandling(async () => {
+            setIsAddingNotebook(true);
+
+            try {
+                // SECURITY: Comprehensive URL validation
+                let cleanUrl = url.trim();
+
+                // Ensure URL has a protocol
+                if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+                    cleanUrl = 'https://' + cleanUrl;
+                }
+
+                // Validate URL format
+                let parsedUrl: URL;
+                try {
+                    parsedUrl = new URL(cleanUrl);
+                } catch {
+                    throw new Error('Please provide a valid website URL');
+                }
+
+                // SECURITY: Block dangerous protocols
+                if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+                    throw new Error('Only HTTP and HTTPS URLs are supported');
+                }
+
+                // SECURITY: Block localhost and local network
+                const hostname = parsedUrl.hostname.toLowerCase();
+                if (hostname === 'localhost' ||
+                    hostname === '127.0.0.1' ||
+                    hostname === '0.0.0.0' ||
+                    hostname.endsWith('.local') ||
+                    hostname.endsWith('.localhost')) {
+                    throw new Error('Local network URLs are not supported');
+                }
+
+                // SECURITY: Block private IP addresses
+                const ipPattern = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+                const ipMatch = hostname.match(ipPattern);
+                if (ipMatch) {
+                    const [, a, b] = ipMatch.map(Number);
+                    if (a === 10 || a === 127 || a === 0 ||
+                        (a === 172 && b >= 16 && b <= 31) ||
+                        (a === 192 && b === 168) ||
+                        (a === 169 && b === 254)) {
+                        throw new Error('Private network URLs are not supported');
+                    }
+                }
+
+                // Zero-friction: auto-create notebook with website material
+                const notebookId = await addNotebook({
+                    title: 'Website Import', // Will be updated by Edge Function
+                    flashcardCount: 0,
+                    progress: 0,
+                    color: getRandomColor(),
+                    material: {
+                        type: 'website' as any,
+                        uri: cleanUrl,
+                        title: 'Website Article',
+                    },
+                });
+
+                // Reload notebooks to show the new one immediately
+                await loadNotebooks();
+
+                // Trigger "Add your first study material" task
+                const { checkAndAwardTask } = useStore.getState();
+                if (checkAndAwardTask) {
+                    checkAndAwardTask('add_material_daily');
+                }
+
+                return notebookId;
+            } finally {
+                setIsAddingNotebook(false);
+            }
+        }, {
+            operation: 'website_import',
+            component: 'notebook-creation',
+            metadata: { url }
+        });
+        return await wrappedFn();
+    }, [addNotebook, loadNotebooks, withErrorHandling, checkCanCreate]);
+
     // Calculate pet level
     const petLevel = Math.floor((cachedPetState?.points || 0) / 50) + 1;
     const petName = cachedPetState?.name || 'Sparky';
@@ -384,6 +472,7 @@ export const useNotebookCreation = () => {
         handleCameraUpload,
         handleTextSave,
         handleYouTubeImport,
+        handleWebsiteImport,
         showUpgradeModal,
         setShowUpgradeModal,
         upgradeModalProps: {

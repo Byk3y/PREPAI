@@ -82,7 +82,7 @@ export function useNotebookSubscription(
                     .from('notebooks')
                     .select(`
                       *,
-                      materials (*)
+                      materials!materials_notebook_id_fkey (*)
                     `)
                     .eq('id', id)
                     .single();
