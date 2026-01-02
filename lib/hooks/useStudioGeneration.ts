@@ -82,10 +82,10 @@ export const useStudioGeneration = ({
       // TODO: Implement confirmation dialog with centralized error handling
       const ok = await new Promise<boolean>((resolve) => {
         Alert.alert(
-          'Active Drills',
+          'Flashcards',
           flashcardsCount > 0
-            ? `You already have ${flashcardsCount} active drills. Generate more?`
-            : 'Generate active drills for this notebook?',
+            ? `You already have ${flashcardsCount} flashcards. Generate more?`
+            : 'Generate flashcards for this notebook?',
           [
             { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
             { text: 'Generate', onPress: () => resolve(true) }
@@ -112,8 +112,8 @@ export const useStudioGeneration = ({
 
       notify({
         type: 'flashcards',
-        title: 'Active Drills Ready!',
-        message: `Generated ${result.generated_count} drills for ${notebookTitle}`,
+        title: 'Flashcards Ready!',
+        message: `Generated ${result.generated_count} flashcards for ${notebookTitle}`,
         data: { notebookId: notebookId, setId: result.content_id }
       });
     } catch (error: any) {
@@ -143,10 +143,10 @@ export const useStudioGeneration = ({
       // TODO: Implement confirmation dialog with centralized error handling
       const ok = await new Promise<boolean>((resolve) => {
         Alert.alert(
-          'Mock Exam',
+          'Quiz',
           quizzesCount > 0
-            ? `You already have ${quizzesCount} mock exams. Generate another?`
-            : 'Generate a mock exam for this notebook?',
+            ? `You already have ${quizzesCount} quizzes. Generate another?`
+            : 'Generate a quiz for this notebook?',
           [
             { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
             { text: 'Generate', onPress: () => resolve(true) }
@@ -173,7 +173,7 @@ export const useStudioGeneration = ({
 
       notify({
         type: 'quiz',
-        title: 'Mock Exam Ready!',
+        title: 'Quiz Ready!',
         message: `${notebookTitle} is ready for testing`,
         data: { quizId: result.content_id }
       });

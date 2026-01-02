@@ -245,7 +245,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({ notebook }) => {
           <View style={{ marginBottom: 16 }}>
             <Text style={{ fontSize: 18, fontFamily: 'Nunito-SemiBold', color: colors.text, marginBottom: 4 }}>Sources</Text>
             <Text style={{ fontSize: 13, fontFamily: 'Nunito-Medium', color: colors.textSecondary, marginBottom: 12 }}>
-              Tip: Include past questions for more accurate Mock Exams.
+              Tip: Include past questions for more accurate Quizzes.
             </Text>
             {notebook.materials && notebook.materials.length > 0 ? (
               <View>
