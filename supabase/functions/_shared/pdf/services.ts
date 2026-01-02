@@ -94,7 +94,7 @@ export class GeminiService implements PDFService {
     if (extractedText.length < 100 && actualEndPage - startPage + 1 > 0) {
       console.warn(
         `[GeminiService] Chunk ${startPage}-${actualEndPage} has very little text, ` +
-          `might be scanned. Consider image-based extraction.`
+        `might be scanned. Consider image-based extraction.`
       );
     }
 
@@ -124,7 +124,7 @@ export class GeminiService implements PDFService {
 
       // Call Gemini 2.0 Flash API
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${this.apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -237,7 +237,7 @@ export class GeminiService implements PDFService {
       const base64Pdf = this.encodeToBase64(fileBuffer);
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${this.apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

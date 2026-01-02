@@ -27,13 +27,13 @@ interface LLMResponse {
 // Model configurations for different job types
 const MODELS: Record<string, ModelConfig> = {
   preview: {
-    name: 'google/gemini-2.0-flash-exp:free', // Fast & Reliable with 1M context
+    name: 'google/gemini-2.0-flash:free', // Fast & Reliable with 1M context
     maxTokens: 1000,
     costPer1kInput: 0.0,
     costPer1kOutput: 0.0,
   },
   studio: {
-    name: 'google/gemini-2.0-flash-exp', // Consistent JSON generation for tools
+    name: 'google/gemini-2.0-flash', // Consistent JSON generation for tools
     maxTokens: 4000,
     costPer1kInput: 0.0001, // Very cheap
     costPer1kOutput: 0.0004,

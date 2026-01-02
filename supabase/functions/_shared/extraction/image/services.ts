@@ -1,0 +1,218 @@
+/**
+ * Image OCR Service Implementations
+ * Gemini, Google Vision, and Tesseract OCR services
+ */
+
+import type { OCRResult, OCRService } from './types.ts';
+import { bufferToBase64, detectImageMimeType } from '../common/utils.ts';
+import { OCR_CONFIG, getGeminiApiKey, getGoogleVisionApiKey } from './config.ts';
+
+/**
+ * Gemini OCR Service - Multimodal AI text extraction
+ * Uses Gemini 2.0 Flash for high-quality text extraction from images
+ * Same API as PDF extraction - handles handwriting, watermarks, complex layouts
+ */
+export class GeminiOCRService implements OCRService {
+  name: 'google-vision' = 'google-vision'; // Keep 'google-vision' for backward compatibility
+
+  isAvailable(): boolean {
+    try {
+      getGeminiApiKey();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async ocr(fileBuffer: Uint8Array, confidenceThreshold: number): Promise<OCRResult> {
+    const apiKey = getGeminiApiKey();
+    const startTime = Date.now();
+
+    try {
+      // Convert buffer to base64 using shared utility
+      const base64Image = bufferToBase64(fileBuffer);
+
+      // Detect MIME type from buffer magic bytes
+      const mimeType = detectImageMimeType(fileBuffer);
+
+      // Call Gemini 2.0 Flash API
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${OCR_CONFIG.gemini.model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    inline_data: {
+                      mime_type: mimeType,
+                      data: base64Image,
+                    },
+                  },
+                  {
+                    text: OCR_CONFIG.gemini.systemPrompt,
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: OCR_CONFIG.gemini.temperature,
+              topP: OCR_CONFIG.gemini.topP,
+              topK: OCR_CONFIG.gemini.topK,
+              maxOutputTokens: OCR_CONFIG.gemini.maxOutputTokens,
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Gemini API error: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      if (!text || text.trim() === '' || text.includes('No text detected')) {
+        throw new Error('No text detected in image');
+      }
+
+      const processingTime = Date.now() - startTime;
+
+      // Estimate confidence based on text length and processing success
+      // Longer text = higher confidence in extraction quality
+      let confidence: number = OCR_CONFIG.gemini.baseConfidence; // Base confidence for Gemini
+      if (text.length < 50) {
+        confidence = 75; // Lower confidence for very short text
+      } else if (text.length < 100) {
+        confidence = 85;
+      }
+
+      return {
+        text: text.trim(),
+        confidence,
+        metadata: {
+          engine: 'google-vision', // Keep same engine type for compatibility
+          lowQuality: confidence < confidenceThreshold,
+          language: 'eng',
+          processingTime,
+        },
+      };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Gemini OCR error: ${message}`);
+    }
+  }
+}
+
+/**
+ * Google Vision OCR Service (fallback option)
+ * Premium OCR for handwritten notes and low-quality photos
+ */
+export class GoogleVisionOCRService implements OCRService {
+  name: 'google-vision' = 'google-vision';
+
+  isAvailable(): boolean {
+    try {
+      getGoogleVisionApiKey();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async ocr(fileBuffer: Uint8Array, confidenceThreshold: number): Promise<OCRResult> {
+    const apiKey = getGoogleVisionApiKey();
+    const startTime = Date.now();
+
+    try {
+      // Convert buffer to base64 using shared utility
+      const base64Image = bufferToBase64(fileBuffer);
+
+      // Call Google Vision API
+      const response = await fetch(
+        `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requests: [
+              {
+                image: { content: base64Image },
+                features: [{ type: 'TEXT_DETECTION' }],
+              },
+            ],
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Google Vision API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const textAnnotations = data.responses?.[0]?.textAnnotations;
+
+      if (!textAnnotations || textAnnotations.length === 0) {
+        throw new Error('No text detected in image');
+      }
+
+      // First annotation contains full text
+      const text = textAnnotations[0].description;
+      const processingTime = Date.now() - startTime;
+
+      // Google Vision doesn't provide confidence per image, estimate from detection
+      const confidence = OCR_CONFIG.googleVision.baseConfidence; // Assume good quality if detected
+
+      return {
+        text: text.trim(),
+        confidence,
+        metadata: {
+          engine: 'google-vision',
+          lowQuality: confidence < confidenceThreshold,
+          language: 'eng', // TODO: Detect from response
+          processingTime,
+        },
+      };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Google Vision OCR error: ${message}`);
+    }
+  }
+}
+
+/**
+ * Tesseract OCR Service (placeholder - not compatible with Deno)
+ * NOTE: Tesseract.js is NOT compatible with Deno Edge Functions (Worker.prototype.constructor not implemented)
+ * TODO: Implement cloud OCR (Google Vision, AWS Textract, etc.) for production use
+ */
+export class TesseractOCRService implements OCRService {
+  name: 'tesseract' = 'tesseract';
+
+  isAvailable(): boolean {
+    return false; // Not compatible with Edge Functions
+  }
+
+  async ocr(fileBuffer: Uint8Array, confidenceThreshold: number): Promise<OCRResult> {
+    const startTime = Date.now();
+
+    // Tesseract.js requires Web Workers which are not fully supported in Deno Edge Functions
+    // Return a placeholder response until cloud OCR is implemented
+    console.warn('Tesseract OCR is disabled in Edge Functions. Cloud OCR integration needed.');
+
+    return {
+      text: '[Image OCR temporarily disabled - Cloud OCR integration coming soon]',
+      confidence: 0,
+      metadata: {
+        engine: 'tesseract',
+        lowQuality: true,
+        language: 'eng',
+        processingTime: Date.now() - startTime,
+        warning:
+          'Image OCR is temporarily disabled. Tesseract.js is not compatible with Deno Edge Functions. Cloud OCR (Google Vision, AWS Textract) integration coming soon.',
+      },
+    };
+  }
+}
