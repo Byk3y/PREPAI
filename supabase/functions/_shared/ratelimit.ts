@@ -23,7 +23,7 @@ export interface RateLimitResult {
  * Check rate limit using Upstash Redis
  * Uses sliding window algorithm for accurate rate limiting
  *
- * Graceful degradation: If Redis is unavailable, allows request through and logs error
+ * SECURITY: Fail-closed - If Redis is unavailable, rejects request to prevent abuse
  */
 export async function checkRateLimit(config: RateLimitConfig): Promise<RateLimitResult> {
   const { identifier, limit, window, endpoint } = config;
@@ -32,13 +32,16 @@ export async function checkRateLimit(config: RateLimitConfig): Promise<RateLimit
   const redisUrl = getOptionalEnv('UPSTASH_REDIS_REST_URL', '');
   const redisToken = getOptionalEnv('UPSTASH_REDIS_REST_TOKEN', '');
 
-  // If Redis not configured, allow request through with warning
+  // SECURITY FIX: Fail-closed instead of fail-open
+  // If Redis not configured, REJECT request to prevent abuse
   if (!redisUrl || !redisToken) {
-    console.warn('Rate limiting disabled: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN not configured');
+    console.error('Rate limiting unavailable: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN not configured');
+    console.error('REJECTING request due to missing rate limit configuration (fail-closed security policy)');
     return {
-      allowed: true,
-      remaining: limit,
+      allowed: false,
+      remaining: 0,
       resetAt: Math.floor(Date.now() / 1000) + window,
+      retryAfter: 60, // Retry in 1 minute
     };
   }
 
@@ -112,14 +115,16 @@ export async function checkRateLimit(config: RateLimitConfig): Promise<RateLimit
     };
 
   } catch (error) {
-    // Graceful degradation: If Redis fails, allow request through
+    // SECURITY FIX: Fail-closed instead of fail-open
+    // If Redis fails, REJECT request to prevent abuse during outages
     console.error(`Rate limit check failed for ${endpoint}:`, error);
-    console.warn('Allowing request due to rate limit service failure (graceful degradation)');
+    console.error('REJECTING request due to rate limit service failure (fail-closed security policy)');
 
     return {
-      allowed: true,
-      remaining: limit,
+      allowed: false,
+      remaining: 0,
       resetAt: Math.floor(Date.now() / 1000) + window,
+      retryAfter: 30, // Retry in 30 seconds
     };
   }
 }
@@ -176,4 +181,9 @@ export const RATE_LIMITS = {
     limit: 3,
     window: 600, // 10 minutes
   },
+  NOTEBOOK_CHAT: {
+    limit: 30,   // 30 messages per window
+    window: 60,  // 1 minute - more granular for chat
+  },
 } as const;
+

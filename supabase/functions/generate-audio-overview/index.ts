@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
     // 4. Fetch notebook and AUTHORIZE (verify ownership)
     const { data: notebook, error: notebookError } = await supabase
       .from('notebooks')
-      .select('id, user_id, title, material_id')
+      .select('id, user_id, title, material_id, meta')
       .eq('id', notebook_id)
       .single();
 
@@ -142,10 +142,10 @@ Deno.serve(async (req) => {
 
     console.log(`Quota check passed. Remaining: ${quotaCheck.remaining}`);
 
-    // 6. Fetch material content
+    // 6. Fetch material content and classification
     const { data: material, error: materialError } = await supabase
       .from('materials')
-      .select('content, kind')
+      .select('content, kind, meta')
       .eq('id', notebook.material_id)
       .single();
 
@@ -166,7 +166,26 @@ Deno.serve(async (req) => {
 
     console.log(`Material content length: ${material.content.length} chars`);
 
-    // 6.5 Fetch User Personalization (Pet Name, Education, Age)
+    // 6.5 Extract content classification from material meta
+    const contentClassification = (material.meta as any)?.content_classification || {
+      type: 'general',
+      exam_relevance: 'medium',
+      detected_format: null,
+      subject_area: null,
+    };
+    console.log(`Content type: ${contentClassification.type}, Exam relevance: ${contentClassification.exam_relevance}`);
+
+    // 6.55 Extract content summary for multi-material awareness
+    const contentSummary = (notebook.meta as any)?.content_summary || {
+      material_count: 1,
+      has_past_paper: contentClassification.type === 'past_paper',
+      has_notes: contentClassification.type === 'lecture_notes' || contentClassification.type === 'textbook_chapter',
+      material_types: [contentClassification.type],
+      exam_relevance: contentClassification.exam_relevance,
+    };
+    console.log(`Content summary: ${contentSummary.material_count} materials, has_past_paper: ${contentSummary.has_past_paper}`);
+
+    // 6.6 Fetch User Personalization (Pet Name, Education, Age)
     const [{ data: petData }, { data: profile }] = await Promise.all([
       supabase
         .from('pet_states')
@@ -183,8 +202,9 @@ Deno.serve(async (req) => {
     const petName = petData?.name || 'Sparky';
     const educationLevel = (profile?.meta as any)?.education_level || 'lifelong';
     const ageBracket = (profile?.meta as any)?.age_bracket || '25_34';
+    const studyGoal = (profile?.meta as any)?.study_goal || 'all';
 
-    console.log(`User Persona: ${educationLevel} (${ageBracket}), Pet: ${petName}`);
+    console.log(`User Persona: ${educationLevel} (${ageBracket}), Pet: ${petName}, Goal: ${studyGoal}`);
 
     // 7. Delete any existing failed records for this notebook (to avoid UNIQUE constraint violation)
     await supabase
@@ -238,7 +258,7 @@ Deno.serve(async (req) => {
     // We move the heavy lifting to a background promise so we can return to the client immediately
     const backgroundTask = (async () => {
       try {
-        // A. GENERATE SCRIPT (Gemini 2.5 Pro - two-stage)
+        // A. GENERATE SCRIPT (Gemini 2.5 Pro - two-stage, with content classification and summary)
         let scriptResult;
         try {
           scriptResult = await generatePodcastScript({
@@ -248,6 +268,9 @@ Deno.serve(async (req) => {
             petName: petName,
             educationLevel: educationLevel,
             ageBracket: ageBracket,
+            studyGoal: studyGoal,
+            contentClassification: contentClassification,
+            contentSummary: contentSummary,
           });
 
           // Validate script

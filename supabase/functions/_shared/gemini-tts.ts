@@ -119,16 +119,8 @@ function parseWavSampleRate(wavBytes: Uint8Array): number | null {
   }
 }
 
-/**
- * Default style prompt for Alex & Morgan podcast hosts
- */
-const DEFAULT_STYLE_PROMPT = `Generate a conversational podcast between two hosts discussing study material:
-
-ALEX (Speaker 1): A friendly, enthusiastic female voice in her late 20s. She speaks with curiosity and excitement when learning new things. Her tone is conversational and relatable, with a slightly faster pace that conveys energy and engagement. She asks clarifying questions and relates concepts to real-world examples.
-
-MORGAN (Speaker 2): A warm, professional male voice in his mid-30s. He speaks with clarity and confidence, using a measured pace that helps complex ideas land. His tone is encouraging and patient, like a mentor explaining concepts to a curious student.
-
-STYLE: Natural, conversational podcast format with back-and-forth dialogue. Include natural pauses, thoughtful moments, and expressions of discovery ("Oh, that's interesting!", "Wait, so..."). Avoid sounding scripted or robotic.`;
+// Note: TTS style is controlled by voice selection (Kore, Puck, Charon, etc.)
+// The script generator handles personality - TTS just renders the audio
 
 /**
  * Generate podcast-style audio using Gemini 2.5 Flash TTS

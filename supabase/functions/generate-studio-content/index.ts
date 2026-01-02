@@ -9,6 +9,9 @@ import { checkQuota, incrementQuota } from '../_shared/quota.ts';
 import { getRequiredEnv, getOptionalEnv } from '../_shared/env.ts';
 import { getCorsHeaders, getCorsPreflightHeaders } from '../_shared/cors.ts';
 import { checkRateLimit, RATE_LIMITS } from '../_shared/ratelimit.ts';
+import { validateUUID, validateContentType } from '../_shared/validation.ts';
+import { sanitizeForLLM, sanitizeTitle } from '../_shared/sanitization.ts';
+import { validateFlashcardsResponse, validateQuizResponse } from '../_shared/llm-validation.ts';
 
 interface GenerateStudioRequest {
   notebook_id: string;
@@ -60,29 +63,35 @@ Deno.serve(async (req) => {
 
     console.log(`User authenticated: ${user.id}`);
 
-    // 3. Parse request
+    // 3. Parse and validate request
     const { notebook_id, content_type }: GenerateStudioRequest = await req.json();
 
-    if (!notebook_id || !content_type) {
+    // Validate notebook_id
+    const notebookIdValidation = validateUUID(notebook_id, 'notebook_id');
+    if (!notebookIdValidation.isValid) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: notebook_id, content_type' }),
+        JSON.stringify({ error: notebookIdValidation.error }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!['flashcards', 'quiz'].includes(content_type)) {
+    // Validate content_type (case-insensitive)
+    const contentTypeValidation = validateContentType(content_type);
+    if (!contentTypeValidation.isValid) {
       return new Response(
-        JSON.stringify({ error: 'content_type must be "flashcards" or "quiz"' }),
+        JSON.stringify({ error: contentTypeValidation.error }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Generating ${content_type} for notebook ${notebook_id}`);
+    const sanitizedContentType = contentTypeValidation.sanitized as 'flashcards' | 'quiz';
+
+    console.log(`Generating ${sanitizedContentType} for notebook ${notebook_id}`);
 
     // 4. Fetch notebook and AUTHORIZE (verify ownership)
     const { data: notebook, error: notebookError } = await supabase
       .from('notebooks')
-      .select('id, user_id, title, material_id')
+      .select('id, user_id, title, material_id, meta')
       .eq('id', notebook_id)
       .single();
 
@@ -148,10 +157,10 @@ Deno.serve(async (req) => {
 
     console.log(`Quota check passed. Remaining: ${quotaCheck.remaining}`);
 
-    // 6. Fetch material content
+    // 6. Fetch material content and classification
     const { data: material, error: materialError } = await supabase
       .from('materials')
-      .select('content')
+      .select('content, meta')
       .eq('id', notebook.material_id)
       .single();
 
@@ -172,7 +181,26 @@ Deno.serve(async (req) => {
 
     console.log(`Material content length: ${material.content.length} chars`);
 
-    // 6.5 Fetch User Personalization (Education, Age)
+    // 6.5 Extract content classification from material meta
+    const contentClassification = (material.meta as any)?.content_classification || {
+      type: 'general',
+      exam_relevance: 'medium',
+      detected_format: null,
+      subject_area: null,
+    };
+    console.log(`Content type: ${contentClassification.type}, Exam relevance: ${contentClassification.exam_relevance}`);
+
+    // 6.6 Extract content summary for multi-material awareness
+    const contentSummary = (notebook.meta as any)?.content_summary || {
+      material_count: 1,
+      has_past_paper: contentClassification.type === 'past_paper',
+      has_notes: contentClassification.type === 'lecture_notes' || contentClassification.type === 'textbook_chapter',
+      material_types: [contentClassification.type],
+      exam_relevance: contentClassification.exam_relevance,
+    };
+    console.log(`Content summary: ${contentSummary.material_count} materials, has_past_paper: ${contentSummary.has_past_paper}, has_notes: ${contentSummary.has_notes}`);
+
+    // 6.7 Fetch User Personalization (Education, Age)
     const { data: profile } = await supabase
       .from('profiles')
       .select('meta')
@@ -181,33 +209,41 @@ Deno.serve(async (req) => {
 
     const educationLevel = (profile?.meta as any)?.education_level || 'lifelong';
     const ageBracket = (profile?.meta as any)?.age_bracket || '25_34';
+    const studyGoal = (profile?.meta as any)?.study_goal || 'all';
 
-    console.log(`User Persona: ${educationLevel} (${ageBracket})`);
+    console.log(`User Persona: ${educationLevel} (${ageBracket}), Goal: ${studyGoal}`);
 
     // 7. Calculate dynamic quantity based on word count
     const wordCount = material.content.split(/\s+/).length;
     // Increased density and capacity (Free: ~50 cards max, ~20 quiz max)
-    const quantity = content_type === 'flashcards'
+    const quantity = sanitizedContentType === 'flashcards'
       ? Math.max(10, Math.min(50, Math.floor(wordCount / 200)))
       : Math.max(5, Math.min(20, Math.floor(wordCount / 300)));
 
-    console.log(`Calculated quantity: ${quantity} ${content_type} (${wordCount} words)`);
+    console.log(`Calculated quantity: ${quantity} ${sanitizedContentType} (${wordCount} words)`);
 
-    // 8. Generate content via LLM
-    const systemPrompt = getSystemPrompt(content_type, quantity, educationLevel, ageBracket);
-    const userPrompt = getUserPrompt(content_type, quantity, notebook.title, material.content);
+    // 7.5. Sanitize notebook title and material content before LLM
+    const sanitizedNotebookTitle = sanitizeTitle(notebook.title, 100);
+    const sanitizedMaterialContent = sanitizeForLLM(material.content, {
+      maxLength: 200000, // Keep existing window but sanitize
+      preserveNewlines: true,
+    });
+
+    // 8. Generate content via LLM (with content classification, summary, and study goal for adaptive behavior)
+    const systemPrompt = getSystemPrompt(sanitizedContentType, quantity, educationLevel, ageBracket, contentClassification, contentSummary, studyGoal);
+    const userPrompt = getUserPrompt(sanitizedContentType, quantity, sanitizedNotebookTitle, sanitizedMaterialContent);
 
     console.log('Calling LLM...');
     const llmResult = await callLLMWithRetry(
       'studio',
       systemPrompt,
       userPrompt,
-      { temperature: content_type === 'flashcards' ? 0.7 : 0.5 }
+      { temperature: sanitizedContentType === 'flashcards' ? 0.7 : 0.5 }
     );
 
     console.log(`LLM response received. Tokens: ${llmResult.usage.totalTokens}, Cost: ${llmResult.costCents}¢`);
 
-    // 9. Parse and validate JSON (with markdown stripping)
+    // 9. Parse and validate JSON (with markdown stripping and comprehensive validation)
     let parsed: any;
     try {
       let jsonContent = llmResult.content;
@@ -225,14 +261,27 @@ Deno.serve(async (req) => {
       throw new Error('Invalid JSON response from LLM');
     }
 
+    // 9.5. Validate LLM response structure and content
+    let validationResult;
+    if (sanitizedContentType === 'flashcards') {
+      validationResult = validateFlashcardsResponse(parsed, quantity);
+    } else {
+      validationResult = validateQuizResponse(parsed, quantity);
+    }
+
+    if (!validationResult.isValid) {
+      console.error('LLM response validation failed:', validationResult.error);
+      throw new Error(`Invalid ${sanitizedContentType} response: ${validationResult.error}`);
+    }
+
+    // Use sanitized/validated data
+    parsed = validationResult.sanitized;
+
     // 10. Insert into database
     let generatedCount = 0;
     let contentId: string | undefined;
 
-    if (content_type === 'flashcards') {
-      if (!parsed.flashcards || !Array.isArray(parsed.flashcards)) {
-        throw new Error('Invalid flashcards response structure');
-      }
+    if (sanitizedContentType === 'flashcards') {
 
       // Create a new flashcard set/deck
       const { count } = await supabase
@@ -373,10 +422,10 @@ Deno.serve(async (req) => {
     const response: GenerateStudioResponse = {
       success: true,
       notebook_id,
-      content_type,
+      content_type: sanitizedContentType,
       generated_count: generatedCount,
       content_id: contentId,
-      message: `Successfully generated ${generatedCount} ${content_type}`,
+      message: `Successfully generated ${generatedCount} ${sanitizedContentType}`,
     };
 
     return new Response(
@@ -413,74 +462,205 @@ Deno.serve(async (req) => {
 });
 
 /**
- * Get system prompt for LLM based on content type
+ * Content classification interface for type safety
  */
-function getSystemPrompt(contentType: string, count: number, educationLevel: string, ageBracket: string): string {
+interface ContentClassification {
+  type: 'past_paper' | 'lecture_notes' | 'textbook_chapter' | 'article' | 'video_transcript' | 'general';
+  exam_relevance: 'high' | 'medium' | 'low';
+  detected_format: 'multiple_choice' | 'short_answer' | 'essay' | 'mixed' | null;
+  subject_area: string | null;
+}
+
+/**
+ * Content summary interface for multi-material awareness
+ */
+interface ContentSummary {
+  material_count: number;
+  has_past_paper: boolean;
+  has_notes: boolean;
+  has_video?: boolean;
+  material_types: string[];
+  exam_relevance: 'high' | 'medium' | 'low';
+  primary_subject?: string;
+}
+
+/**
+ * Get system prompt for LLM based on content type, classification, summary, and study goal
+ */
+function getSystemPrompt(
+  contentType: string,
+  count: number,
+  educationLevel: string,
+  ageBracket: string,
+  contentClassification?: ContentClassification,
+  contentSummary?: ContentSummary,
+  studyGoal: 'exam_prep' | 'retention' | 'quick_review' | 'all' = 'all'
+): string {
+  const isPastPaper = contentClassification?.type === 'past_paper';
+  const subjectArea = contentClassification?.subject_area || contentSummary?.primary_subject || 'this subject';
+  const examFormat = contentClassification?.detected_format;
+  const examRelevance = contentSummary?.exam_relevance || contentClassification?.exam_relevance || 'medium';
+
+  // Multi-material mode: notebook has BOTH notes AND past paper
+  const isMultiMaterial = contentSummary && contentSummary.material_count > 1;
+  const hasMixedContent = contentSummary?.has_past_paper && contentSummary?.has_notes;
+
+  // HYBRID MODE LOGIC: Combine user goal with content classification
+  const isExamMode = studyGoal === 'exam_prep' || (studyGoal !== 'retention' && studyGoal !== 'quick_review' && (isPastPaper || examRelevance === 'high'));
+  const isLearningMode = studyGoal === 'retention' && examRelevance !== 'high';
+  const isQuickMode = studyGoal === 'quick_review';
+
+  // Build context-aware instructions based on hybrid mode
+  let contextInstructions = '';
+  let explanationStyle = 'Why this matters for exams';
+  let titlePrefix = 'Study';
+
+  if (hasMixedContent) {
+    titlePrefix = 'Exam Prep';
+    contextInstructions = `
+MULTI-SOURCE MODE:
+This notebook contains BOTH study notes AND a past paper.
+- Use the notes to understand core concepts
+- Use the past paper to identify what examiners test
+- Generate content that bridges both: explain concepts in exam-ready format
+- Pay attention to exam patterns from the past paper`;
+  } else if (isExamMode) {
+    titlePrefix = isPastPaper ? 'Past Paper Review' : 'Exam Prep';
+    explanationStyle = 'Why this matters for exams';
+    if (isPastPaper || contentSummary?.has_past_paper) {
+      contextInstructions = `
+PAST PAPER MODE:
+- This material contains actual exam questions from ${subjectArea}
+- Extract and adapt the real exam questions as study material
+- Generate questions in the SAME STYLE and FORMAT as the source exam
+- Note which topics are being tested by the examiner
+${examFormat ? `- Match the detected format: ${examFormat}` : ''}`;
+    } else {
+      contextInstructions = `
+EXAM PREP MODE:
+- Focus on content likely to be tested
+- Highlight exam-relevant concepts and common pitfalls
+- Include exam technique tips where relevant`;
+    }
+  } else if (isLearningMode) {
+    titlePrefix = 'Learn';
+    explanationStyle = 'Why this matters (in real life)';
+    contextInstructions = `
+LEARNING MODE:
+- Focus on deep understanding and long-term retention
+- Emphasize real-world applications and connections
+- Use memorable analogies and examples
+- AVOID exam-focused language - focus on understanding`;
+  } else if (isQuickMode) {
+    titlePrefix = 'Quick Review';
+    explanationStyle = 'Key takeaway';
+    contextInstructions = `
+QUICK REFRESH MODE:
+- Focus on the most critical concepts only
+- Be concise and direct
+- Prioritize high-impact information
+- Use memory hooks and quick tips`;
+  } else {
+    // Balanced mode
+    titlePrefix = 'Study';
+    explanationStyle = 'Why this matters';
+    contextInstructions = `
+BALANCED MODE:
+- Create well-rounded study material
+- Mix conceptual understanding with practical application`;
+  }
+
   if (contentType === 'flashcards') {
-    return `You are Brigo, a Surgical Exam Consultant. Your goal is to turn raw information into a Mastery-level study experience.
- 
-Your task: Create exactly ${count} Active Recall Drills (flashcards) from the provided material.
- 
+    return `You are Brigo, an AI Study Coach.
+
+Your task: Create exactly ${count} flashcards from the provided material.
+
 USER CONTEXT:
-- **Education Level**: ${educationLevel}
-- **Age Group**: ${ageBracket}
- 
+- Education Level: ${educationLevel}
+- Age Group: ${ageBracket}
+- Subject: ${subjectArea}
+- Study Goal: ${studyGoal === 'exam_prep' ? 'Preparing for exams' : studyGoal === 'retention' ? 'Long-term learning' : studyGoal === 'quick_review' ? 'Quick refresh' : 'General study'}
+${isMultiMaterial ? `- Sources: ${contentSummary.material_count} materials (${contentSummary.material_types.join(', ')})` : ''}
+${contextInstructions}
+
 OUTPUT FORMAT (JSON only):
 {
-  "title": "Tactical Study Plan: [Topic]",
+  "title": "${titlePrefix}: [Topic]",
   "flashcards": [
     {
-      "question": "Surgical, specific question",
-      "answer": "Concise mastery answer (2 sentences max)",
-      "explanation": "Critical context or exam insight",
-      "tags": ["focal_point", "high_yield"]
+      "question": "Clear, specific question",
+      "answer": "Concise answer (2 sentences max)",
+      "explanation": "${explanationStyle}"
     }
   ]
 }
- 
-ELITE MASTERY RULES:
-1. **Mental Sandbox**: Before generating, silently analyze the provided material for the three most difficult concepts. Ensure at least one drill targets each.
-2. **Calibrated Intensity**: Tailor complexity for a **${educationLevel}** high-performer.
-3. **Scenario-Based Inversion (30%)**: At least 30% of drills must ask the user to apply a concept "in reverse" (e.g., given a symptom, find the cause; then in another card, given the cause, predict the secondary complication).
-4. **The Final Boss**: The last drill MUST be a "synthesis question"—forcing the user to connect every major concept they've just reviewed.
-5. Focus on **High-Yield focal points** that are most likely to appear on a ${educationLevel} level exam.
- 
-CRITICAL: Generate EXACTLY ${count} Active Recall Drills.`;
+
+GENERATION RULES:
+1. Create a balanced difficulty distribution:
+   - 40% Easy: Direct recall questions
+   - 40% Medium: Application questions
+   - 20% Hard: Synthesis questions connecting concepts
+2. Tailor complexity for ${educationLevel} students
+3. The final flashcard MUST be a synthesis question combining major concepts
+${isExamMode ? '4. Focus on high-yield content likely to appear on exams' : isLearningMode ? '4. Focus on building deep understanding and connections' : '4. Balance exam relevance with conceptual understanding'}
+${hasMixedContent ? '5. Extract patterns from past paper, explain concepts from notes\n6. Bridge theoretical knowledge with exam-style testing' : isPastPaper && isExamMode ? '5. Extract actual exam questions and rephrase them as flashcards\n6. Include questions that test the same skills as the original exam' : ''}
+
+VOICE GUIDELINES:
+- AVOID formal phrases: "according to the material", "based on the reading", "as stated in the text"
+- Ask questions directly and conversationally
+- Brigo is a friendly study coach, not a formal examiner
+- Exception: Use "in your notes" only if testing a definition specific to that material
+
+CRITICAL: Generate EXACTLY ${count} flashcards.`;
   } else {
-    return `You are Brigo, an Assessment Architect. You don't just test memory—you stress-test intelligence to ensure 100% exam readiness.
- 
-Your task: Create a ${count}-question Mock Exam from the provided material.
- 
+    return `You are Brigo, an AI Study Coach.
+
+Your task: Create a ${count}-question quiz from the provided material.
+
 USER CONTEXT:
-- **Education Level**: ${educationLevel}
-- **Age Group**: ${ageBracket}
- 
+- Education Level: ${educationLevel}
+- Age Group: ${ageBracket}
+- Subject: ${subjectArea}
+- Study Goal: ${studyGoal === 'exam_prep' ? 'Preparing for exams' : studyGoal === 'retention' ? 'Long-term learning' : studyGoal === 'quick_review' ? 'Quick refresh' : 'General study'}
+${isMultiMaterial ? `- Sources: ${contentSummary.material_count} materials (${contentSummary.material_types.join(', ')})` : ''}
+${contextInstructions}
+
 OUTPUT FORMAT (JSON only):
 {
   "quiz": {
-    "title": "Mock Exam: [Topic]",
+    "title": "${titlePrefix}: [Topic]",
     "questions": [
       {
-        "question": "High-stakes question text",
+        "question": "Clear question text",
         "options": { "A": "...", "B": "...", "C": "...", "D": "..." },
         "correct": "A",
-        "hint": "Strategic nudge",
+        "hint": "Study tip if stuck",
         "explanations": {
-          "A": "Tactical reasoning for this answer",
+          "A": "Why correct/incorrect",
           "B": "...", "C": "...", "D": "..."
         }
       }
     ]
   }
 }
- 
-PREMIUM STRESS-TEST RULES:
-1. **Reasoning Pipeline**: Silently identify the "Exam DNA" of the source material. Is it knowledge-heavy or application-heavy? Calibrate the quiz to match.
-2. **Assessment Calibration**: Challenge level must be tuned for a **${educationLevel}** candidate.
-3. **The Application Filter (40%)**: 40% of questions must be "Case Studies". Don't ask for facts; ask for clinical, logical, or tactical decisions.
-4. **The Final Boss**: The final question MUST be a "Complex Synthesis"—the hardest question of the exam that ties everything together.
-5. Explanations must be direct and authoritative. Use phrases like "In an exam context, [X] is the only correct path because [Y]."
- 
+
+GENERATION RULES:
+1. Structure the quiz with a difficulty progression:
+   - First 30%: Knowledge recall (definitions, facts)
+   - Middle 40%: Application (case studies, scenarios)
+   - Final 30%: Synthesis (connecting concepts)
+${isExamMode ? '2. Include 1 "common mistake" question testing exam pitfalls' : '2. Include 1 "tricky concept" question testing common misunderstandings'}
+3. Tailor difficulty for ${educationLevel} students
+4. The final question MUST be the hardest, tying concepts together
+5. Explanations should teach, not just justify the answer
+${hasMixedContent ? '6. Match question style to past paper format\n7. Test concepts explained in the notes using exam patterns' : isPastPaper && isExamMode ? '6. Match the style and format of the original exam questions\n7. Include questions that test the exact same concepts as the past paper' : ''}
+
+VOICE GUIDELINES:
+- AVOID formal phrases: "according to the material", "based on the reading", "as stated in the text", "the passage mentions"
+- Ask questions directly and conversationally
+- Brigo is a friendly study coach, not a standardized test
+- Write like you're quizzing a friend, not administering an exam
+
 CRITICAL: Generate EXACTLY ${count} questions.`;
   }
 }

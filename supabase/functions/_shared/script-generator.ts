@@ -1,14 +1,11 @@
 /**
- * Podcast Script Generator using Gemini 2.5 Pro
+ * Podcast Script Generator using Grok 4.1 Fast via OpenRouter
  * Two-stage process:
- *   1. Extract key insights from material
- *   2. Generate Dialogue script (Brigo & Pet)
+ *   1. Extract key insights from material (Grok 4.1 Fast)
+ *   2. Generate Dialogue script (Brigo & Pet) (Grok 4.1 Fast)
  */
 
-import { getRequiredEnv } from './env.ts';
-
-// Use gemini-2.0-flash for faster and more reliable insight extraction
-const GEMINI_FLASH_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+import { callLLMWithRetry } from './openrouter.ts';
 
 export interface ScriptGenerationConfig {
   materialContent: string; // Full extracted text from material
@@ -18,6 +15,22 @@ export interface ScriptGenerationConfig {
   petName?: string; // Optional pet name (default: "Nova")
   educationLevel?: string; // User education level
   ageBracket?: string; // User age bracket
+  studyGoal?: 'exam_prep' | 'retention' | 'quick_review' | 'all'; // User's study intent
+  contentClassification?: { // Content type classification from AI
+    type: 'past_paper' | 'lecture_notes' | 'textbook_chapter' | 'article' | 'video_transcript' | 'general';
+    exam_relevance: 'high' | 'medium' | 'low';
+    detected_format: 'multiple_choice' | 'short_answer' | 'essay' | 'mixed' | null;
+    subject_area: string | null;
+  };
+  contentSummary?: { // Multi-material awareness
+    material_count: number;
+    has_past_paper: boolean;
+    has_notes: boolean;
+    has_video?: boolean;
+    material_types: string[];
+    exam_relevance: 'high' | 'medium' | 'low';
+    primary_subject?: string;
+  };
 }
 
 export interface GeneratedScript {
@@ -77,15 +90,14 @@ function getPersonaGuide(educationLevel: string, ageBracket: string): string {
 }
 
 /**
- * Stage 1: Extract key insights from material using Gemini 2.0 Flash
+ * Stage 1: Extract key insights from material using Grok 4.1 Fast
  */
 async function extractKeyInsights(
   materialContent: string,
   notebookTitle: string,
   educationLevel: string = 'lifelong'
 ): Promise<{ insights: string[]; tokens: number }> {
-  const GEMINI_API_KEY = getRequiredEnv('GOOGLE_AI_API_KEY');
-  console.log('[Script Generator] Stage 1: Extracting key insights...');
+  console.log('[Script Generator] Stage 1: Extracting key insights via Grok...');
 
   const systemPrompt = `You are an expert educational content analyst. Your task is to extract the most important insights from study material for an engaging podcast.
 
@@ -102,8 +114,8 @@ Focus on:
 
 Extract 5-7 key insights that cover the full scope of the material.`;
 
-  // Truncate material to avoid token limits and save time
-  const truncatedMaterial = materialContent.substring(0, 30000);
+  // Truncate material to avoid token limits (Grok has 128k context but we keep it efficient)
+  const truncatedMaterial = materialContent.substring(0, 50000);
 
   const userPrompt = `Material Title: ${notebookTitle}
 User Level: ${educationLevel}
@@ -111,51 +123,35 @@ User Level: ${educationLevel}
 Material Content:
 ${truncatedMaterial}
 
-Extract 5-7 key insights. Return ONLY a JSON object with this structure:
+Extract 5-7 key insights as clean, conversational statements (NOT numbered, NOT prefixed with "Insight").
+Return ONLY a JSON object:
 {
   "insights": [
-    "Insight 1: [statement]",
-    "Insight 2: [statement]",
+    "The main concept here is...",
+    "What's surprising is...",
+    "This connects to...",
     ...
   ]
 }`;
+
   try {
-    const response = await fetch(`${GEMINI_FLASH_ENDPOINT}?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: systemPrompt }, { text: userPrompt }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
-        },
-        safetySettings: [
-          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-        ],
-      }),
-    });
+    const response = await callLLMWithRetry(
+      'audio_script',
+      systemPrompt,
+      userPrompt,
+      { temperature: 0.7 }
+    );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-    }
+    const content = response.content.trim();
+    const tokens = response.usage.totalTokens;
 
-    const data = await response.json();
-    if (data.error) throw new Error(`Gemini API error: ${data.error.message}`);
-
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const tokens = data.usageMetadata?.totalTokenCount || 0;
-
-    let jsonString = content.trim();
+    // Extract JSON from response (handle markdown code blocks)
+    let jsonString = content;
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) jsonString = jsonMatch[1].trim();
 
     const parsed = JSON.parse(jsonString);
+    console.log(`[Script Generator] Extracted ${parsed.insights.length} insights (${tokens} tokens)`);
     return { insights: parsed.insights, tokens };
   } catch (error: any) {
     console.error('[Script Generator] Stage 1 failed:', error);
@@ -173,7 +169,10 @@ async function generateDialogueScript(
   petName: string = 'Nova',
   materialKind?: string,
   educationLevel: string = 'lifelong',
-  ageBracket: string = '25_34'
+  ageBracket: string = '25_34',
+  contentClassification?: ScriptGenerationConfig['contentClassification'],
+  contentSummary?: ScriptGenerationConfig['contentSummary'],
+  studyGoal?: ScriptGenerationConfig['studyGoal']
 ): Promise<{ script: string; tokens: number; speakerMap: Record<string, string> }> {
   console.log(`[Script Generator] Stage 2: Generating dialogue with Brigo and ${petName}...`);
 
@@ -185,66 +184,117 @@ async function generateDialogueScript(
 
   const personaGuide = getPersonaGuide(educationLevel, ageBracket);
   const kindDescriptor = materialKind ? `the ${materialKind}` : 'the material';
-  const introRitual = `${brigoName}: Welcome back. I'm ${brigoName}, and ${petName} is here to help me break down your notes on ${notebookTitle}.`;
+  const isPastPaper = contentClassification?.type === 'past_paper' || contentSummary?.has_past_paper;
+  const hasMixedContent = contentSummary?.has_past_paper && contentSummary?.has_notes;
+  const subjectArea = contentClassification?.subject_area || contentSummary?.primary_subject || 'this subject';
+  const examRelevance = contentSummary?.exam_relevance || contentClassification?.exam_relevance || 'medium';
 
-  const systemPrompt = `You are a professional educational podcast scriptwriter.
-Two hosts:
-1. ${brigoName.toUpperCase()} (The Sage): Intelligent, dry humor, authority figure. Brigo is an AI who has analyzed millions of textbooks but keeps it conversational. Pronounced "BRIG-oh".
-2. ${petName.toUpperCase()} (The Insight): Relatable, curious, and clever. The user's study partner. The Pet's goal is to turn "textbook talk" into "real talk".
+  // HYBRID MODE LOGIC: Combine user goal with content classification
+  // exam_prep always → exam mode
+  // retention + high relevance → exam-aware learning
+  // retention + low relevance → pure learning
+  // quick_review → quick tips mode
+  // all/default → content-based decision
+  const isExamMode = studyGoal === 'exam_prep' || (studyGoal !== 'retention' && studyGoal !== 'quick_review' && (isPastPaper || examRelevance === 'high'));
+  const isLearningMode = studyGoal === 'retention' && examRelevance !== 'high';
+  const isQuickMode = studyGoal === 'quick_review';
+
+  console.log(`[Script Generator] Mode: ${isExamMode ? 'EXAM' : isLearningMode ? 'LEARNING' : isQuickMode ? 'QUICK' : 'BALANCED'}`);
+
+  // Adapt intro based on content type AND study goal
+  let introRitual: string;
+  if (hasMixedContent) {
+    introRitual = `${brigoName}: Welcome back. I'm ${brigoName}, and ${petName} is here. Today we've got your notes AND a past paper on ${notebookTitle}, so let's connect the theory to what matters most.`;
+  } else if (isPastPaper) {
+    introRitual = `${brigoName}: Welcome back. I'm ${brigoName}, and ${petName} is here to help me walk you through this ${subjectArea} past paper.`;
+  } else if (isQuickMode) {
+    introRitual = `${brigoName}: Welcome back. Quick refresh on ${notebookTitle} coming up! ${petName}, let's hit the highlights.`;
+  } else {
+    introRitual = `${brigoName}: Welcome back. I'm ${brigoName}, and ${petName} is here to help me break down ${notebookTitle}.`;
+  }
+
+  // Content-aware instructions based on mode
+  let modeInstructions = '';
+  if (hasMixedContent) {
+    modeInstructions = `
+MULTI-SOURCE MODE:
+- Bridge concepts from notes with exam patterns from the past paper
+- For each topic: explain the concept, then show how it might be tested
+- Point out: "In the past paper, they asked about this as..."`;
+  } else if (isExamMode) {
+    modeInstructions = `
+EXAM PREP MODE:
+- Focus on what's likely to be tested
+- Include at least one "If this shows up on a test..." moment
+- Point out common mistakes and exam pitfalls
+- End with exam-specific study tips`;
+  } else if (isLearningMode) {
+    modeInstructions = `
+LEARNING MODE:
+- Focus on deep understanding and retention
+- Emphasize "why this matters" in real life, not just tests
+- Use memorable analogies and stories
+- Connect to broader knowledge and applications
+- AVOID exam-specific language unless naturally relevant`;
+  } else if (isQuickMode) {
+    modeInstructions = `
+QUICK REFRESH MODE:
+- Be concise and punchy
+- Focus on the 3-4 most important takeaways
+- Use memory hooks and quick tips
+- Keep it fast-paced but friendly`;
+  }
+
+  const systemPrompt = `You are a podcast scriptwriter for Brigo, an AI Study Coach.
+
+Two hosts discuss study material:
+1. ${brigoName.toUpperCase()}: Knowledgeable, clear, friendly. Explains concepts with authority.
+2. ${petName.toUpperCase()}: Curious, relatable. Asks clarifying questions and provides analogies.
 
 ${personaGuide}
+${modeInstructions}
 
-CRITICAL STRUCTURAL RULES:
-- **THE RITUAL OPENING**: The script MUST start EXACTLY with: "${introRitual}" followed by a warm banter moment.
-- **PERSONALIZED ANALOGIES**: ${petName} MUST use analogies that resonate with the user persona provided. 
-- **ANTI-CRINGE RULE**: For Gen Z personas, avoid outdated slang. Use authentic linguistic structures (like "wait, let them cook," "for real," or "lowkey") only when they fit the flow. Focus on pacing.
-- **THE INSIGHT LOOP**: For every concept:
-    - Brigo explains the **Mechanism** (The technical "How").
-    - ${petName} follows with the **Meaning** (The relatable analogy or "Why it matters").
-- **SOURCE AWARENESS**: Mention you are looking at ${kindDescriptor} provided by the user.
-- **NO ROBOTIC TURN-TAKING**: Interrupt each other naturally ("Hold on," "Exactly!"). Use interjections like "Huh," "Whoa," and "I see."
-- **THE BATTLE OF THE TAKEAWAYS**: End with a "Double-Lock" takeaway:
-    - Brigo gives one "Power Fact".
-    - ${petName} counters with one "Sticky Note" (mnemonic/catchphrase).
-    - End with an encouraging sign-off.
+STRUCTURE:
+- OPENING: "${introRitual}" followed by brief friendly banter
+- BODY: Flow naturally through the key ideas (DO NOT say "First insight", "Second insight", etc.)
+  - Brigo explains concepts conversationally
+  - ${petName} adds analogies, asks questions, reacts naturally
+- ENDING:
+  - One key takeaway to remember
+  - A memorable tip from ${petName}
+  - Encouraging sign-off
 
-TARGET: Exactly ${targetWordCount} words.`;
+CRITICAL RULES:
+1. NEVER say "Insight 1", "Insight 2", "First insight", etc. - flow naturally!
+2. Use natural transitions: "Speaking of...", "That reminds me...", "And here's the thing..."
+3. Natural reactions: "Exactly!", "Wait, so...", "Oh interesting!"
+4. Vary the pattern - don't make every exchange identical
+5. ${isExamMode ? 'Mention exam relevance naturally.' : isLearningMode ? 'Focus on understanding, not exams.' : 'Keep it balanced and engaging.'}
+6. Target: ${targetWordCount} words`;
 
   const userPrompt = `Topic: ${notebookTitle}
-Key Insights:
-${insights.map((insight, i) => `${i + 1}. ${insight}`).join('\n')}
 
-Generate the script. Return ONLY the script text with "Brigo:" and "${petName}:" labels.`;
+Key concepts to cover (weave these naturally into conversation):
+${insights.map(insight => `• ${insight}`).join('\n')}
 
-  const GEMINI_API_KEY = getRequiredEnv('GOOGLE_AI_API_KEY');
+Generate a natural, engaging podcast script. Return ONLY the script with "${brigoName}:" and "${petName}:" labels.`;
+
   try {
-    const response = await fetch(`${GEMINI_FLASH_ENDPOINT}?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: systemPrompt }, { text: userPrompt }]
-        }],
-        generationConfig: {
-          temperature: 0.85,
-          maxOutputTokens: 4096,
-        }
-      }),
-    });
+    const response = await callLLMWithRetry(
+      'audio_script',
+      systemPrompt,
+      userPrompt,
+      { temperature: 0.85 }
+    );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-    }
+    const script = response.content;
+    const tokens = response.usage.totalTokens;
 
-    const data = await response.json();
-    const script = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const tokens = data.usageMetadata?.totalTokenCount || 0;
-
+    // Clean up any markdown formatting
     const cleanedScript = script.replace(/```.*?\n/g, '').replace(/```/g, '').trim();
     const wordCount = cleanedScript.split(/\s+/).length;
 
-    console.log(`[Script Generator] Generated ${wordCount} word script.`);
+    console.log(`[Script Generator] Generated ${wordCount} word script via Grok (${tokens} tokens)`);
 
     return { script: cleanedScript, tokens, speakerMap };
   } catch (error: any) {
@@ -266,7 +316,8 @@ export async function generatePodcastScript(
 
     const { insights, tokens: stage1Tokens } = await extractKeyInsights(
       config.materialContent,
-      config.notebookTitle
+      config.notebookTitle,
+      config.educationLevel
     );
 
     const { script, tokens: stage2Tokens, speakerMap } = await generateDialogueScript(
@@ -276,7 +327,10 @@ export async function generatePodcastScript(
       config.petName,
       config.materialKind,
       config.educationLevel,
-      config.ageBracket
+      config.ageBracket,
+      config.contentClassification,
+      config.contentSummary,
+      config.studyGoal
     );
 
     const totalTokens = stage1Tokens + stage2Tokens;

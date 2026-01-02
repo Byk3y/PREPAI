@@ -22,6 +22,8 @@ import { getRequiredEnv, getOptionalEnv } from '../_shared/env.ts';
 import { getCorsHeaders, getCorsPreflightHeaders } from '../_shared/cors.ts';
 import { checkRateLimit, RATE_LIMITS } from '../_shared/ratelimit.ts';
 import { estimatePageCount } from '../_shared/pdf/utils.ts';
+import { validateUUID, validateString } from '../_shared/validation.ts';
+import { sanitizeForLLM, sanitizeTitle } from '../_shared/sanitization.ts';
 
 // Large PDF thresholds - PDFs exceeding these are processed in background
 const LARGE_PDF_THRESHOLD_PAGES = 20; // Lowered from 50
@@ -142,8 +144,18 @@ function stripMarkdown(text: string): string {
 }
 
 /**
+ * Content classification types for intelligent prompt adaptation
+ */
+interface ContentClassification {
+  type: 'past_paper' | 'lecture_notes' | 'textbook_chapter' | 'article' | 'video_transcript' | 'general';
+  exam_relevance: 'high' | 'medium' | 'low';
+  detected_format: 'multiple_choice' | 'short_answer' | 'essay' | 'mixed' | null;
+  subject_area: string | null;
+}
+
+/**
  * Generate title and preview using LLM
- * Returns both the title, preview and LLM usage statistics
+ * Returns title, preview, content classification, and LLM usage statistics
  */
 async function generateTitleAndPreview(
   extractedContent: string,
@@ -152,6 +164,7 @@ async function generateTitleAndPreview(
   title: string;
   emoji: string;
   color: 'blue' | 'green' | 'orange' | 'purple' | 'pink';
+  content_classification: ContentClassification;
   preview: {
     overview: string;
     suggested_questions: string[];
@@ -165,32 +178,70 @@ async function generateTitleAndPreview(
   model: string;
   latency: number;
 }> {
-  const systemPrompt = `You are Brigo, an elite academic architect. Your mission is to provide a "Premium Glimpse" into new study material. 
+  // SECURITY: Sanitize inputs before sending to LLM
+  const sanitizedCurrentTitle = sanitizeTitle(currentTitle || 'Untitled', 100);
+  const sanitizedContent = sanitizeForLLM(extractedContent, {
+    maxLength: 50000, // SECURITY FIX: Reduced from 200k to 50k
+    preserveNewlines: true,
+  });
 
-TASK: Generate a scannable title, a concise narrative overview, and three curiosity-gap suggested questions.
+  const systemPrompt = `You are Brigo, an AI Study Coach specializing in exam preparation.
+
+TASK: Analyze this study material and generate:
+1. A clear title and overview
+2. A classification of what type of content this is
+3. Three study questions
+
+CONTENT CLASSIFICATION (analyze first):
+Before generating the overview, classify the material:
+
+- TYPE: What is this material?
+  • "past_paper" - Contains exam questions, mark schemes, or test papers
+  • "lecture_notes" - Class notes, slides, or lecture transcripts
+  • "textbook_chapter" - Formal educational content from a textbook
+  • "article" - News, blog, or informational article
+  • "video_transcript" - Transcribed video content
+  • "general" - Other study material
+
+- EXAM_RELEVANCE: How exam-focused is this content?
+  • "high" - Contains actual exam questions or exam-style content
+  • "medium" - Educational content useful for exam prep
+  • "low" - General information, not directly exam-related
+
+- DETECTED_FORMAT (only if past_paper):
+  • "multiple_choice" - MCQ format
+  • "short_answer" - Short answer questions
+  • "essay" - Long-form essay questions
+  • "mixed" - Combination of formats
+  • null - Not applicable (not a past paper)
+
+- SUBJECT_AREA: Academic subject (e.g., "Biology", "Law", "History", "Computer Science")
 
 OUTPUT FORMAT (JSON only):
 {
-  "title": "Synthesis headline (max 60 chars)",
-  "emoji": "Atmospheric/premium emoji (e.g. ✨, 🧬, 🌌)",
-  "color": "One of: blue, green, orange, purple, pink",
-  "overview": "Single continuous paragraph (60-85 words). Explain the central themes and the 'So what?' factor.",
+  "title": "Clear topic title (max 60 chars)",
+  "emoji": "Relevant subject emoji",
+  "color": "blue | green | orange | purple | pink",
+  "content_classification": {
+    "type": "past_paper | lecture_notes | textbook_chapter | article | video_transcript | general",
+    "exam_relevance": "high | medium | low",
+    "detected_format": "multiple_choice | short_answer | essay | mixed | null",
+    "subject_area": "Subject name or null"
+  },
+  "overview": "80-120 word summary. Bold 2-3 key exam terms. End with one concept to research further.",
   "suggested_questions": ["Question 1", "Question 2", "Question 3"]
 }
 
-ELITE RULES:
-1. **NO META-COMMENTARY**: Jump directly into the insight. Never start with "This text..." or "In this video...".
-2. **STYLE**: Use **bold** for 3-5 key concepts inside the overview.
-3. **THE MASTERY GAP**: End the overview with a single tactical sentence identifying a concept NOT fully covered in the sources that the user should investigate next to be exam-ready.
-4. **TITLE**: Professional and high-level. Avoid abbreviations.
-5. **QUESTIONS**: Must be specific to the text, designed to spark a "need to know" feeling.
-6. **WORD COUNT**: The overview (including the Mastery Gap) MUST be between 75 and 100 words. Quality over quantity.`;
+RULES:
+1. Jump directly into content - never start with "This text discusses..."
+2. Focus on exam-relevant concepts
+3. For past papers: mention what topics are being tested
+4. Questions should spark curiosity about the material
+5. Bold only the 2-3 most important terms`;
 
-  // With Grok 4.1 Fast (2M context), we can analyze a massive portion of the material
-  const contentWindow = Math.min(200000, extractedContent.length);
-  const userPrompt = `Existing Notebook Title: ${currentTitle || 'Untitled'}
+  const userPrompt = `Existing Notebook Title: ${sanitizedCurrentTitle}
 Combined Material Content:
-${extractedContent.substring(0, contentWindow)}
+${sanitizedContent}
 
 Provide the premium preview JSON that synthesizes all available source material.`;
 
@@ -203,14 +254,33 @@ Provide the premium preview JSON that synthesizes all available source material.
   try {
     const response = JSON.parse(result.content);
 
-    // Basic structure validation
-    if (!response.title || !response.emoji || !response.overview) {
-      throw new Error('Invalid response structure from LLM');
+    // SECURITY: Validate LLM response structure
+    const titleValidation = validateString(response.title, {
+      fieldName: 'title',
+      required: true,
+      maxLength: 100,
+      allowNewlines: false,
+    });
+    if (!titleValidation.isValid) {
+      throw new Error(`Invalid title from LLM: ${titleValidation.error}`);
     }
 
-    let cleanedTitle = stripMarkdown(response.title.trim()).substring(0, 60);
+    const overviewValidation = validateString(response.overview, {
+      fieldName: 'overview',
+      required: true,
+      maxLength: 2000,
+    });
+    if (!overviewValidation.isValid) {
+      throw new Error(`Invalid overview from LLM: ${overviewValidation.error}`);
+    }
+
+    if (!response.emoji || typeof response.emoji !== 'string') {
+      throw new Error('Invalid or missing emoji from LLM');
+    }
+
+    let cleanedTitle = stripMarkdown(titleValidation.sanitized!).substring(0, 60);
     // Replace multiple newlines/paragraph breaks with a single space
-    let trimmedOverview = response.overview.trim().replace(/\n\s*\n/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    let trimmedOverview = overviewValidation.sanitized!.replace(/\n\s*\n/g, ' ').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
 
     const wordCount = trimmedOverview.split(/\s+/).length;
 
@@ -223,14 +293,38 @@ Provide the premium preview JSON that synthesizes all available source material.
       throw new Error(`Overview too long (${wordCount} words). Brigo requires more conciseness.`);
     }
 
-    // Return cleaned title, preview with actual usage statistics
+    // Extract and validate content classification with defaults
+    const contentClassification: ContentClassification = {
+      type: response.content_classification?.type || 'general',
+      exam_relevance: response.content_classification?.exam_relevance || 'medium',
+      detected_format: response.content_classification?.detected_format || null,
+      subject_area: response.content_classification?.subject_area || null,
+    };
+
+    // Validate classification type
+    const validTypes = ['past_paper', 'lecture_notes', 'textbook_chapter', 'article', 'video_transcript', 'general'];
+    if (!validTypes.includes(contentClassification.type)) {
+      contentClassification.type = 'general';
+    }
+
+    // SECURITY: Validate suggested_questions array from LLM
+    let sanitizedQuestions: string[] = [];
+    if (response.suggested_questions && Array.isArray(response.suggested_questions)) {
+      sanitizedQuestions = response.suggested_questions
+        .slice(0, 10) // Max 10 questions
+        .filter((q: any) => typeof q === 'string' && q.trim().length > 0)
+        .map((q: string) => q.trim().substring(0, 300)); // Max 300 chars each
+    }
+
+    // Return cleaned title, preview, classification with actual usage statistics
     return {
       title: cleanedTitle,
       emoji: response.emoji,
       color: response.color || 'blue',
+      content_classification: contentClassification,
       preview: {
         overview: trimmedOverview,
-        suggested_questions: response.suggested_questions || [],
+        suggested_questions: sanitizedQuestions,
       },
       usage: result.usage,
       costCents: result.costCents,
@@ -276,11 +370,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Parse request body
+    // Parse and validate request body
     const { material_id } = await req.json();
 
-    if (!material_id) {
-      return new Response(JSON.stringify({ error: 'material_id is required' }), {
+    // Validate material_id
+    const materialIdValidation = validateUUID(material_id, 'material_id');
+    if (!materialIdValidation.isValid) {
+      return new Response(JSON.stringify({ error: materialIdValidation.error }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -536,19 +632,56 @@ Deno.serve(async (req) => {
       const llmResult = await generateTitleAndPreview(combinedContent, notebook.title);
       const aiTitle = llmResult.title;
       const preview = llmResult.preview;
+      const contentClassification = llmResult.content_classification;
 
       const previewLatency = Date.now() - previewStartTime;
       console.log(`AI title and preview generated in ${previewLatency}ms`);
+      console.log(`Content classified as: ${contentClassification.type} (${contentClassification.exam_relevance} exam relevance)`);
 
-      // STEP 5: Update material with preview_text (use overview for preview_text)
+      // STEP 5: Update material with preview_text AND content classification
       await supabase
         .from('materials')
         .update({
           preview_text: preview.overview.substring(0, 500), // Scannable preview
+          meta: {
+            ...(material.meta || {}),
+            content_classification: contentClassification,
+          },
         })
         .eq('id', material_id);
 
-      // STEP 5: Update notebook with AI-generated title and preview
+      // STEP 5.5: Build content summary from ALL materials in this notebook
+      // Re-fetch all materials to get updated classifications
+      const { data: updatedMaterials } = await supabase
+        .from('materials')
+        .select('meta, kind')
+        .eq('notebook_id', notebookId);
+
+      // Build content summary for multi-material awareness
+      const materialClassifications = (updatedMaterials || [])
+        .map((m: any) => m.meta?.content_classification)
+        .filter(Boolean);
+
+      const contentSummary = {
+        material_count: updatedMaterials?.length || 1,
+        has_past_paper: materialClassifications.some((c: any) => c.type === 'past_paper'),
+        has_notes: materialClassifications.some((c: any) =>
+          c.type === 'lecture_notes' || c.type === 'textbook_chapter'
+        ),
+        has_video: materialClassifications.some((c: any) => c.type === 'video_transcript'),
+        material_types: [...new Set(materialClassifications.map((c: any) => c.type))],
+        // Use highest exam relevance from any material
+        exam_relevance: materialClassifications.some((c: any) => c.exam_relevance === 'high')
+          ? 'high'
+          : materialClassifications.some((c: any) => c.exam_relevance === 'medium')
+            ? 'medium'
+            : 'low',
+        primary_subject: contentClassification.subject_area, // From latest material
+      };
+
+      console.log(`Content summary: ${contentSummary.material_count} materials, has_past_paper: ${contentSummary.has_past_paper}, has_notes: ${contentSummary.has_notes}`);
+
+      // STEP 6: Update notebook with AI-generated title, preview, classification, and summary
       await supabase
         .from('notebooks')
         .update({
@@ -556,7 +689,11 @@ Deno.serve(async (req) => {
           emoji: llmResult.emoji,
           color: llmResult.color,
           status: 'preview_ready',
-          meta: { preview },
+          meta: {
+            preview,
+            content_classification: contentClassification, // Latest material's classification
+            content_summary: contentSummary, // Summary of ALL materials
+          },
           preview_generated_at: new Date().toISOString(),
         })
         .eq('id', notebookId);
