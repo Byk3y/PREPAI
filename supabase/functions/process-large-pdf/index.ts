@@ -15,10 +15,10 @@
 
 import { createClient } from 'supabase';
 import { extractPDF } from '../_shared/extraction.ts';
-import { callLLMWithRetry } from '../_shared/openrouter.ts';
 import { getRequiredEnv, getOptionalEnv } from '../_shared/env.ts';
 import { getCorsHeaders, getCorsPreflightHeaders } from '../_shared/cors.ts';
 import { estimatePageCount } from '../_shared/pdf/utils.ts';
+import { PreviewGenerator } from '../_shared/material-processing/preview-generator.ts';
 
 // Constants
 const MAX_PROCESSING_TIME_MS = 280000; // 4.5 minutes (leave buffer for Edge Function limit)
@@ -36,84 +36,6 @@ interface ProcessingJob {
     p_file_size_bytes: number | null;
 }
 
-/**
- * Strip markdown formatting from a string
- */
-function stripMarkdown(text: string): string {
-    let cleaned = text.replace(/\*\*([^*]+)\*\*/g, '$1');
-    cleaned = cleaned.replace(/\*([^*]+)\*/g, '$1');
-    return cleaned;
-}
-
-/**
- * Generate title and preview using LLM (same logic as process-material)
- */
-async function generateTitleAndPreview(
-    extractedContent: string,
-    currentTitle: string
-): Promise<{
-    title: string;
-    preview: { overview: string };
-    usage: { inputTokens: number; outputTokens: number; totalTokens: number };
-    costCents: number;
-    model: string;
-    latency: number;
-}> {
-    const systemPrompt = `You are an expert writing coach and academic summarizer. Generate a descriptive title and concise overview for uploaded study material (60-85 words - a quick, scannable summary).
-
-Output ONLY valid JSON in this exact format:
-{
-  "title": "Concise, scannable title (max 60 characters)",
-  "overview": "A clear, concise overview (60-85 words) in a SINGLE continuous paragraph with NO paragraph breaks."
-}
-
-Rules for title:
-- Keep titles under 60 characters
-- Focus on the PRIMARY subject/topic only
-- CRITICAL: DO NOT use any markdown formatting in the title
-
-Rules for overview:
-- The overview MUST be 60-85 words
-- Write exactly 1 paragraph with NO paragraph breaks
-- Write in a neutral, polished, professional tone`;
-
-    // With Grok 4.1 Fast (2M context), we can analyze a massive portion of the material
-    const contentWindow = Math.min(100000, extractedContent.length);
-    const userPrompt = `Read the provided document and produce a clear, concise overview (60-85 words).
-
-Current title (may be auto-generated, improve it): ${currentTitle || 'Untitled'}
-
-Document content analysis:
-${extractedContent.substring(0, contentWindow)}
-
-Generate title and overview JSON.`;
-
-    const result = await callLLMWithRetry('preview', systemPrompt, userPrompt, {
-        temperature: 0.5,
-        maxRetries: 3,
-    });
-
-    const response = JSON.parse(result.content);
-
-    let cleanedTitle = response.title.trim();
-    cleanedTitle = stripMarkdown(cleanedTitle).trim();
-
-    let trimmedOverview = response.overview.trim();
-    trimmedOverview = trimmedOverview
-        .replace(/\n\s*\n/g, ' ')
-        .replace(/\n/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-    return {
-        title: cleanedTitle,
-        preview: { overview: trimmedOverview },
-        usage: result.usage,
-        costCents: result.costCents,
-        model: result.model,
-        latency: result.latency,
-    };
-}
 
 /**
  * Process a single job from the queue
@@ -230,7 +152,8 @@ async function processJob(
         });
 
         // Generate AI title and preview
-        const llmResult = await generateTitleAndPreview(extractedContent, notebook.title);
+        const previewGenerator = new PreviewGenerator();
+        const llmResult = await previewGenerator.generate(extractedContent, notebook.title);
 
         // Update progress: Saving results
         await supabase.rpc('update_job_progress', {
