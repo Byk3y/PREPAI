@@ -149,19 +149,85 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
 
   // Track if we've done the initial scroll to avoid annoying "quick scroll" animation on entry
   const hasInitiallyScrolled = useRef(false);
+  // Track if initial messages have been loaded from the server
+  const isInitialLoadComplete = useRef(false);
+  // Track the message count at the time of initial load to distinguish from new messages
+  const initialMessageCount = useRef<number | null>(null);
+  // Track if content has had at least one layout pass
+  const hasContentLayouted = useRef(false);
+  // Track ready state in a ref to avoid stale closure in async callbacks
+  const isReadyToShowRef = useRef(false);
+
+  // Helper function to perform the reveal sequence
+  const performReveal = () => {
+    if (isReadyToShowRef.current) return; // Guard against double-reveal
+
+    // 1. Silent non-animated jump
+    scrollRef.current?.scrollToEnd({ animated: false });
+
+    // 2. Perform a second silent jump slightly later to catch any layout shifts
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: false });
+
+      // 3. Capture the current message count as "initial" before revealing
+      // Read directly from store to avoid stale closure
+      const currentMessages = useStore.getState().notebooks.find(n => n.id === notebook.id)?.chat_messages || [];
+      initialMessageCount.current = currentMessages.length;
+
+      // 4. Mark as scrolled and reveal
+      hasInitiallyScrolled.current = true;
+      isReadyToShowRef.current = true;
+      setIsReadyToShow(true);
+      Animated.timing(contentOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }, 60);
+  };
 
   // Load chat messages on mount
   useEffect(() => {
-    useStore.getState().loadChatMessages(notebook.id);
+    // Reset all tracking refs for fresh load
     hasInitiallyScrolled.current = false;
+    isInitialLoadComplete.current = false;
+    initialMessageCount.current = null;
+    hasContentLayouted.current = false;
+    isReadyToShowRef.current = false;
     setIsReadyToShow(false);
     contentOpacity.setValue(0);
+
+    // Load messages and track completion
+    const loadMessages = async () => {
+      await useStore.getState().loadChatMessages(notebook.id);
+      // Mark initial load as complete after fetch
+      isInitialLoadComplete.current = true;
+
+      // If content already laid out and not revealed yet, trigger reveal now
+      if (hasContentLayouted.current && !isReadyToShowRef.current) {
+        // Small delay to let React re-render with new messages
+        setTimeout(() => {
+          performReveal();
+        }, 50);
+      }
+    };
+    loadMessages();
   }, [notebook.id]);
 
   // Handle new messages (streaming or received) AFTER initial load
   useEffect(() => {
-    // Only animate for new incoming messages if we've already done our initial jump
-    if (isReadyToShow && hasInitiallyScrolled.current && (chatMessages.length > 0 || isStreaming)) {
+    // Only animate for NEW incoming messages (not initial fetch)
+    // We check that:
+    // 1. View is ready and initial scroll happened
+    // 2. Initial load is complete
+    // 3. We have more messages than when we first loaded (truly new messages)
+    if (
+      isReadyToShow &&
+      hasInitiallyScrolled.current &&
+      isInitialLoadComplete.current &&
+      initialMessageCount.current !== null &&
+      (chatMessages.length > initialMessageCount.current || isStreaming)
+    ) {
       const timer = setTimeout(() => {
         scrollRef.current?.scrollToEnd({ animated: true });
       }, 100);
@@ -171,25 +237,19 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
 
   // Initial "jump" to bottom on first layout
   const handleContentSizeChange = () => {
+    // Mark that content has been laid out at least once
+    hasContentLayouted.current = true;
+
     // Only proceed if we haven't unlocked the view yet
-    if (!isReadyToShow) {
-      // 1. Silent non-animated jump
-      scrollRef.current?.scrollToEnd({ animated: false });
-
-      // 2. Perform a second silent jump slightly later to catch any layout shifts
-      // This is the "secret sauce" for zero-flicker on first-load
-      setTimeout(() => {
-        scrollRef.current?.scrollToEnd({ animated: false });
-
-        // 3. Mark as scrolled and reveal
-        hasInitiallyScrolled.current = true;
-        setIsReadyToShow(true);
-        Animated.timing(contentOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }).start();
-      }, 60); // 60ms is usually enough for the first layout paint to finish
+    if (!isReadyToShowRef.current) {
+      // Both conditions must be met:
+      // 1. Initial load complete (messages fetched)
+      // 2. Content has been laid out
+      if (isInitialLoadComplete.current) {
+        performReveal();
+      }
+      // If load not complete, the loadMessages callback will handle reveal
+      // after it completes (since hasContentLayouted will be true)
     }
   };
 
