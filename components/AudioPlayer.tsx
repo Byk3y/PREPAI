@@ -33,6 +33,8 @@ import {
 } from './AudioIcons';
 import { formatTime } from '@/lib/utils';
 import { BrigoLogo } from './BrigoLogo';
+import { SubtitleDisplay } from './SubtitleDisplay';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 interface AudioPlayerProps {
     audioUrl: string; // Required: URL to audio file
@@ -40,6 +42,7 @@ interface AudioPlayerProps {
     notebookId: string; // Required: Parent notebook ID
     title?: string;
     duration?: number; // in seconds
+    script?: string; // Optional: Podcast script for subtitles
     onClose?: () => void;
     onDownload?: () => void;
     isDownloading?: boolean; // Optional: Show loading state on download button
@@ -52,18 +55,23 @@ export function AudioPlayer({
     notebookId,
     title = 'Podcast',
     duration = 0,
+    script,
     onClose,
     onDownload,
     isDownloading = false,
     downloadProgress = 0,
 }: AudioPlayerProps) {
     const { handleError } = useErrorHandler();
+    const { isDarkMode } = useTheme();
+    const colors = getThemeColors(isDarkMode);
+
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [audioDuration, setAudioDuration] = useState(duration);
     const [playbackSpeed, setPlaybackSpeed] = useState(1);
     const [liked, setLiked] = useState<boolean | null>(null);
     const [loading, setLoading] = useState(true);
+    const [showSubtitles, setShowSubtitles] = useState(true); // Subtitles on by default
 
     const sound = useRef<Audio.Sound | null>(null);
     const isDraggingSlider = useRef(false);
@@ -407,21 +415,25 @@ export function AudioPlayer({
     }, [liked, authUser?.id, audioOverviewId]);
 
     return (
-        <View className="flex-1 bg-white">
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
             <SafeAreaView className="flex-1">
                 {/* Header */}
-                <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
+                <View
+                    className="flex-row items-center justify-between px-4 py-3"
+                    style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+                >
                     <TouchableOpacity
                         onPress={onClose}
                         className="p-2"
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                        <CloseIcon size={22} color="#1a1a1a" />
+                        <CloseIcon size={22} color={colors.text} />
                     </TouchableOpacity>
 
                     <View className="flex-1 mx-4">
                         <Text
-                            className="text-base font-medium text-gray-900 text-center"
+                            style={{ color: colors.text }}
+                            className="text-base font-medium text-center"
                             numberOfLines={1}
                             ellipsizeMode="tail"
                         >
@@ -437,16 +449,16 @@ export function AudioPlayer({
                         style={{ opacity: isDownloading ? 0.5 : 1 }}
                     >
                         {isDownloading ? (
-                            <ActivityIndicator size="small" color="#1a1a1a" />
+                            <ActivityIndicator size="small" color={colors.text} />
                         ) : (
-                            <DownloadIcon size={22} color="#1a1a1a" />
+                            <DownloadIcon size={22} color={colors.text} />
                         )}
                     </TouchableOpacity>
                 </View>
 
                 {/* Download Progress Bar */}
                 {isDownloading && downloadProgress > 0 && (
-                    <View className="w-full bg-gray-100" style={{ height: 3 }}>
+                    <View style={{ height: 3, backgroundColor: colors.border }}>
                         <View
                             className="h-full bg-[#4F5BD5]"
                             style={{ width: `${downloadProgress}%` }}
@@ -457,11 +469,29 @@ export function AudioPlayer({
                 {/* Content Area with Blue Line */}
                 <View className="flex-1 justify-end">
                     {/* Blue Accent Line */}
-                    <View className="w-full h-0.5 bg-[#4F5BD5] mb-8" />
+                    <View className="w-full h-0.5 bg-[#4F5BD5] mb-4" />
 
-                    {/* Main Content Area - Audio Visualization Space */}
-                    <View className="flex-1 px-6 justify-center items-center">
-                        <AudioVisualizer isPlaying={isPlaying} />
+                    {/* Main Content Area - Subtitles + Visualizer */}
+                    <View className="flex-1 px-6">
+                        {/* Subtitle Display - takes available space */}
+                        <View style={{ flex: 1, justifyContent: 'center', marginTop: -80 }}>
+                            {script ? (
+                                <SubtitleDisplay
+                                    script={script}
+                                    currentTime={currentTime}
+                                    duration={audioDuration}
+                                    isVisible={showSubtitles}
+                                    onToggleVisibility={() => setShowSubtitles(!showSubtitles)}
+                                />
+                            ) : (
+                                <View style={{ height: 140 }} />
+                            )}
+                        </View>
+
+                        {/* Audio Visualizer */}
+                        <View style={{ height: 44, marginTop: -110, marginBottom: 20, alignItems: 'center', justifyContent: 'center' }}>
+                            <AudioVisualizer isPlaying={isPlaying} height={44} />
+                        </View>
                     </View>
 
                     {/* Secondary Controls */}
@@ -470,7 +500,7 @@ export function AudioPlayer({
                             onPress={handleSpeedChange}
                             className="items-center justify-center"
                         >
-                            <Text className="text-base font-semibold text-gray-700">
+                            <Text style={{ color: colors.text }} className="text-base font-semibold">
                                 {playbackSpeed}X
                             </Text>
                         </TouchableOpacity>
@@ -481,7 +511,7 @@ export function AudioPlayer({
                         >
                             <ThumbUpIcon
                                 size={24}
-                                color={liked === true ? '#4F5BD5' : '#9ca3af'}
+                                color={liked === true ? '#4F5BD5' : colors.iconMuted}
                                 filled={liked === true}
                             />
                         </TouchableOpacity>
@@ -492,7 +522,7 @@ export function AudioPlayer({
                         >
                             <ThumbDownIcon
                                 size={24}
-                                color={liked === false ? '#ef4444' : '#9ca3af'}
+                                color={liked === false ? '#ef4444' : colors.iconMuted}
                                 filled={liked === false}
                             />
                         </TouchableOpacity>
@@ -501,7 +531,7 @@ export function AudioPlayer({
                     {/* Progress Bar */}
                     <View className="px-6 mb-8">
                         <View className="flex-row items-center">
-                            <Text className="text-sm text-gray-500 w-12 font-medium">
+                            <Text style={{ color: colors.textSecondary }} className="text-sm w-12 font-medium">
                                 {formatTime(currentTime)}
                             </Text>
                             <View className="flex-1 mx-3">
@@ -513,12 +543,12 @@ export function AudioPlayer({
                                     onSlidingStart={handleSlidingStart}
                                     onSlidingComplete={handleSlidingComplete}
                                     minimumTrackTintColor="#4F5BD5"
-                                    maximumTrackTintColor="#E5E7EB"
+                                    maximumTrackTintColor={isDarkMode ? '#404042' : '#E5E7EB'}
                                     thumbTintColor="#4F5BD5"
                                     tapToSeek={true}
                                 />
                             </View>
-                            <Text className="text-sm text-gray-500 w-12 text-right font-medium">
+                            <Text style={{ color: colors.textSecondary }} className="text-sm w-12 text-right font-medium">
                                 {formatTime(audioDuration)}
                             </Text>
                         </View>
@@ -535,20 +565,23 @@ export function AudioPlayer({
                                     {/* Circular arrow */}
                                     <Path
                                         d="M16 6C10.477 6 6 10.477 6 16s4.477 10 10 10 10-4.477 10-10"
-                                        stroke="#4F5BD5"
+                                        stroke={isDarkMode ? '#818CF8' : '#4F5BD5'}
                                         strokeWidth={2}
                                         strokeLinecap="round"
                                     />
                                     {/* Arrow head */}
                                     <Path
                                         d="M16 2v8l-4-4"
-                                        stroke="#4F5BD5"
+                                        stroke={isDarkMode ? '#818CF8' : '#4F5BD5'}
                                         strokeWidth={2}
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                     />
                                 </Svg>
-                                <Text className="text-xs font-bold text-[#4F5BD5] absolute">
+                                <Text
+                                    style={{ color: isDarkMode ? '#818CF8' : '#4F5BD5' }}
+                                    className="text-xs font-bold absolute"
+                                >
                                     10
                                 </Text>
                             </View>
@@ -557,11 +590,12 @@ export function AudioPlayer({
                         <TouchableOpacity
                             onPress={handlePlayPause}
                             disabled={loading}
-                            className="w-20 h-20 rounded-full bg-[#4F5BD5] items-center justify-center shadow-lg"
+                            className="w-20 h-20 rounded-full items-center justify-center shadow-lg"
                             style={{
-                                shadowColor: '#4F5BD5',
+                                backgroundColor: isDarkMode ? '#818CF8' : '#4F5BD5',
+                                shadowColor: isDarkMode ? '#000' : '#4F5BD5',
                                 shadowOffset: { width: 0, height: 8 },
-                                shadowOpacity: 0.4,
+                                shadowOpacity: isDarkMode ? 0.5 : 0.4,
                                 shadowRadius: 12,
                                 elevation: 12,
                                 opacity: loading ? 0.7 : 1,
@@ -585,20 +619,23 @@ export function AudioPlayer({
                                     {/* Circular arrow */}
                                     <Path
                                         d="M16 6c5.523 0 10 4.477 10 10s-4.477 10-10 10S6 21.523 6 16"
-                                        stroke="#4F5BD5"
+                                        stroke={isDarkMode ? '#818CF8' : '#4F5BD5'}
                                         strokeWidth={2}
                                         strokeLinecap="round"
                                     />
                                     {/* Arrow head */}
                                     <Path
                                         d="M16 2v8l4-4"
-                                        stroke="#4F5BD5"
+                                        stroke={isDarkMode ? '#818CF8' : '#4F5BD5'}
                                         strokeWidth={2}
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                     />
                                 </Svg>
-                                <Text className="text-xs font-bold text-[#4F5BD5] absolute">
+                                <Text
+                                    style={{ color: isDarkMode ? '#818CF8' : '#4F5BD5' }}
+                                    className="text-xs font-bold absolute"
+                                >
                                     10
                                 </Text>
                             </View>
@@ -607,16 +644,19 @@ export function AudioPlayer({
 
                     {/* Powered by Brigo footer */}
                     <View className="flex-row items-center justify-center mb-4" style={{ gap: 6, opacity: 0.4 }}>
-                        <Text style={{ fontSize: 11, fontFamily: 'Outfit-Light', color: '#6B7280' }}>
+                        <Text style={{ fontSize: 11, fontFamily: 'Outfit-Light', color: colors.textMuted }}>
                             Powered by
                         </Text>
-                        <BrigoLogo size={12} textColor="#6B7280" />
+                        <BrigoLogo size={12} textColor={colors.textMuted} />
                     </View>
                 </View>
 
                 {/* Gradient Background at Bottom */}
                 <LinearGradient
-                    colors={['rgba(255,255,255,0)', 'rgba(167,243,208,0.4)', 'rgba(153,246,228,0.5)']}
+                    colors={isDarkMode
+                        ? ['rgba(41,41,43,0)', 'rgba(64,82,77,0.4)', 'rgba(58,87,80,0.5)']
+                        : ['rgba(255,255,255,0)', 'rgba(167,243,208,0.4)', 'rgba(153,246,228,0.5)']
+                    }
                     locations={[0, 0.5, 1]}
                     className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
                 />

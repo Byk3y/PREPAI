@@ -12,8 +12,12 @@ import { audioService } from '@/lib/services/audioService';
 import { audioDownloadService } from '@/lib/services/audioDownloadService';
 import type { AudioOverview } from '@/lib/store/types';
 import { TikTokLoader } from '@/components/TikTokLoader';
+import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 export default function AudioPlayerScreen() {
+    const { isDarkMode } = useTheme();
+    const colors = getThemeColors(isDarkMode);
+
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
 
@@ -94,9 +98,9 @@ export default function AudioPlayerScreen() {
     // Loading state
     if (loading) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-                <TikTokLoader size={16} color="#4F5BD5" containerWidth={80} />
-                <Text style={{ marginTop: 24, color: '#737373', fontSize: 16 }}>Loading audio...</Text>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+                <TikTokLoader size={16} color={colors.primary} containerWidth={80} />
+                <Text style={{ marginTop: 24, color: colors.textSecondary, fontSize: 16 }}>Loading audio...</Text>
             </View>
         );
     }
@@ -104,7 +108,7 @@ export default function AudioPlayerScreen() {
     // Error state
     if (error || !audioOverview) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', padding: 20 }}>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, padding: 20 }}>
                 <Text style={{ fontSize: 16, color: '#ef4444', textAlign: 'center' }}>
                     {error || 'Podcast not found'}
                 </Text>
@@ -120,6 +124,7 @@ export default function AudioPlayerScreen() {
                 notebookId={audioOverview.notebook_id}
                 title={audioOverview.title}
                 duration={audioOverview.duration}
+                script={audioOverview.script}
                 onClose={handleClose}
                 onDownload={handleDownload}
                 isDownloading={isDownloading}
