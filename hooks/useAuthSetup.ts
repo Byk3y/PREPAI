@@ -28,6 +28,25 @@ export function useAuthSetup() {
     // This prevents race conditions between getUser() and onAuthStateChange
     let mounted = true;
 
+    // CRITICAL: Check initial session state BEFORE setting up listener
+    // This prevents the onboarding flash issue when reopening the app
+    // Without this, routing happens with stale AsyncStorage data before auth loads
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        // No session - user is logged out, safe to initialize routing immediately
+        if (mounted) {
+          setAuthUser(null);
+          setIsInitialized(true);
+        }
+      }
+      // If session exists, the onAuthStateChange callback below will handle it
+    };
+
+    // Run initial session check immediately
+    initializeAuth();
+
     const {
       data: { subscription: authSubscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -51,6 +70,19 @@ export function useAuthSetup() {
           if (__DEV__) console.log('[Auth] Resetting isInitialized to false, fetching user data...');
           setIsInitialized(false);
         }
+
+        // SAFEGUARD: Set up a timeout to ensure isInitialized is set to true
+        // even if data fetching hangs. This prevents users from being stuck
+        // on the auth screen indefinitely (especially on slow networks).
+        const INITIALIZATION_TIMEOUT_MS = 10000; // 10 seconds max wait
+        let initializationCompleted = false;
+
+        const timeoutId = setTimeout(() => {
+          if (!initializationCompleted && mounted) {
+            console.warn('[Auth] Data fetch timeout reached, forcing isInitialized to true');
+            setIsInitialized(true);
+          }
+        }, INITIALIZATION_TIMEOUT_MS);
 
         try {
           const {
@@ -96,17 +128,31 @@ export function useAuthSetup() {
           hydratePetStateFromCache();
           hydrateUserProfileFromCache();
 
-          // Fetch all user data in parallel in the background
+          // Fetch all user data in parallel with individual timeouts
+          // This prevents one slow request from blocking everything
+          const fetchWithTimeout = <T,>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> => {
+            return Promise.race([
+              promise,
+              new Promise<T>((resolve) => setTimeout(() => resolve(fallback), timeoutMs))
+            ]);
+          };
+
+          const FETCH_TIMEOUT_MS = 8000; // 8 seconds per fetch (within overall 10s timeout)
+
           const [profileResult] = await Promise.all([
-            supabase
-              .from('profiles')
-              .select('id, name, streak, avatar_url, meta')
-              .eq('id', session.user.id)
-              .single(),
-            loadUserProfile(),
-            loadSubscription(session.user.id),
-            loadNotebooks(session.user.id),
-            loadPetState(),
+            fetchWithTimeout(
+              supabase
+                .from('profiles')
+                .select('id, name, streak, avatar_url, meta')
+                .eq('id', session.user.id)
+                .single(),
+              FETCH_TIMEOUT_MS,
+              { data: null, error: { message: 'Timeout' } }
+            ),
+            fetchWithTimeout(loadUserProfile(), FETCH_TIMEOUT_MS, undefined),
+            fetchWithTimeout(loadSubscription(session.user.id), FETCH_TIMEOUT_MS, undefined),
+            fetchWithTimeout(loadNotebooks(session.user.id), FETCH_TIMEOUT_MS, undefined),
+            fetchWithTimeout(loadPetState(), FETCH_TIMEOUT_MS, undefined),
           ]);
 
           const profile = profileResult?.data;
@@ -146,11 +192,15 @@ export function useAuthSetup() {
             if (__DEV__) console.log('[Auth] User data fetched, setting isInitialized to true', { hasCompleted });
 
             // Mark initialization as complete ONLY after we have correct onboarding status
+            initializationCompleted = true;
+            clearTimeout(timeoutId);
             setIsInitialized(true);
           }
         } catch (error) {
           // Error already handled by centralized system
           if (__DEV__) console.log('[Auth] Error fetching user data, setting isInitialized to true anyway', error);
+          initializationCompleted = true;
+          clearTimeout(timeoutId);
           if (mounted) setIsInitialized(true); // Ensure initialization happens even on error
         }
       } else {

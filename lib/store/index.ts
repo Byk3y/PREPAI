@@ -79,7 +79,7 @@ export const useStore = create<StoreWithHydration>()(
         cachedPetSyncedAt: state.cachedPetSyncedAt,
         cachedPetUserId: state.cachedPetUserId,
         // petState removed in v2 - should always load from database per user
-        authUser: state.authUser,
+        // authUser removed - Supabase manages session persistence, no need to duplicate
         hasCreatedNotebook: state.hasCreatedNotebook,
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         currentOnboardingScreen: state.currentOnboardingScreen,
