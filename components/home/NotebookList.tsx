@@ -9,6 +9,7 @@ import { NotebookCard } from '@/components/NotebookCard';
 import { TrialReminderCard } from '@/components/upgrade/TrialReminderCard';
 import { LimitedAccessBanner } from '@/components/upgrade/LimitedAccessBanner';
 import { StreakRestoreBanner } from '@/components/home/StreakRestoreBanner';
+import { AddNotebookCard } from '@/components/home/AddNotebookCard';
 import { TikTokLoader } from '@/components/TikTokLoader';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 import type { Notebook } from '@/lib/store';
@@ -110,6 +111,11 @@ export function NotebookList({
           totalCount={totalCount}
           onUpgrade={onUpgrade}
         />
+      )}
+
+      {/* Add Notebook Card (Empty State) */}
+      {notebooks.length === 0 && !isRefreshing && (
+        <AddNotebookCard onPress={onCreateNotebook} />
       )}
 
       {/* Notebook Cards */}

@@ -124,6 +124,12 @@ export default function SettingsScreen() {
                         route="/settings/notifications"
                         subtext="Alerts and reminders"
                     />
+                    <NavItem
+                        label="Account Management"
+                        icon="shield-checkmark"
+                        route="/settings/account"
+                        subtext="Security and account options"
+                    />
                 </View>
 
                 {/* SUBSCRIPTION SECTION */}
@@ -147,43 +153,6 @@ export default function SettingsScreen() {
                     <NavItem label="Feedback" icon="chatbubble" />
                     <TouchableOpacity style={styles.signOutRow} onPress={handleSignOut}>
                         <Text style={styles.signOutText}>SIGN OUT</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* DANGER ZONE SECTION */}
-                <Text style={[styles.sectionTitle, { color: '#FF3B30' }]}>DANGER ZONE</Text>
-                <View style={[styles.card, { backgroundColor: colors.surface, borderColor: '#FF3B30', opacity: 0.9 }]}>
-                    <TouchableOpacity
-                        style={styles.deleteAccountRow}
-                        onPress={() => {
-                            Alert.alert(
-                                "Delete Account",
-                                "This will permanently delete your account, study materials, and pet progress. This action cannot be undone.",
-                                [
-                                    { text: "Cancel", style: "cancel" },
-                                    {
-                                        text: "Delete Permanently",
-                                        style: "destructive",
-                                        onPress: async () => {
-                                            try {
-                                                const { data, error } = await supabase.functions.invoke('delete-user');
-                                                if (error) throw error;
-
-                                                Alert.alert("Account Deleted", "Your account has been successfully removed.");
-                                                resetPetState();
-                                                await supabase.auth.signOut();
-                                                router.replace('/auth');
-                                            } catch (error) {
-                                                console.error('Error deleting account:', error);
-                                                Alert.alert("Error", "Failed to delete account. Please contact support@brigo.app");
-                                            }
-                                        }
-                                    }
-                                ]
-                            );
-                        }}
-                    >
-                        <Text style={styles.deleteAccountText}>DELETE ACCOUNT</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -289,16 +258,6 @@ const styles = StyleSheet.create({
         color: '#FF3B30',
         fontSize: 16,
         fontFamily: 'Nunito-Bold',
-    },
-    deleteAccountRow: {
-        padding: 16,
-        alignItems: 'center',
-    },
-    deleteAccountText: {
-        color: '#FF3B30',
-        fontSize: 14,
-        fontFamily: 'Nunito-Bold',
-        letterSpacing: 0.5,
     },
     footer: {
         flexDirection: 'row',

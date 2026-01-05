@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/ThemeContext';
 import { useFeedback } from '@/lib/feedback';
+import { AnimatedGradientBorder } from '@/components/AnimatedGradientBorder';
 
 interface HomeActionButtonsProps {
     onCameraPress: () => void;
@@ -59,42 +60,43 @@ export const HomeActionButtons: React.FC<HomeActionButtonsProps> = ({
                     }),
                 }}
             >
-                {useLiquidGlass ? (
-                    <BlurView
-                        intensity={40}
-                        tint="light"
-                        style={{
-                            flex: 1,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                        }}
-                    >
-                        <MaterialIcons
-                            name="camera-alt"
-                            size={24}
-                            color="#FFFFFF"
-                        />
-                    </BlurView>
-                ) : (
-                    <View
-                        style={{
-                            flex: 1,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: '#FFFFFF',
-                            borderWidth: 1,
-                            borderColor: '#e5e4df',
-                            borderRadius: 28,
-                        }}
-                    >
-                        <MaterialIcons
-                            name="camera-alt"
-                            size={24}
-                            color="#1a1a1a"
-                        />
-                    </View>
-                )}
+                <AnimatedGradientBorder borderRadius={28} style={{ flex: 1 }}>
+                    {useLiquidGlass ? (
+                        <BlurView
+                            intensity={40}
+                            tint="light"
+                            style={{
+                                flex: 1,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                            }}
+                        >
+                            <MaterialIcons
+                                name="camera-alt"
+                                size={24}
+                                color="#FFFFFF"
+                            />
+                        </BlurView>
+                    ) : (
+                        <View
+                            style={{
+                                flex: 1,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: '#FFFFFF',
+                                // Border handled by AnimatedGradientBorder
+                                borderRadius: 28,
+                            }}
+                        >
+                            <MaterialIcons
+                                name="camera-alt"
+                                size={24}
+                                color="#1a1a1a"
+                            />
+                        </View>
+                    )}
+                </AnimatedGradientBorder>
             </TouchableOpacity>
 
             {/* Add Materials Button */}
@@ -117,64 +119,65 @@ export const HomeActionButtons: React.FC<HomeActionButtonsProps> = ({
                     }),
                 }}
             >
-                {useLiquidGlass ? (
-                    <BlurView
-                        intensity={40}
-                        tint="light"
-                        style={{
-                            paddingHorizontal: 32,
-                            paddingVertical: 16,
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 8,
-                            backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                        }}
-                    >
-                        <MaterialIcons
-                            name="add"
-                            size={20}
-                            color="#FFFFFF"
-                        />
-                        <Text
+                <AnimatedGradientBorder borderRadius={999}>
+                    {useLiquidGlass ? (
+                        <BlurView
+                            intensity={40}
+                            tint="light"
                             style={{
-                                fontFamily: 'Nunito-SemiBold',
-                                fontSize: 16,
-                                color: '#FFFFFF',
+                                paddingHorizontal: 32,
+                                paddingVertical: 16,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 8,
+                                backgroundColor: 'rgba(255, 255, 255, 0.15)',
                             }}
                         >
-                            Add Material
-                        </Text>
-                    </BlurView>
-                ) : (
-                    <View
-                        style={{
-                            paddingHorizontal: 32,
-                            paddingVertical: 16,
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 8,
-                            backgroundColor: '#FFFFFF',
-                            borderWidth: 1,
-                            borderColor: '#e5e4df',
-                            borderRadius: 999,
-                        }}
-                    >
-                        <MaterialIcons
-                            name="add"
-                            size={20}
-                            color="#1a1a1a"
-                        />
-                        <Text
+                            <MaterialIcons
+                                name="add"
+                                size={20}
+                                color="#FFFFFF"
+                            />
+                            <Text
+                                style={{
+                                    fontFamily: 'Nunito-SemiBold',
+                                    fontSize: 16,
+                                    color: '#FFFFFF',
+                                }}
+                            >
+                                Add Material
+                            </Text>
+                        </BlurView>
+                    ) : (
+                        <View
                             style={{
-                                fontFamily: 'Nunito-SemiBold',
-                                fontSize: 16,
-                                color: '#1a1a1a',
+                                paddingHorizontal: 32,
+                                paddingVertical: 16,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 8,
+                                backgroundColor: '#FFFFFF',
+                                // Border handled by AnimatedGradientBorder
+                                borderRadius: 999,
                             }}
                         >
-                            Add Material
-                        </Text>
-                    </View>
-                )}
+                            <MaterialIcons
+                                name="add"
+                                size={20}
+                                color="#1a1a1a"
+                            />
+                            <Text
+                                style={{
+                                    fontFamily: 'Nunito-SemiBold',
+                                    fontSize: 16,
+                                    color: '#1a1a1a',
+                                }}
+                            >
+                                Add Material
+                            </Text>
+                        </View>
+                    )}
+                </AnimatedGradientBorder>
             </TouchableOpacity>
         </View>
     );

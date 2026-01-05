@@ -9,7 +9,7 @@ import {
   Text,
   Modal,
   Pressable,
-  Animated,
+  Animated as RNAnimated,
   PanResponder,
   StyleSheet,
   Dimensions,
@@ -21,6 +21,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import { AnimatedGradientBorder } from '@/components/AnimatedGradientBorder';
+import Animated, {
+  FadeInUp,
+  FadeOutDown,
+  Layout,
+  useAnimatedStyle,
+  withTiming,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withDelay,
+  Easing
+} from 'react-native-reanimated';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -32,13 +45,48 @@ interface MaterialTypeSelectorProps {
   onSelectType: (type: MaterialType, url?: string) => void;
 }
 
+const CYCLING_WORDS = ['EXAM', 'TEST', 'FINALS', 'MIDTERM', 'SEMESTER'];
+
+const InternalAnimatedWord = ({ isDarkMode }: { isDarkMode: boolean }) => {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % CYCLING_WORDS.length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const word = CYCLING_WORDS[index];
+
+  return (
+    <View style={{ height: 36, overflow: 'hidden', justifyContent: 'center' }}>
+      <Animated.Text
+        key={word}
+        entering={FadeInUp.duration(600).springify()}
+        exiting={FadeOutDown.duration(600).springify()}
+        style={{
+          fontSize: 27,
+          fontWeight: '700',
+          color: isDarkMode ? '#00FFD1' : '#2E48FF',
+          fontFamily: 'Outfit-Bold',
+          textTransform: 'uppercase',
+          letterSpacing: 0.5,
+        }}
+      >
+        {word}
+      </Animated.Text>
+    </View>
+  );
+};
+
 export default function MaterialTypeSelector({
   visible,
   onClose,
   onSelectType,
 }: MaterialTypeSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const translateY = useRef(new RNAnimated.Value(SCREEN_HEIGHT)).current;
 
   // Dark mode support using theme context
   const { isDarkMode } = useTheme();
@@ -68,7 +116,7 @@ export default function MaterialTypeSelector({
         translateY.flattenOffset();
 
         requestAnimationFrame(() => {
-          Animated.timing(translateY, {
+          RNAnimated.timing(translateY, {
             toValue: 0,
             duration: 400,
             useNativeDriver: true,
@@ -128,7 +176,7 @@ export default function MaterialTypeSelector({
         // Only close if it was a drag (not a tap) and meets threshold
         if (!isTap && (gestureState.dy > 150 || gestureState.vy > 0.7)) {
           // Smoothly animate to close
-          Animated.timing(translateY, {
+          RNAnimated.timing(translateY, {
             toValue: SCREEN_HEIGHT,
             duration: 250,
             useNativeDriver: true,
@@ -137,7 +185,7 @@ export default function MaterialTypeSelector({
           });
         } else if (!isTap) {
           // Snap back to top if it was a drag but didn't meet threshold
-          Animated.spring(translateY, {
+          RNAnimated.spring(translateY, {
             toValue: 0,
             tension: 65,
             friction: 11,
@@ -145,7 +193,7 @@ export default function MaterialTypeSelector({
           }).start();
         } else {
           // It was a tap, just reset position smoothly
-          Animated.spring(translateY, {
+          RNAnimated.spring(translateY, {
             toValue: 0,
             tension: 65,
             friction: 11,
@@ -157,7 +205,7 @@ export default function MaterialTypeSelector({
   ).current;
 
   const handleClose = () => {
-    Animated.timing(translateY, {
+    RNAnimated.timing(translateY, {
       toValue: SCREEN_HEIGHT,
       duration: 250,
       useNativeDriver: true,
@@ -209,7 +257,7 @@ export default function MaterialTypeSelector({
         <Pressable style={styles.backdrop} onPress={handleClose} />
 
         {/* Sheet - 85% of screen height */}
-        <Animated.View
+        <RNAnimated.View
           style={[
             styles.sheet,
             {
@@ -237,42 +285,77 @@ export default function MaterialTypeSelector({
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
               <View style={styles.contentWrapper}>
                 {/* Title */}
-                <View style={styles.header}>
-                  <Text style={[styles.title, { color: colors.text }]}>Create study notebooks</Text>
-                  <Text style={styles.titleSubtext}>
-                    <Text style={styles.titleHighlight}>from</Text>{' '}
-                    <Text style={styles.titleHighlight2}>your materials</Text>
+                <View style={[styles.header, { paddingBottom: 28 }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                    <Text style={[styles.title, {
+                      color: colors.text,
+                      marginBottom: 0,
+                      fontFamily: 'Outfit-Bold',
+                      fontSize: 27,
+                      letterSpacing: -0.5,
+                    }]}>Crush your next</Text>
+                    <InternalAnimatedWord isDarkMode={isDarkMode} />
+                  </View>
+                  <Text style={{
+                    fontSize: 17,
+                    color: colors.textSecondary,
+                    fontFamily: 'Outfit-Regular',
+                    letterSpacing: 0,
+                    opacity: 0.8
+                  }}>
+                    starting with your resources
                   </Text>
                 </View>
 
                 {/* Search Input */}
                 <View style={styles.searchContainer}>
-                  <TextInput
-                    style={[
-                      styles.searchInput,
-                      {
-                        backgroundColor: colors.surface,
-                        borderColor: colors.border,
-                        color: colors.text,
-                      }
-                    ]}
-                    placeholder="Find sources from the web"
-                    placeholderTextColor={colors.textMuted}
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    onSubmitEditing={handleSearch}
-                    returnKeyType="send"
-                  />
+                  <AnimatedGradientBorder
+                    borderRadius={12}
+                    style={{ flex: 1, height: 48 }}
+                  >
+                    <TextInput
+                      style={[
+                        styles.searchInput,
+                        {
+                          backgroundColor: colors.surface,
+                          color: colors.text,
+                          borderWidth: 0,
+                          height: '100%', // Ensure it fills the border container
+                        }
+                      ]}
+                      placeholder="Find sources from the web"
+                      placeholderTextColor={colors.textMuted}
+                      value={searchQuery}
+                      onChangeText={setSearchQuery}
+                      onSubmitEditing={handleSearch}
+                      returnKeyType="send"
+                    />
+                  </AnimatedGradientBorder>
                   <TouchableOpacity
                     onPress={handleSearch}
                     style={[
                       styles.sendButton,
-                      { backgroundColor: isDarkMode ? colors.text : '#171717' },
                       !searchQuery.trim() && styles.sendButtonDisabled,
+                      { backgroundColor: 'transparent' }
                     ]}
                     disabled={!searchQuery.trim()}
                   >
-                    <MaterialIcons name="arrow-forward" size={18} color={isDarkMode ? colors.background : '#FFFFFF'} />
+                    <AnimatedGradientBorder
+                      borderRadius={24}
+                      style={{ width: 48, height: 48 }}
+                    >
+                      <View
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          backgroundColor: isDarkMode ? colors.text : '#171717',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <MaterialIcons name="arrow-forward" size={18} color={isDarkMode ? colors.background : '#FFFFFF'} />
+                      </View>
+                    </AnimatedGradientBorder>
                   </TouchableOpacity>
                 </View>
 
@@ -325,7 +408,7 @@ export default function MaterialTypeSelector({
               </View>
             </TouchableWithoutFeedback>
           </SafeAreaView>
-        </Animated.View>
+        </RNAnimated.View>
       </View>
     </Modal>
   );
