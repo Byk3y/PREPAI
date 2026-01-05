@@ -1,19 +1,28 @@
 /**
  * SubtitleDisplay - Chat bubble style subtitle component for podcasts
  * Shows current speaker with their dialogue in a conversational format
+ * Speaker images: Brigo icon for host, pet bubble for user's pet
  */
 
 import React, { useMemo, useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, Animated, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
     parseScript,
     getCurrentSegment,
     getSpeakerColor,
-    getSpeakerInitials,
     type ScriptSegment,
 } from '@/lib/utils/scriptParser';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
+import { useStore } from '@/lib/store';
+
+// Speaker images
+const BRIGO_ICON = require('@/assets/icon-rounded.png');
+const PET_BUBBLES = {
+    1: require('@/assets/pets/stage-1/bubble.png'),
+    2: require('@/assets/pets/stage-2/bubble.png'),
+    3: require('@/assets/pets/stage-3/bubble.png'),
+};
 
 interface SubtitleDisplayProps {
     script: string;
@@ -32,6 +41,9 @@ export function SubtitleDisplay({
 }: SubtitleDisplayProps) {
     const { isDarkMode } = useTheme();
     const colors = getThemeColors(isDarkMode);
+
+    // Get pet stage for speaker image
+    const petStage = useStore(state => state.petState?.stage || 1) as 1 | 2 | 3;
 
     // Parse script into segments (memoized)
     const { segments, totalChars } = useMemo(() => {
@@ -112,17 +124,25 @@ export function SubtitleDisplay({
     }
 
     const speakerColor = displayedSegment ? getSpeakerColor(displayedSegment.speaker, isDarkMode) : '#4F5BD5';
-    const speakerInitials = displayedSegment ? getSpeakerInitials(displayedSegment.speaker) : '?';
+
+    // Determine if speaker is Brigo (host) or pet
+    const isBrigo = displayedSegment?.speaker?.toLowerCase() === 'brigo';
+
+    // Get the appropriate speaker image
+    const speakerImage = isBrigo ? BRIGO_ICON : PET_BUBBLES[petStage];
+
+    // Image sizing - Brigo icon is square, pet bubbles need more height
+    const imageSize = isBrigo ? 36 : 44;
 
     return (
-        <View style={{ paddingHorizontal: 16, minHeight: 140 }}>
+        <View style={{ paddingHorizontal: 16, minHeight: 140, paddingTop: 12 }}>
             {/* Toggle button */}
             {onToggleVisibility && (
                 <TouchableOpacity
                     onPress={onToggleVisibility}
                     style={{
                         position: 'absolute',
-                        top: 0,
+                        top: 12,
                         right: 16,
                         padding: 8,
                         zIndex: 10,
@@ -133,41 +153,46 @@ export function SubtitleDisplay({
                 </TouchableOpacity>
             )}
 
-            {/* Subtitle bubble */}
+            {/* Subtitle bubble with speaker image */}
             <Animated.View
                 style={{
                     opacity: fadeAnim,
-                    backgroundColor: colors.surfaceElevated,
-                    borderRadius: 20,
-                    padding: 20,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: isDarkMode ? 0.3 : 0.05,
-                    shadowRadius: 8,
-                    elevation: 2,
+                    position: 'relative',
                 }}
             >
-                {/* Speaker header */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                    {/* Avatar circle */}
-                    <View
-                        style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 16,
-                            backgroundColor: speakerColor,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginRight: 10,
-                        }}
-                    >
-                        <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>
-                            {speakerInitials}
-                        </Text>
-                    </View>
+                {/* Speaker image - positioned at top-left corner */}
+                <Image
+                    source={speakerImage}
+                    style={{
+                        position: 'absolute',
+                        top: -8,
+                        left: -4,
+                        width: imageSize,
+                        height: imageSize,
+                        borderRadius: isBrigo ? 10 : 0,
+                        zIndex: 10,
+                    }}
+                    resizeMode="contain"
+                />
 
+                {/* Card content */}
+                <View
+                    style={{
+                        backgroundColor: colors.surfaceElevated,
+                        borderRadius: 20,
+                        paddingTop: 16,
+                        paddingBottom: 20,
+                        paddingHorizontal: 20,
+                        paddingLeft: imageSize + 12, // Space for the image
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: isDarkMode ? 0.3 : 0.05,
+                        shadowRadius: 8,
+                        elevation: 2,
+                    }}
+                >
                     {/* Speaker name */}
                     <Text
                         style={{
@@ -175,29 +200,30 @@ export function SubtitleDisplay({
                             fontWeight: '600',
                             color: speakerColor,
                             fontFamily: 'Nunito-Bold',
+                            marginBottom: 8,
                         }}
                     >
                         {displayedSegment?.speaker || 'Speaker'}
                     </Text>
-                </View>
 
-                {/* Dialogue text - scrollable for long segments */}
-                <ScrollView
-                    style={{ maxHeight: 180 }}
-                    showsVerticalScrollIndicator={false}
-                    nestedScrollEnabled={true}
-                >
-                    <Text
-                        style={{
-                            fontSize: 16,
-                            lineHeight: 24,
-                            color: colors.text,
-                            fontFamily: 'Nunito-Regular',
-                        }}
+                    {/* Dialogue text - scrollable for long segments */}
+                    <ScrollView
+                        style={{ maxHeight: 180 }}
+                        showsVerticalScrollIndicator={false}
+                        nestedScrollEnabled={true}
                     >
-                        "{displayedSegment?.text || ''}"
-                    </Text>
-                </ScrollView>
+                        <Text
+                            style={{
+                                fontSize: 16,
+                                lineHeight: 24,
+                                color: colors.text,
+                                fontFamily: 'Nunito-Regular',
+                            }}
+                        >
+                            "{displayedSegment?.text || ''}"
+                        </Text>
+                    </ScrollView>
+                </View>
             </Animated.View>
         </View>
     );
