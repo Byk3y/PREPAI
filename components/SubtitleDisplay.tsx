@@ -9,6 +9,7 @@
 import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, Animated, TouchableOpacity, ScrollView, Image, StyleSheet, ImageSourcePropType } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { MarkdownText } from '@/components/MarkdownText';
 import {
     parseScript,
     getCurrentSegment,
@@ -135,7 +136,7 @@ const SpeakerBubble = React.memo(({ segment, petStage, colors, isDarkMode }: Spe
                     showsVerticalScrollIndicator={false}
                     nestedScrollEnabled={true}
                 >
-                    <Text
+                    <MarkdownText
                         style={{
                             fontSize: 16,
                             lineHeight: 24,
@@ -143,8 +144,8 @@ const SpeakerBubble = React.memo(({ segment, petStage, colors, isDarkMode }: Spe
                             fontFamily: 'Nunito-Regular',
                         }}
                     >
-                        "{segment.text || ''}"
-                    </Text>
+                        {`"${segment.text || ''}"`}
+                    </MarkdownText>
                 </ScrollView>
             </View>
         </>
