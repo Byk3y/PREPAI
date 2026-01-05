@@ -15,6 +15,7 @@ import {
   TextInput,
   TouchableWithoutFeedback,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -392,7 +393,35 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
               </View>
             </View>
           ) : (
-            <PreviewSkeleton lines={8} />
+            <View>
+              <PreviewSkeleton lines={8} />
+              <MotiView
+                from={{ opacity: 0, translateY: 10 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'timing', duration: 1000 } as any}
+                style={{ alignItems: 'center', marginTop: 32 }}
+              >
+                <ActivityIndicator size="small" color={colors.primary} style={{ marginBottom: 16 }} />
+                <Text style={{
+                  fontSize: 16,
+                  color: colors.textSecondary,
+                  fontFamily: 'Nunito-Medium',
+                  textAlign: 'center'
+                }}>
+                  Just a moment...
+                </Text>
+                <Text style={{
+                  fontSize: 13,
+                  color: colors.textMuted,
+                  fontFamily: 'Nunito-Regular',
+                  textAlign: 'center',
+                  marginTop: 8,
+                  paddingHorizontal: 32
+                }}>
+                  We're extracting the key insights from your document. We'll notify you when it's ready!
+                </Text>
+              </MotiView>
+            </View>
           )}
         </View>
       </ScrollView>

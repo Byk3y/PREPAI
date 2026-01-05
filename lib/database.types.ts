@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.5"
+  }
   public: {
     Tables: {
       audio_feedback: {
@@ -113,81 +118,212 @@ export type Database = {
             referencedRelation: "notebooks"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "audio_overviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
-      flashcard_completions: {
+      course_lessons: {
         Row: {
-          completed_at: string | null
+          audio_generated: boolean | null
+          content: Json
           created_at: string | null
-          flashcard_id: string
+          description: string | null
           id: string
-          is_correct: boolean
+          is_free: boolean | null
+          module_id: string
+          order_index: number
+          status: string | null
+          title: string
+        }
+        Insert: {
+          audio_generated?: boolean | null
+          content: Json
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_free?: boolean | null
+          module_id: string
+          order_index: number
+          status?: string | null
+          title: string
+        }
+        Update: {
+          audio_generated?: boolean | null
+          content?: Json
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_free?: boolean | null
+          module_id?: string
+          order_index?: number
+          status?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_lessons_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "course_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_modules: {
+        Row: {
+          course_id: string
+          created_at: string | null
+          description: string | null
+          id: string
+          order_index: number
+          title: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          order_index: number
+          title: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          order_index?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_modules_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courses: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          exam_id: string
+          id: string
+          is_published: boolean | null
+          level: string | null
+          slug: string
+          thumbnail_url: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          exam_id: string
+          id?: string
+          is_published?: boolean | null
+          level?: string | null
+          slug: string
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          exam_id?: string
+          id?: string
+          is_published?: boolean | null
+          level?: string | null
+          slug?: string
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courses_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exams: {
+        Row: {
+          category: string | null
+          country: string | null
+          created_at: string | null
+          id: string
+          slug: string
+          title: string
+        }
+        Insert: {
+          category?: string | null
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          slug: string
+          title: string
+        }
+        Update: {
+          category?: string | null
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          slug?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      lesson_progress: {
+        Row: {
+          completed: boolean | null
+          completed_at: string | null
+          id: string
+          last_position: number | null
+          lesson_id: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
+          completed?: boolean | null
           completed_at?: string | null
-          created_at?: string | null
-          flashcard_id: string
           id?: string
-          is_correct: boolean
+          last_position?: number | null
+          lesson_id: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
+          completed?: boolean | null
           completed_at?: string | null
-          created_at?: string | null
-          flashcard_id?: string
           id?: string
-          is_correct?: boolean
+          last_position?: number | null
+          lesson_id?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "flashcard_completions_flashcard_id_fkey"
-            columns: ["flashcard_id"]
+            foreignKeyName: "lesson_progress_lesson_id_fkey"
+            columns: ["lesson_id"]
             isOneToOne: false
-            referencedRelation: "flashcards"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      flashcards: {
-        Row: {
-          answer: string
-          created_at: string | null
-          id: string
-          material_id: string | null
-          notebook_id: string
-          question: string
-        }
-        Insert: {
-          answer: string
-          created_at?: string | null
-          id?: string
-          material_id?: string | null
-          notebook_id: string
-          question: string
-        }
-        Update: {
-          answer?: string
-          created_at?: string | null
-          id?: string
-          material_id?: string | null
-          notebook_id?: string
-          question?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "flashcards_material_id_fkey"
-            columns: ["material_id"]
-            isOneToOne: false
-            referencedRelation: "materials"
+            referencedRelation: "course_lessons"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "flashcards_notebook_id_fkey"
-            columns: ["notebook_id"]
+            foreignKeyName: "lesson_progress_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "notebooks"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -195,44 +331,44 @@ export type Database = {
       materials: {
         Row: {
           content: string | null
+          content_type: string
           created_at: string | null
-          external_url: string | null
+          extracted_text: string | null
           id: string
-          kind: string
-          metadata: Json | null
-          notebook_id: string | null
-          preview_text: string | null
+          meta: Json | null
+          notebook_id: string
+          status: string | null
           storage_path: string | null
-          thumbnail: string | null
           title: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           content?: string | null
+          content_type: string
           created_at?: string | null
-          external_url?: string | null
+          extracted_text?: string | null
           id?: string
-          kind: string
-          metadata?: Json | null
-          notebook_id?: string | null
-          preview_text?: string | null
+          meta?: Json | null
+          notebook_id: string
+          status?: string | null
           storage_path?: string | null
-          thumbnail?: string | null
           title: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
           content?: string | null
+          content_type?: string
           created_at?: string | null
-          external_url?: string | null
+          extracted_text?: string | null
           id?: string
-          kind?: string
-          metadata?: Json | null
-          notebook_id?: string | null
-          preview_text?: string | null
+          meta?: Json | null
+          notebook_id?: string
+          status?: string | null
           storage_path?: string | null
-          thumbnail?: string | null
           title?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -241,6 +377,13 @@ export type Database = {
             columns: ["notebook_id"]
             isOneToOne: false
             referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "materials_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -252,7 +395,7 @@ export type Database = {
           id: string
           notebook_id: string
           role: string
-          sources: Json | null
+          sources: Json
           user_id: string
         }
         Insert: {
@@ -261,7 +404,7 @@ export type Database = {
           id?: string
           notebook_id: string
           role: string
-          sources?: Json | null
+          sources?: Json
           user_id: string
         }
         Update: {
@@ -270,7 +413,7 @@ export type Database = {
           id?: string
           notebook_id?: string
           role?: string
-          sources?: Json | null
+          sources?: Json
           user_id?: string
         }
         Relationships: [
@@ -281,221 +424,82 @@ export type Database = {
             referencedRelation: "notebooks"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      notebook_shares: {
-        Row: {
-          access_level: string
-          created_at: string | null
-          email: string
-          id: string
-          notebook_id: string
-        }
-        Insert: {
-          access_level: string
-          created_at?: string | null
-          email: string
-          id?: string
-          notebook_id: string
-        }
-        Update: {
-          access_level?: string
-          created_at?: string | null
-          email?: string
-          id?: string
-          notebook_id?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "notebook_shares_notebook_id_fkey"
-            columns: ["notebook_id"]
+            foreignKeyName: "notebook_chat_messages_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "notebooks"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
       }
       notebooks: {
         Row: {
-          color: string | null
+          audio_generated_count: number | null
+          color: string
           created_at: string | null
-          emoji: string | null
+          embeddings_generated: boolean | null
+          emoji: string
           flashcard_count: number | null
           id: string
+          is_public: boolean | null
           last_studied: string | null
-          meta: Json | null
-          progress: number | null
-          status: string | null
-          title: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          color?: string | null
-          created_at?: string | null
-          emoji?: string | null
-          flashcard_count?: number | null
-          id?: string
-          last_studied?: string | null
-          meta?: Json | null
-          progress?: number | null
-          status?: string | null
-          title: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          color?: string | null
-          created_at?: string | null
-          emoji?: string | null
-          flashcard_count?: number | null
-          id?: string
-          last_studied?: string | null
-          meta?: Json | null
-          progress?: number | null
-          status?: string | null
-          title?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      pet_states: {
-        Row: {
-          created_at: string | null
-          id: string
-          last_interacted_at: string | null
-          name: string
-          status: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          last_interacted_at?: string | null
-          name: string
-          status?: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          last_interacted_at?: string | null
-          name?: string
-          status?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      pet_task_completions: {
-        Row: {
-          completed_at: string | null
-          created_at: string | null
-          id: string
-          task_id: string
-          user_id: string
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string | null
-          id?: string
-          task_id: string
-          user_id: string
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string | null
-          id?: string
-          task_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pet_task_completions_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "pet_tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      pet_tasks: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          id: string
-          title: string
-          type: string
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          title: string
-          type: string
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          title?: string
-          type?: string
-        }
-        Relationships: []
-      }
-      processing_jobs: {
-        Row: {
-          created_at: string | null
-          error: string | null
-          id: string
           material_id: string | null
-          notebook_id: string | null
-          payload: Json | null
+          meta: Json | null
+          preview_generated_at: string | null
+          progress: number | null
           status: string
-          type: string
+          studio_jobs_count: number | null
+          title: string
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          audio_generated_count?: number | null
+          color: string
           created_at?: string | null
-          error?: string | null
+          embeddings_generated?: boolean | null
+          emoji: string
+          flashcard_count?: number | null
           id?: string
+          is_public?: boolean | null
+          last_studied?: string | null
           material_id?: string | null
-          notebook_id?: string | null
-          payload?: Json | null
-          status?: string
-          type: string
+          meta?: Json | null
+          preview_generated_at?: string | null
+          progress?: number | null
+          status: string
+          studio_jobs_count?: number | null
+          title: string
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          audio_generated_count?: number | null
+          color?: string
           created_at?: string | null
-          error?: string | null
+          embeddings_generated?: boolean | null
+          emoji?: string
+          flashcard_count?: number | null
           id?: string
+          is_public?: boolean | null
+          last_studied?: string | null
           material_id?: string | null
-          notebook_id?: string | null
-          payload?: Json | null
+          meta?: Json | null
+          preview_generated_at?: string | null
+          progress?: number | null
           status?: string
-          type?: string
+          studio_jobs_count?: number | null
+          title?: string
           updated_at?: string | null
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "processing_jobs_material_id_fkey"
-            columns: ["material_id"]
+            foreignKeyName: "notebooks_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "materials"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "processing_jobs_notebook_id_fkey"
-            columns: ["notebook_id"]
-            isOneToOne: false
-            referencedRelation: "notebooks"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -504,78 +508,72 @@ export type Database = {
         Row: {
           avatar_url: string | null
           coins: number | null
+          commitment_made_at: string | null
           created_at: string | null
+          daily_commitment_minutes: number | null
           expo_push_token: string | null
           first_name: string | null
+          has_completed_onboarding: boolean | null
+          has_created_notebook: boolean | null
           id: string
           last_name: string | null
           last_streak_date: string | null
+          learning_style: string | null
           meta: Json | null
           name: string | null
+          onboarding_completed_at: string | null
           streak: number | null
+          study_goal: string | null
           updated_at: string | null
         }
         Insert: {
           avatar_url?: string | null
           coins?: number | null
+          commitment_made_at?: string | null
           created_at?: string | null
+          daily_commitment_minutes?: number | null
           expo_push_token?: string | null
           first_name?: string | null
+          has_completed_onboarding?: boolean | null
+          has_created_notebook?: boolean | null
           id: string
           last_name?: string | null
           last_streak_date?: string | null
+          learning_style?: string | null
           meta?: Json | null
           name?: string | null
+          onboarding_completed_at?: string | null
           streak?: number | null
+          study_goal?: string | null
           updated_at?: string | null
         }
         Update: {
           avatar_url?: string | null
           coins?: number | null
+          commitment_made_at?: string | null
           created_at?: string | null
+          daily_commitment_minutes?: number | null
           expo_push_token?: string | null
           first_name?: string | null
+          has_completed_onboarding?: boolean | null
+          has_created_notebook?: boolean | null
           id?: string
           last_name?: string | null
           last_streak_date?: string | null
+          learning_style?: string | null
           meta?: Json | null
           name?: string | null
+          onboarding_completed_at?: string | null
           streak?: number | null
+          study_goal?: string | null
           updated_at?: string | null
-        }
-        Relationships: []
-      }
-      quiz_completions: {
-        Row: {
-          completed_at: string | null
-          created_at: string | null
-          id: string
-          quiz_id: string
-          score: number
-          user_id: string
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string | null
-          id?: string
-          quiz_id: string
-          score: number
-          user_id: string
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string | null
-          id?: string
-          quiz_id?: string
-          score?: number
-          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "quiz_completions_quiz_id_fkey"
-            columns: ["quiz_id"]
-            isOneToOne: false
-            referencedRelation: "studio_quizzes"
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -610,39 +608,11 @@ export type Database = {
             referencedRelation: "studio_quiz_questions"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      studio_flashcard_sets: {
-        Row: {
-          created_at: string | null
-          id: string
-          notebook_id: string
-          status: string
-          title: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          notebook_id: string
-          status?: string
-          title: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          notebook_id?: string
-          status?: string
-          title?: string
-          user_id?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "studio_flashcard_sets_notebook_id_fkey"
-            columns: ["notebook_id"]
+            foreignKeyName: "quiz_question_answers_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "notebooks"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -652,138 +622,151 @@ export type Database = {
           answer: string
           created_at: string | null
           id: string
+          is_public: boolean | null
+          notebook_id: string
           question: string
-          set_id: string
+          user_id: string
         }
         Insert: {
           answer: string
           created_at?: string | null
           id?: string
+          is_public?: boolean | null
+          notebook_id: string
           question: string
-          set_id: string
+          user_id: string
         }
         Update: {
           answer?: string
           created_at?: string | null
           id?: string
+          is_public?: boolean | null
+          notebook_id?: string
           question?: string
-          set_id?: string
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "studio_flashcards_set_id_fkey"
-            columns: ["set_id"]
+            foreignKeyName: "studio_flashcards_notebook_id_fkey"
+            columns: ["notebook_id"]
             isOneToOne: false
-            referencedRelation: "studio_flashcard_sets"
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "studio_flashcards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
       }
       studio_quiz_questions: {
         Row: {
-          correct_answer: string
-          created_at: string | null
-          explanation: string | null
-          id: string
-          options: Json
-          question: string
-          quiz_id: string
-        }
-        Insert: {
-          correct_answer: string
-          created_at?: string | null
-          explanation?: string | null
-          id?: string
-          options: Json
-          question: string
-          quiz_id: string
-        }
-        Update: {
-          correct_answer?: string
-          created_at?: string | null
-          explanation?: string | null
-          id?: string
-          options?: Json
-          question?: string
-          quiz_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "studio_quiz_questions_quiz_id_fkey"
-            columns: ["quiz_id"]
-            isOneToOne: false
-            referencedRelation: "studio_quizzes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      studio_quizzes: {
-        Row: {
+          answer_explanation: string | null
+          correct_option_index: number
           created_at: string | null
           id: string
+          is_public: boolean | null
           notebook_id: string
-          status: string
-          title: string
+          options: string[]
+          question_text: string
           user_id: string
         }
         Insert: {
+          answer_explanation?: string | null
+          correct_option_index: number
           created_at?: string | null
           id?: string
+          is_public?: boolean | null
           notebook_id: string
-          status?: string
-          title: string
+          options: string[]
+          question_text: string
           user_id: string
         }
         Update: {
+          answer_explanation?: string | null
+          correct_option_index?: number
           created_at?: string | null
           id?: string
+          is_public?: boolean | null
           notebook_id?: string
-          status?: string
-          title?: string
+          options?: string[]
+          question_text?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "studio_quizzes_notebook_id_fkey"
+            foreignKeyName: "studio_quiz_questions_notebook_id_fkey"
             columns: ["notebook_id"]
             isOneToOne: false
             referencedRelation: "notebooks"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "studio_quiz_questions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
-      user_subscriptions: {
+      usage_logs: {
         Row: {
           created_at: string | null
           id: string
-          is_expired: boolean
-          status: string
-          tier: string
-          trial_ends_at: string | null
-          updated_at: string | null
+          material_id: string | null
+          model_used: string
+          notebook_id: string | null
+          tokens_used: number
+          type: string
           user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
-          is_expired?: boolean
-          status: string
-          tier: string
-          trial_ends_at?: string | null
-          updated_at?: string | null
+          material_id?: string | null
+          model_used: string
+          notebook_id?: string | null
+          tokens_used: number
+          type: string
           user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
-          is_expired?: boolean
-          status?: string
-          tier?: string
-          trial_ends_at?: string | null
-          updated_at?: string | null
+          material_id?: string | null
+          model_used?: string
+          notebook_id?: string | null
+          tokens_used?: number
+          type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "usage_logs_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usage_logs_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usage_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

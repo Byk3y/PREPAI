@@ -42,15 +42,19 @@ export const useMaterialAddition = (notebookId: string) => {
             if (!result || result.cancelled) return null;
 
             setIsAddingMaterial(true);
-            await addMaterial(notebookId, {
-                type: 'audio',
-                uri: result.uri,
-                title: result.name,
-                fileUri: result.uri,
-                filename: result.name,
-            });
-            setIsAddingMaterial(false);
-            return true;
+            try {
+                await addMaterial(notebookId, {
+                    type: 'audio',
+                    uri: result.uri,
+                    title: result.name,
+                    fileUri: result.uri,
+                    filename: result.name,
+                    processed: false,
+                });
+                return true;
+            } finally {
+                setIsAddingMaterial(false);
+            }
         }, { operation: 'add_audio' });
         return await wrapped();
     }, [checkCanAdd, pickDocument, addMaterial, notebookId, withErrorHandling]);
@@ -63,15 +67,19 @@ export const useMaterialAddition = (notebookId: string) => {
             if (!result || result.cancelled) return null;
 
             setIsAddingMaterial(true);
-            await addMaterial(notebookId, {
-                type: 'pdf',
-                uri: result.uri,
-                title: result.name,
-                fileUri: result.uri,
-                filename: result.name,
-            });
-            setIsAddingMaterial(false);
-            return true;
+            try {
+                await addMaterial(notebookId, {
+                    type: 'pdf',
+                    uri: result.uri,
+                    title: result.name,
+                    fileUri: result.uri,
+                    filename: result.name,
+                    processed: false,
+                });
+                return true;
+            } finally {
+                setIsAddingMaterial(false);
+            }
         }, { operation: 'add_pdf' });
         return await wrapped();
     }, [checkCanAdd, pickDocument, addMaterial, notebookId, withErrorHandling]);
@@ -95,15 +103,19 @@ export const useMaterialAddition = (notebookId: string) => {
 
             const image = result.assets[0];
             setIsAddingMaterial(true);
-            await addMaterial(notebookId, {
-                type: 'image',
-                uri: image.uri,
-                title: image.fileName || 'Image Notes',
-                fileUri: image.uri,
-                filename: image.fileName || 'image.jpg',
-            });
-            setIsAddingMaterial(false);
-            return true;
+            try {
+                await addMaterial(notebookId, {
+                    type: 'image',
+                    uri: image.uri,
+                    title: image.fileName || 'Image Notes',
+                    fileUri: image.uri,
+                    filename: image.fileName || 'image.jpg',
+                    processed: false,
+                });
+                return true;
+            } finally {
+                setIsAddingMaterial(false);
+            }
         }, { operation: 'add_photo' });
         return await wrapped();
     }, [checkCanAdd, addMaterial, notebookId, withErrorHandling]);
@@ -116,15 +128,19 @@ export const useMaterialAddition = (notebookId: string) => {
             if (!result || result.cancelled) return null;
 
             setIsAddingMaterial(true);
-            await addMaterial(notebookId, {
-                type: 'image',
-                uri: result.uri,
-                title: 'Camera Photo',
-                fileUri: result.uri,
-                filename: `photo-${Date.now()}.jpg`,
-            });
-            setIsAddingMaterial(false);
-            return true;
+            try {
+                await addMaterial(notebookId, {
+                    type: 'image',
+                    uri: result.uri,
+                    title: 'Camera Photo',
+                    fileUri: result.uri,
+                    filename: `photo-${Date.now()}.jpg`,
+                    processed: false,
+                });
+                return true;
+            } finally {
+                setIsAddingMaterial(false);
+            }
         }, { operation: 'add_camera' });
         return await wrapped();
     }, [checkCanAdd, takePhoto, addMaterial, notebookId, withErrorHandling]);
@@ -134,13 +150,17 @@ export const useMaterialAddition = (notebookId: string) => {
 
         const wrapped = withErrorHandling(async () => {
             setIsAddingMaterial(true);
-            await addMaterial(notebookId, {
-                type: type,
-                content: content,
-                title: title,
-            });
-            setIsAddingMaterial(false);
-            return true;
+            try {
+                await addMaterial(notebookId, {
+                    type: type,
+                    content: content,
+                    title: title,
+                    processed: false,
+                });
+                return true;
+            } finally {
+                setIsAddingMaterial(false);
+            }
         }, { operation: 'add_text' });
         return await wrapped();
     }, [checkCanAdd, addMaterial, notebookId, withErrorHandling]);
@@ -155,13 +175,17 @@ export const useMaterialAddition = (notebookId: string) => {
             }
 
             setIsAddingMaterial(true);
-            await addMaterial(notebookId, {
-                type: 'youtube',
-                uri: cleanUrl,
-                title: 'YouTube Import',
-            });
-            setIsAddingMaterial(false);
-            return true;
+            try {
+                await addMaterial(notebookId, {
+                    type: 'youtube',
+                    uri: cleanUrl,
+                    title: 'YouTube Import',
+                    processed: false,
+                });
+                return true;
+            } finally {
+                setIsAddingMaterial(false);
+            }
         }, { operation: 'add_youtube' });
         return await wrapped();
     }, [checkCanAdd, addMaterial, notebookId, withErrorHandling]);
@@ -215,13 +239,17 @@ export const useMaterialAddition = (notebookId: string) => {
             }
 
             setIsAddingMaterial(true);
-            await addMaterial(notebookId, {
-                type: 'website',
-                uri: cleanUrl,
-                title: 'Website Article',
-            });
-            setIsAddingMaterial(false);
-            return true;
+            try {
+                await addMaterial(notebookId, {
+                    type: 'website',
+                    uri: cleanUrl,
+                    title: 'Website Article',
+                    processed: false,
+                });
+                return true;
+            } finally {
+                setIsAddingMaterial(false);
+            }
         }, { operation: 'add_website' });
         return await wrapped();
     }, [checkCanAdd, addMaterial, notebookId, withErrorHandling]);

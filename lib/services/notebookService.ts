@@ -4,6 +4,15 @@ import { getFilenameFromPath } from '@/lib/utils';
 import type { Notebook, Material, ChatMessage } from '@/lib/store/types';
 import { handleError } from '@/lib/errors';
 
+// Simple UUID v4 generator for React Native environments
+function uuidv4() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
+}
+
 export const notebookService = {
     fetchNotebooks: async (userId: string) => {
         const { data, error } = await supabase
@@ -65,32 +74,23 @@ export const notebookService = {
         }
     ) => {
         try {
-            // Step 1: Upload file if provided
+            // Generating a unique material ID manually for path predictability
+            // Must be a valid UUID for the DB schema
+            const materialId = uuidv4();
+
+            // Step 1: Pre-calculate storage path if there's a file
             let storagePath: string | undefined;
-            if (notebook.material?.fileUri && notebook.material?.filename) {
-                const materialId = `temp-${Date.now()}`;
-                const uploadResult = await storageService.uploadMaterialFile(
-                    userId,
-                    materialId,
-                    notebook.material.fileUri,
-                    notebook.material.filename
-                );
-                if (uploadResult.error) {
-                    // Continue with local URI in dev mode or as fallback
-                    storagePath = notebook.material.fileUri;
-                } else {
-                    storagePath = uploadResult.storagePath;
-                }
+            const isFileUpload = !!(notebook.material?.fileUri && notebook.material?.filename);
+
+            if (isFileUpload) {
+                // We use a predictable path so we can insert the record BEFORE uploading
+                const sanitizedFilename = storageService.sanitizeFilename(notebook.material!.filename!);
+                storagePath = `${userId}/${materialId}/${sanitizedFilename}`;
             }
 
-            // Step 2: Determine upload type
-            const isFileUpload =
-                !!storagePath ||
-                (notebook.material?.type &&
-                    ['pdf', 'audio', 'image', 'photo'].includes(notebook.material.type));
-
-            // Step 3: Create material record
+            // Step 2: Create material record FIRST (Fast)
             const materialData: any = {
+                id: materialId,
                 user_id: userId,
                 kind: notebook.material?.type || 'text',
                 storage_path: storagePath,
@@ -110,16 +110,10 @@ export const notebookService = {
                 .single();
 
             if (materialError) {
-                const appError = await handleError(materialError, {
-                    operation: 'create_notebook',
-                    component: 'notebook-service',
-                    userId,
-                    metadata: { userId, notebookTitle: notebook.title }
-                });
-                throw appError;
+                throw materialError;
             }
 
-            // Step 4: Create notebook record
+            // Step 3: Create notebook record (Fast)
             const notebookData: any = {
                 user_id: userId,
                 material_id: material.id,
@@ -135,44 +129,32 @@ export const notebookService = {
                 .from('notebooks')
                 .insert(notebookData)
                 .select(`
-          *,
-          materials!materials_notebook_id_fkey (*)
-        `)
+                    *,
+                    materials!materials_notebook_id_fkey (*)
+                `)
                 .single();
 
             if (notebookError) {
-                const appError = await handleError(notebookError, {
-                    operation: 'create_notebook',
-                    component: 'notebook-service',
-                    userId,
-                    metadata: { userId, notebookTitle: notebook.title }
-                });
-                throw appError;
+                throw notebookError;
             }
 
-            // Step 5: Update material with notebook_id (needed for Edge Function processing)
+            // Step 4: Link material to notebook (Fast)
             await supabase
                 .from('materials')
                 .update({ notebook_id: newNotebook.id })
                 .eq('id', material.id);
 
-            // Update user profile - set has_created_notebook flag (non-blocking)
-            try {
-                await (supabase as any).rpc('merge_profile_meta', {
-                    p_user_id: userId,
-                    p_new_meta: { has_created_notebook: true },
-                });
-            } catch (err) {
-                // Non-critical error - log but don't fail the operation
-                await handleError(err, {
-                    operation: 'update_user_profile_flag',
-                    component: 'notebook-service',
-                    userId,
-                    metadata: { userId }
-                });
-            }
-
-            return { newNotebook, material, isFileUpload, storagePath };
+            // Step 5: Optimization - Return early so UI can navigate
+            // The caller (Store/Hook) will handle the background upload and processing.
+            return {
+                newNotebook,
+                material,
+                isFileUpload,
+                storagePath,
+                // Pass the original file info for the background upload task
+                fileUri: notebook.material?.fileUri,
+                filename: notebook.material?.filename
+            };
         } catch (error) {
             const appError = await handleError(error, {
                 operation: 'create_notebook',
@@ -193,31 +175,23 @@ export const notebookService = {
         }
     ) => {
         try {
-            // Step 1: Upload file if provided
+            // Generating a unique material ID manually for path predictability
+            // Must be a valid UUID for the DB schema
+            const materialId = uuidv4();
+
+            // Step 1: Pre-calculate storage path if there's a file
             let storagePath: string | undefined;
-            if (material.fileUri && material.filename) {
-                const materialId = `temp-${Date.now()}`;
-                const uploadResult = await storageService.uploadMaterialFile(
-                    userId,
-                    materialId,
-                    material.fileUri,
-                    material.filename
-                );
-                if (uploadResult.error) {
-                    storagePath = material.fileUri;
-                } else {
-                    storagePath = uploadResult.storagePath;
-                }
+            const isFileUpload = !!(material.fileUri && material.filename);
+
+            if (isFileUpload) {
+                // We use a predictable path so we can insert the record BEFORE uploading
+                const sanitizedFilename = storageService.sanitizeFilename(material.filename!);
+                storagePath = `${userId}/${materialId}/${sanitizedFilename}`;
             }
 
-            // Step 2: Determine upload type
-            const isFileUpload =
-                !!storagePath ||
-                (material.type &&
-                    ['pdf', 'audio', 'image', 'photo'].includes(material.type));
-
-            // Step 3: Create material record
+            // Step 2: Create material record (Fast)
             const materialData: any = {
+                id: materialId,
                 user_id: userId,
                 notebook_id: notebookId,
                 kind: material.type || 'text',
@@ -245,13 +219,21 @@ export const notebookService = {
                 throw materialError;
             }
 
-            // Step 4: Update notebook status to extracting since new content is being added
+            // Step 3: Update notebook status to extracting since new content is being added
             await supabase
                 .from('notebooks')
                 .update({ status: 'extracting' })
                 .eq('id', notebookId);
 
-            return { newMaterial, isFileUpload, storagePath };
+            // Step 4: Return for instant UI update
+            return {
+                newMaterial,
+                isFileUpload,
+                storagePath,
+                // Original file data for background task
+                fileUri: material.fileUri,
+                filename: material.filename
+            };
         } catch (error) {
             const appError = await handleError(error, {
                 operation: 'add_material_to_notebook',
@@ -338,17 +320,25 @@ export const notebookService = {
                         operation: 'trigger_processing_timeout',
                         component: 'notebook-service',
                         userId,
-                        metadata: { notebookId, materialId, errorType: 'timeout' }
+                        metadata: { notebookId, materialId, errorType: 'timeout', timeout: '120s' }
                     });
-                    // Don't mark as failed
+                    // After 120s of no response, something is wrong. Mark as failed so user can retry.
+                    await supabase
+                        .from('notebooks')
+                        .update({ status: 'failed' })
+                        .eq('id', notebookId);
+                    return { status: 'failed', error: err };
                 } else if (isNetworkError) {
-                    await handleError(err, {
-                        operation: 'trigger_processing_network',
-                        component: 'notebook-service',
-                        userId,
-                        metadata: { notebookId, materialId, errorType: 'network' }
-                    });
-                    // Don't mark as failed
+                    // Network errors during backgrounding are common and often false positives:
+                    // - The request might have reached the server successfully
+                    // - The response fetch was interrupted by app backgrounding
+                    // - Realtime will push the actual status if it succeeded
+                    // - AppState monitoring will retry if it truly failed
+                    console.warn('[NotebookService] Network error during edge function trigger (likely app backgrounded):', err.message);
+                    console.warn('[NotebookService] Relying on Realtime sync to get actual processing status');
+
+                    // Don't mark as failed - let Realtime/AppState monitoring determine actual status
+                    return { status: 'network_interrupted', error: err };
                 } else {
                     await handleError(err, {
                         operation: 'trigger_processing_error',
@@ -607,6 +597,62 @@ export const notebookService = {
                 metadata: { notebookId },
             });
             return [];
+        }
+    },
+
+    /**
+     * Perform the heavy lifting (Upload + Processing) in the background.
+     * This should NOT be awaited by the UI.
+     */
+    performBackgroundUploadAndProcessing: async (
+        userId: string,
+        notebookId: string,
+        materialId: string,
+        isFileUpload: boolean,
+        fileUri?: string,
+        filename?: string,
+        storagePath?: string
+    ) => {
+        try {
+            // Step 1: Handle Upload if necessary
+            if (isFileUpload && fileUri && filename) {
+                console.log(`[NotebookService] Background upload starting for ${materialId}`);
+                const uploadResult = await storageService.uploadMaterialFile(
+                    userId,
+                    materialId,
+                    fileUri,
+                    filename
+                );
+
+                if (uploadResult.error) {
+                    console.error('[NotebookService] Background upload failed:', uploadResult.error);
+                    await supabase.from('notebooks').update({ status: 'failed' }).eq('id', notebookId);
+                    return { status: 'failed', error: uploadResult.error };
+                }
+
+                console.log(`[NotebookService] Background upload complete for ${materialId}. Storage path: ${uploadResult.storagePath}`);
+
+                // Ensure storagePath matches what we pre-calculated
+                if (uploadResult.storagePath !== storagePath) {
+                    console.warn(`[NotebookService] Storage path mismatch! Expected ${storagePath}, got ${uploadResult.storagePath}`);
+                }
+            }
+
+            // Step 2: Trigger Edge Function
+            console.log(`[NotebookService] Triggering Edge Function 'process-material' for ${materialId}`);
+            const triggerResult = await notebookService.triggerProcessing(
+                notebookId,
+                materialId,
+                isFileUpload,
+                storagePath,
+                userId
+            );
+            console.log(`[NotebookService] Edge Function trigger result for ${materialId}:`, triggerResult?.status);
+            return triggerResult;
+        } catch (error) {
+            console.error('[NotebookService] Background processing fatal error:', error);
+            await supabase.from('notebooks').update({ status: 'failed' }).eq('id', notebookId);
+            return { status: 'failed', error };
         }
     },
 };

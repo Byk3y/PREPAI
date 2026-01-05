@@ -15,7 +15,7 @@ type SupabaseClient = any;
  * Handles all database operations for materials
  */
 export class MaterialRepository {
-  constructor(private supabase: SupabaseClient) {}
+  constructor(private supabase: SupabaseClient) { }
 
   /**
    * Find material by ID
@@ -105,7 +105,7 @@ export class MaterialRepository {
  * Handles all database operations for notebooks
  */
 export class NotebookRepository {
-  constructor(private supabase: SupabaseClient) {}
+  constructor(private supabase: SupabaseClient) { }
 
   /**
    * Find notebook by ID
@@ -177,7 +177,7 @@ export class NotebookRepository {
       .from('notebooks')
       .update({
         title: originalTitle, // Preserve original title on error
-        status: 'extracting', // Keep in extracting state so user can retry
+        status: 'failed', // Set to failed so UI stops loading and allows retry
         meta: {
           error: errorMessage,
           failed_at: new Date().toISOString(),
@@ -192,7 +192,7 @@ export class NotebookRepository {
  * Handles usage logging for cost tracking and analytics
  */
 export class UsageLogger {
-  constructor(private supabase: SupabaseClient) {}
+  constructor(private supabase: SupabaseClient) { }
 
   /**
    * Log successful LLM usage
@@ -235,7 +235,7 @@ export class UsageLogger {
       user_id: userId,
       notebook_id: notebookId,
       job_type: jobType,
-      model_used: null,
+      model_used: 'error',
       input_tokens: 0,
       output_tokens: 0,
       total_tokens: 0,
@@ -252,7 +252,7 @@ export class UsageLogger {
  * Handles storage cleanup operations
  */
 export class StorageCleanup {
-  constructor(private supabase: SupabaseClient) {}
+  constructor(private supabase: SupabaseClient) { }
 
   /**
    * Delete a file from storage (best effort, doesn't throw)

@@ -3,9 +3,9 @@
  */
 
 import type { StateCreator } from 'zustand';
-import { supabase } from '@/lib/supabase'; // Kept for auth check in addNotebook if needed, though service might handle auth context or we pass it
+import { supabase } from '@/lib/supabase';
 import { notebookService } from '@/lib/services/notebookService';
-import { getFilenameFromPath } from '@/lib/utils'; // Keep if needed for local transformations, otherwise remove
+import { getFilenameFromPath } from '@/lib/utils';
 import { track } from '@/lib/services/analyticsService';
 import type { Notebook, Material, SupabaseUser, ChatMessage } from '../types';
 
@@ -33,6 +33,9 @@ export interface NotebookSlice {
   loadChatMessages: (notebookId: string) => Promise<void>;
   addChatMessage: (notebookId: string, message: ChatMessage) => void;
   updateLastChatMessage: (notebookId: string, content: string) => void;
+  subscribeToNotebookUpdates: (userId: string) => void;
+  unsubscribeFromNotebookUpdates: () => void;
+  notebooksRealtimeChannel: any | null; // Track subscription in state
   resetNotebookState: () => void;
 }
 
@@ -49,12 +52,11 @@ export const createNotebookSlice: StateCreator<
   notebooks: [],
   notebooksSyncedAt: null,
   notebooksUserId: null,
+  notebooksRealtimeChannel: null,
 
   setNotebooks: (notebooks) => set({ notebooks }),
 
   loadNotebooks: async (userId?: string) => {
-    // Use passed userId if available, otherwise fall back to store
-    // This avoids race condition when auth state hasn't propagated yet
     const effectiveUserId = userId || get().authUser?.id;
     if (!effectiveUserId) {
       set({ notebooks: [] });
@@ -74,11 +76,16 @@ export const createNotebookSlice: StateCreator<
           notebooksUserId: effectiveUserId,
         });
 
+        // 2. Realtime Subscription (Turbo-Plus)
+        // If we haven't subscribed to this user yet, do it now
+        if (effectiveUserId) {
+          get().subscribeToNotebookUpdates(effectiveUserId);
+        }
+
         if (notebooks.length > 0) {
           if (get().setHasCreatedNotebook) {
             get().setHasCreatedNotebook!(true);
           }
-          // Award foundational task if missed
           if ((get() as any).checkAndAwardTask) {
             (get() as any).checkAndAwardTask('create_notebook');
           }
@@ -117,15 +124,20 @@ export const createNotebookSlice: StateCreator<
     }
 
     try {
-      // 1. Create Notebook (Upload + DB Insert)
-      // Force cast notebook to any to bypass strict type check against Service expecting 'materials'
-      const { newNotebook, material, isFileUpload, storagePath } = await notebookService.createNotebook(authUser.id, notebook as any);
+      // 1. Create Notebook (DB Insert only, very fast)
+      const {
+        newNotebook,
+        material: resultMaterial,
+        isFileUpload,
+        storagePath,
+        fileUri,
+        filename
+      } = await notebookService.createNotebook(authUser.id, notebook as any);
 
-      // 2. Optimistic Update
+      // 2. Optimistic Update (UI transitions here)
       const materialsArr = newNotebook.materials
         ? (Array.isArray(newNotebook.materials) ? newNotebook.materials : [newNotebook.materials])
         : [];
-      const materialObj = materialsArr[0];
 
       const transformedNotebook: Notebook = {
         id: newNotebook.id,
@@ -154,7 +166,6 @@ export const createNotebookSlice: StateCreator<
       };
 
       set((state) => {
-        // Prevent duplicate notebooks (e.g. if real-time event already added it)
         const exists = state.notebooks.some((n) => n.id === transformedNotebook.id);
         if (exists) {
           return {
@@ -168,35 +179,31 @@ export const createNotebookSlice: StateCreator<
         };
       });
 
-      // Award foundational task for first notebook
+      // 3. Trigger Background Processing (Upload + Edge Function)
+      notebookService.performBackgroundUploadAndProcessing(
+        authUser.id,
+        newNotebook.id,
+        resultMaterial.id,
+        !!isFileUpload,
+        fileUri,
+        filename,
+        storagePath
+      ).catch((err) => {
+        console.error('[Store] Background work failed:', err);
+      });
+
+      // Global side effects
       if ((get() as any).checkAndAwardTask) {
         (get() as any).checkAndAwardTask('create_notebook');
       }
-
       if (get().setHasCreatedNotebook) {
         get().setHasCreatedNotebook!(true);
       }
-
-      // Track notebook creation
       track('notebook_created', {
         notebook_id: newNotebook.id,
-        has_material: !!material,
-        material_type: material?.kind,
+        has_material: !!resultMaterial,
+        material_type: resultMaterial?.kind,
       });
-
-
-      // 3. Trigger Processing (Edge Function)
-      // Run in background, don't await blocking the UI return
-      notebookService.triggerProcessing(newNotebook.id, material.id, !!isFileUpload, storagePath, authUser.id)
-        .then((result) => {
-          if (result.status === 'failed') {
-            set((state) => ({
-              notebooks: state.notebooks.map((n) =>
-                n.id === newNotebook.id ? { ...n, status: 'failed' as const } : n
-              ),
-            }));
-          }
-        });
 
       return newNotebook.id;
     } catch (error) {
@@ -208,30 +215,26 @@ export const createNotebookSlice: StateCreator<
   deleteNotebook: async (id) => {
     const { authUser } = get();
     if (!authUser) return;
-
     try {
       await notebookService.deleteNotebook(authUser.id, id);
-
       set((state) => ({
         notebooks: state.notebooks.filter((n) => n.id !== id),
       }));
     } catch (error) {
-      // Error is logged in service
+      // Logged in service
     }
   },
 
   updateNotebook: async (id, updates) => {
     const { authUser } = get();
     if (!authUser) return;
-
     try {
       await notebookService.updateNotebook(authUser.id, id, updates);
-
       set((state) => ({
         notebooks: state.notebooks.map((n) => (n.id === id ? { ...n, ...updates } : n)),
       }));
     } catch (error) {
-      // Error is logged in service
+      // Logged in service
     }
   },
 
@@ -240,8 +243,14 @@ export const createNotebookSlice: StateCreator<
     if (!authUser) return;
 
     try {
-      // 1. Service Call (Upload + DB)
-      const { newMaterial, isFileUpload, storagePath } = await notebookService.addMaterialToNotebook(
+      // 1. Service Call (DB Insert only)
+      const {
+        newMaterial,
+        isFileUpload,
+        storagePath,
+        fileUri,
+        filename
+      } = await notebookService.addMaterialToNotebook(
         authUser.id,
         notebookId,
         material as any
@@ -268,7 +277,6 @@ export const createNotebookSlice: StateCreator<
             ? {
               ...n,
               status: 'extracting',
-              // Prevent duplicate material IDs in the local array
               materials: n.materials.some(m => m.id === materialObj.id)
                 ? n.materials.map(m => m.id === materialObj.id ? materialObj : m)
                 : [materialObj, ...n.materials],
@@ -277,34 +285,26 @@ export const createNotebookSlice: StateCreator<
         ),
       }));
 
-      // 3. Trigger Processing
-      notebookService.triggerProcessing(
+      // 3. Trigger Background Processing
+      notebookService.performBackgroundUploadAndProcessing(
+        authUser.id,
         notebookId,
         newMaterial.id,
         !!isFileUpload,
-        storagePath,
-        authUser.id
-      ).then((result) => {
-        if (result.status === 'failed') {
-          set((state) => ({
-            notebooks: state.notebooks.map((n) =>
-              n.id === notebookId ? { ...n, status: 'failed' as const } : n
-            ),
-          }));
-        }
+        fileUri,
+        filename,
+        storagePath
+      ).catch((err) => {
+        console.error('[Store] Background work failed for material:', err);
       });
 
-      // Award task for adding material
       if ((get() as any).checkAndAwardTask) {
         (get() as any).checkAndAwardTask('add_material_daily');
       }
-
-      // Track material added
       track('material_added', {
         notebook_id: notebookId,
         material_type: newMaterial.kind,
       });
-
     } catch (error) {
       console.error('Error adding material:', error);
       throw error;
@@ -366,10 +366,102 @@ export const createNotebookSlice: StateCreator<
       }),
     })),
 
-  resetNotebookState: () =>
+  /**
+   * Realtime Synchronization (Turbo-Plus Refined)
+   * Subscribes to changes in the notebooks table for the current user.
+   */
+  subscribeToNotebookUpdates: (userId: string) => {
+    // Clean up existing subscription if any
+    get().unsubscribeFromNotebookUpdates();
+
+    console.log(`[Store] Establishing hardened Realtime subscription for user: ${userId}`);
+
+    const channel = supabase
+      .channel(`notebook-updates-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notebooks',
+          filter: `user_id=eq.${userId}`,
+        },
+        async (payload) => {
+          const updatedNb = payload.new;
+
+          console.log(`[Store] Realtime update: notebook ${updatedNb.id} status is now ${updatedNb.status}`);
+
+          try {
+            // Optimization: Only fetch full notebook when status is NOT extracting (i.e. processed/failed)
+            // or if it's an update to a previously processed notebook (e.g. title/meta change)
+            if (updatedNb.status !== 'extracting') {
+              // Fetch full notebook data 
+              const fullNotebook = await notebookService.getNotebookById(updatedNb.id);
+
+              if (fullNotebook) {
+                set((state) => ({
+                  notebooks: state.notebooks.map((n) =>
+                    n.id === fullNotebook.id ? fullNotebook : n
+                  ),
+                }));
+              } else {
+                // Fallback: update matching record with payload fields
+                set((state) => ({
+                  notebooks: state.notebooks.map((n) =>
+                    n.id === updatedNb.id ? { ...n, ...updatedNb } : n
+                  ),
+                }));
+              }
+            } else {
+              // For status-only updates while still extracting, update record optimistically
+              set((state) => ({
+                notebooks: state.notebooks.map((n) =>
+                  n.id === updatedNb.id ? { ...n, ...updatedNb } : n
+                ),
+              }));
+            }
+          } catch (error) {
+            console.error('[Store] Error processing Realtime callback:', error);
+            // Robust fallback: update with whatever is in the payload
+            set((state) => ({
+              notebooks: state.notebooks.map((n) =>
+                n.id === updatedNb.id ? { ...n, ...updatedNb } : n
+              ),
+            }));
+          }
+        }
+      );
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('[Store] ✅ Realtime subscription active');
+      } else if (status === 'CLOSED') {
+        console.warn('[Store] ⚠️ Realtime connection closed');
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('[Store] ❌ Realtime subscription failed');
+      } else if (status === 'TIMED_OUT') {
+        console.warn('[Store] 🕒 Realtime connection timed out');
+      }
+    });
+
+    set({ notebooksRealtimeChannel: channel });
+  },
+
+  unsubscribeFromNotebookUpdates: () => {
+    const { notebooksRealtimeChannel } = get();
+    if (notebooksRealtimeChannel) {
+      console.log('[Store] Cleaning up Realtime subscription');
+      supabase.removeChannel(notebooksRealtimeChannel);
+      set({ notebooksRealtimeChannel: null });
+    }
+  },
+
+  resetNotebookState: () => {
+    get().unsubscribeFromNotebookUpdates();
     set({
       notebooks: [],
       notebooksSyncedAt: null,
       notebooksUserId: null,
-    }),
+    });
+  },
 });

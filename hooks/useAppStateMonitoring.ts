@@ -19,6 +19,23 @@ export function useAppStateMonitoring() {
         const currentAuthUser = useStore.getState().authUser;
         if (!currentAuthUser) return;
 
+        // Realtime Reconnection (Turbo-Plus Ultra)
+        // Re-establish Realtime subscription on foreground to recover from WebSocket disconnects
+        // that occur when the app is backgrounded (common iOS/Android behavior)
+        const { subscribeToNotebookUpdates } = useStore.getState();
+        console.log('[AppState] Re-establishing Realtime subscription on foreground...');
+        subscribeToNotebookUpdates(currentAuthUser.id);
+
+        // Proactive Re-sync (Turbo-Plus Refined)
+        // If we have ANY notebooks effectively "in progress", we re-fetch the list
+        // when foregrounded to catch any missed Realtime events.
+        const { notebooks, loadNotebooks } = useStore.getState();
+        const hasWorkInProgress = notebooks.some(n => n.status === 'extracting');
+        if (hasWorkInProgress) {
+          console.log('[AppState] Re-syncing notebooks on foreground...');
+          loadNotebooks(currentAuthUser.id).catch(() => { });
+        }
+
         try {
           // Find notebooks stuck in 'extracting' status for more than 3 minutes
           const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();

@@ -68,35 +68,39 @@ export const useNotebookCreation = () => {
                 return null;
             }
             setIsAddingNotebook(true);
-            // SECURITY: Sanitize filename and enforce length limits
-            const sanitizedTitle = result.name
-                .replace(/\.(mp3|wav|m4a|aac)$/i, '')
-                .substring(0, 100)
-                .trim() || 'Untitled Audio';
+            try {
+                // SECURITY: Sanitize filename and enforce length limits
+                const sanitizedTitle = result.name
+                    .replace(/\.(mp3|wav|m4a|aac)$/i, '')
+                    .substring(0, 100)
+                    .trim() || 'Untitled Audio';
 
-            // Zero-friction: auto-create notebook with audio material
-            const notebookId = await addNotebook({
-                title: sanitizedTitle,
-                flashcardCount: 0,
-                progress: 0,
-                color: getRandomColor(),
-                material: {
-                    type: 'audio',
-                    uri: result.uri,
-                    title: result.name,
-                    fileUri: result.uri,
-                    filename: result.name,
-                },
-            });
-            // Reload notebooks to show the new one immediately
-            await loadNotebooks();
-            // Trigger "Add your first study material" task
-            const { checkAndAwardTask } = useStore.getState();
-            if (checkAndAwardTask) {
-                checkAndAwardTask('add_material_daily');
+                // Zero-friction: auto-create notebook with audio material
+                const notebookId = await addNotebook({
+                    title: sanitizedTitle,
+                    flashcardCount: 0,
+                    progress: 0,
+                    color: getRandomColor(),
+                    material: {
+                        type: 'audio',
+                        uri: result.uri,
+                        title: result.name,
+                        fileUri: result.uri,
+                        filename: result.name,
+                        processed: false,
+                    },
+                });
+                // Reload notebooks to show the new one immediately
+                await loadNotebooks();
+                // Trigger "Add your first study material" task
+                const { checkAndAwardTask } = useStore.getState();
+                if (checkAndAwardTask) {
+                    checkAndAwardTask('add_material_daily');
+                }
+                return notebookId;
+            } finally {
+                setIsAddingNotebook(false);
             }
-            setIsAddingNotebook(false);
-            return notebookId;
         }, {
             operation: 'upload_audio',
             component: 'notebook-creation',
@@ -120,35 +124,39 @@ export const useNotebookCreation = () => {
             }
 
             setIsAddingNotebook(true);
-            // SECURITY: Sanitize filename and enforce length limits
-            const sanitizedTitle = result.name
-                .replace(/\.pdf$/i, '')
-                .substring(0, 100)
-                .trim() || 'Untitled Document';
+            try {
+                // SECURITY: Sanitize filename and enforce length limits
+                const sanitizedTitle = result.name
+                    .replace(/\.pdf$/i, '')
+                    .substring(0, 100)
+                    .trim() || 'Untitled Document';
 
-            // Zero-friction: auto-create notebook with PDF material
-            const notebookId = await addNotebook({
-                title: sanitizedTitle,
-                flashcardCount: 0,
-                progress: 0,
-                color: getRandomColor(),
-                material: {
-                    type: 'pdf',
-                    uri: result.uri,
-                    title: result.name,
-                    fileUri: result.uri,
-                    filename: result.name,
-                },
-            });
-            // Reload notebooks to show the new one immediately
-            await loadNotebooks();
-            // Trigger "Add your first study material" task
-            const { checkAndAwardTask } = useStore.getState();
-            if (checkAndAwardTask) {
-                checkAndAwardTask('add_material_daily');
+                // Zero-friction: auto-create notebook with PDF material
+                const notebookId = await addNotebook({
+                    title: sanitizedTitle,
+                    flashcardCount: 0,
+                    progress: 0,
+                    color: getRandomColor(),
+                    material: {
+                        type: 'pdf',
+                        uri: result.uri,
+                        title: result.name,
+                        fileUri: result.uri,
+                        filename: result.name,
+                        processed: false,
+                    },
+                });
+                // Reload notebooks to show the new one immediately
+                await loadNotebooks();
+                // Trigger "Add your first study material" task
+                const { checkAndAwardTask } = useStore.getState();
+                if (checkAndAwardTask) {
+                    checkAndAwardTask('add_material_daily');
+                }
+                return notebookId;
+            } finally {
+                setIsAddingNotebook(false);
             }
-            setIsAddingNotebook(false);
-            return notebookId;
         }, {
             operation: 'upload_pdf',
             component: 'notebook-creation',
@@ -193,36 +201,40 @@ export const useNotebookCreation = () => {
             }
 
             setIsAddingNotebook(true);
-            // SECURITY: Sanitize filename and enforce length limits
-            const sanitizedTitle = (image.fileName?.replace(/\.[^/.]+$/, '') || 'Image Notes')
-                .substring(0, 100)
-                .trim() || 'Image Notes';
+            try {
+                // SECURITY: Sanitize filename and enforce length limits
+                const sanitizedTitle = (image.fileName?.replace(/\.[^/.]+$/, '') || 'Image Notes')
+                    .substring(0, 100)
+                    .trim() || 'Image Notes';
 
-            // Zero-friction: auto-create notebook with image material
-            const notebookId = await addNotebook({
-                title: sanitizedTitle,
-                flashcardCount: 0,
-                progress: 0,
-                color: getRandomColor(),
-                material: {
-                    type: 'image',
-                    uri: image.uri,
-                    title: image.fileName || 'Image',
-                    thumbnail: image.uri,
-                    fileUri: image.uri,
-                    filename: image.fileName || 'image.jpg',
-                },
-            });
-            // Reload notebooks to show the new one immediately
-            await loadNotebooks();
-            // Trigger "Add your first study material" task
-            const { checkAndAwardTask } = useStore.getState();
-            if (checkAndAwardTask) {
-                checkAndAwardTask('add_material_daily');
+                // Zero-friction: auto-create notebook with image material
+                const notebookId = await addNotebook({
+                    title: sanitizedTitle,
+                    flashcardCount: 0,
+                    progress: 0,
+                    color: getRandomColor(),
+                    material: {
+                        type: 'image',
+                        uri: image.uri,
+                        title: image.fileName || 'Image',
+                        thumbnail: image.uri,
+                        fileUri: image.uri,
+                        filename: image.fileName || 'image.jpg',
+                        processed: false,
+                    },
+                });
+                // Reload notebooks to show the new one immediately
+                await loadNotebooks();
+                // Trigger "Add your first study material" task
+                const { checkAndAwardTask } = useStore.getState();
+                if (checkAndAwardTask) {
+                    checkAndAwardTask('add_material_daily');
+                }
+
+                return notebookId;
+            } finally {
+                setIsAddingNotebook(false);
             }
-
-            setIsAddingNotebook(false);
-            return notebookId;
         }, {
             operation: 'upload_photo',
             component: 'notebook-creation',
@@ -246,31 +258,35 @@ export const useNotebookCreation = () => {
             }
 
             setIsAddingNotebook(true);
-            // Zero-friction: auto-create notebook with camera photo
-            const notebookId = await addNotebook({
-                title: 'Camera Photo',
-                flashcardCount: 0,
-                progress: 0,
-                color: getRandomColor(),
-                material: {
-                    type: 'image',
-                    uri: result.uri,
+            try {
+                // Zero-friction: auto-create notebook with camera photo
+                const notebookId = await addNotebook({
                     title: 'Camera Photo',
-                    thumbnail: result.uri,
-                    fileUri: result.uri,
-                    filename: `photo-${Date.now()}.jpg`,
-                },
-            });
-            // Reload notebooks to show the new one immediately
-            await loadNotebooks();
-            // Trigger "Add your first study material" task
-            const { checkAndAwardTask } = useStore.getState();
-            if (checkAndAwardTask) {
-                checkAndAwardTask('add_material_daily');
-            }
+                    flashcardCount: 0,
+                    progress: 0,
+                    color: getRandomColor(),
+                    material: {
+                        type: 'image',
+                        uri: result.uri,
+                        title: 'Camera Photo',
+                        thumbnail: result.uri,
+                        fileUri: result.uri,
+                        filename: `photo-${Date.now()}.jpg`,
+                        processed: false,
+                    },
+                });
+                // Reload notebooks to show the new one immediately
+                await loadNotebooks();
+                // Trigger "Add your first study material" task
+                const { checkAndAwardTask } = useStore.getState();
+                if (checkAndAwardTask) {
+                    checkAndAwardTask('add_material_daily');
+                }
 
-            setIsAddingNotebook(false);
-            return notebookId;
+                return notebookId;
+            } finally {
+                setIsAddingNotebook(false);
+            }
         }, {
             operation: 'upload_camera',
             component: 'notebook-creation',
@@ -287,31 +303,35 @@ export const useNotebookCreation = () => {
 
         const wrappedFn = withErrorHandling(async () => {
             setIsAddingNotebook(true);
-            // SECURITY: Sanitize title and enforce length limits
-            const sanitizedTitle = title.substring(0, 100).trim() || 'Untitled Note';
+            try {
+                // SECURITY: Sanitize title and enforce length limits
+                const sanitizedTitle = title.substring(0, 100).trim() || 'Untitled Note';
 
-            // Zero-friction: auto-create notebook with text/note material (processed=true, status=preview_ready)
-            const notebookId = await addNotebook({
-                title: sanitizedTitle,
-                flashcardCount: 0,
-                progress: 0,
-                color: getRandomColor(),
-                material: {
-                    type: type,
-                    content: content,
-                    title: title,
-                },
-            });
+                // Zero-friction: auto-create notebook with text/note material (processed=true, status=preview_ready)
+                const notebookId = await addNotebook({
+                    title: sanitizedTitle,
+                    flashcardCount: 0,
+                    progress: 0,
+                    color: getRandomColor(),
+                    material: {
+                        type: type,
+                        content: content,
+                        title: title,
+                        processed: false,
+                    },
+                });
 
-            // Trigger "Add your first study material" task
-            // We use the store via import as this hook uses useStore
-            const { checkAndAwardTask } = useStore.getState();
-            if (checkAndAwardTask) {
-                checkAndAwardTask('add_material_daily');
+                // Trigger "Add your first study material" task
+                // We use the store via import as this hook uses useStore
+                const { checkAndAwardTask } = useStore.getState();
+                if (checkAndAwardTask) {
+                    checkAndAwardTask('add_material_daily');
+                }
+
+                return notebookId;
+            } finally {
+                setIsAddingNotebook(false);
             }
-
-            setIsAddingNotebook(false);
-            return notebookId;
         }, {
             operation: 'save_text',
             component: 'notebook-creation',
@@ -328,42 +348,45 @@ export const useNotebookCreation = () => {
 
         const wrappedFn = withErrorHandling(async () => {
             setIsAddingNotebook(true);
+            try {
+                // SECURITY: Strict YouTube URL validation to prevent malicious URLs
+                let cleanUrl = url.trim();
 
-            // SECURITY: Strict YouTube URL validation to prevent malicious URLs
-            let cleanUrl = url.trim();
+                // Validate URL is actually a YouTube URL (not youtube.com.attacker.com)
+                // Matches: youtube.com/watch?v=..., youtube.com/shorts/..., youtu.be/...
+                const youtubeUrlRegex = /^https?:\/\/(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)[\w-]{11}/;
 
-            // Validate URL is actually a YouTube URL (not youtube.com.attacker.com)
-            // Matches: youtube.com/watch?v=..., youtube.com/shorts/..., youtu.be/...
-            const youtubeUrlRegex = /^https?:\/\/(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)[\w-]{11}/;
+                if (!youtubeUrlRegex.test(cleanUrl)) {
+                    throw new Error('Please provide a valid YouTube URL (e.g., https://youtube.com/watch?v=...)');
+                }
 
-            if (!youtubeUrlRegex.test(cleanUrl)) {
-                throw new Error('Please provide a valid YouTube URL (e.g., https://youtube.com/watch?v=...)');
+                // Zero-friction: auto-create notebook with youtube material
+                const notebookId = await addNotebook({
+                    title: 'YouTube Import', // Will be updated by Edge Function
+                    flashcardCount: 0,
+                    progress: 0,
+                    color: getRandomColor(),
+                    material: {
+                        type: 'youtube' as any,
+                        uri: cleanUrl,
+                        title: 'YouTube Video',
+                        processed: false,
+                    },
+                });
+
+                // Reload notebooks to show the new one immediately
+                await loadNotebooks();
+
+                // Trigger "Add your first study material" task
+                const { checkAndAwardTask } = useStore.getState();
+                if (checkAndAwardTask) {
+                    checkAndAwardTask('add_material_daily');
+                }
+
+                return notebookId;
+            } finally {
+                setIsAddingNotebook(false);
             }
-
-            // Zero-friction: auto-create notebook with youtube material
-            const notebookId = await addNotebook({
-                title: 'YouTube Import', // Will be updated by Edge Function
-                flashcardCount: 0,
-                progress: 0,
-                color: getRandomColor(),
-                material: {
-                    type: 'youtube' as any,
-                    uri: cleanUrl,
-                    title: 'YouTube Video',
-                },
-            });
-
-            // Reload notebooks to show the new one immediately
-            await loadNotebooks();
-
-            // Trigger "Add your first study material" task
-            const { checkAndAwardTask } = useStore.getState();
-            if (checkAndAwardTask) {
-                checkAndAwardTask('add_material_daily');
-            }
-
-            setIsAddingNotebook(false);
-            return notebookId;
         }, {
             operation: 'youtube_import',
             component: 'notebook-creation',
@@ -436,6 +459,7 @@ export const useNotebookCreation = () => {
                         type: 'website' as any,
                         uri: cleanUrl,
                         title: 'Website Article',
+                        processed: false,
                     },
                 });
 

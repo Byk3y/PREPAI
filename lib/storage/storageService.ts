@@ -5,12 +5,19 @@
 
 import { supabase } from '@/lib/supabase';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system/src/legacy/FileSystem';
 import { handleError } from '@/lib/errors';
 
 export interface UploadResult {
   storagePath: string;
   error?: string;
 }
+
+// Expo FileSystem legacy API enum values
+// FileSystemUploadType.BINARY_CONTENT = 0
+// FileSystemSessionType.BACKGROUND = 0
+const BINARY_CONTENT = 0;
+const BACKGROUND = 0;
 
 /**
  * Compress image before upload
@@ -127,6 +134,10 @@ function isValidUUID(uuid: string): boolean {
 
 export const storageService = {
   /**
+   * Sanitize filename to prevent path traversal attacks
+   */
+  sanitizeFilename,
+  /**
    * Upload a material file to Supabase Storage
    * @param userId - The user's ID
    * @param materialId - The material's ID
@@ -150,12 +161,12 @@ export const storageService = {
       }
 
       // Sanitize filename to prevent path traversal
-      const sanitizedFilename = sanitizeFilename(filename);
+      const sanitizedFilename = storageService.sanitizeFilename(filename);
 
       // Storage path: uploads/{user_id}/{material_id}/{filename}
       const storagePath = `${userId}/${materialId}/${sanitizedFilename}`;
 
-      // For React Native, use FormData with file URI
+      // Get content type
       const mimeType = getContentType(filename);
 
       // Compress images before upload
@@ -164,44 +175,78 @@ export const storageService = {
         uploadUri = await compressImage(fileUri);
       }
 
-      // Create FormData for React Native
-      const formData = new FormData();
-      // @ts-ignore - React Native FormData format
-      formData.append('file', {
-        uri: uploadUri,
-        type: mimeType,
-        name: sanitizedFilename,
-      });
-
-      // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
-        .from('uploads')
-        .upload(storagePath, formData as any, {
-          contentType: mimeType,
-          upsert: false,
-        });
-
-      if (error) {
-        await handleError(error, {
-          operation: 'upload_material_file',
-          component: 'storage-service',
-          metadata: { userId, materialId, filename: sanitizedFilename },
-        });
-        return { storagePath: '', error: error.message };
+      // 1. Proactive Token Refresh (Turbo-Plus)
+      // Before starting a potentially long background upload, we refresh the session
+      // to ensure the access token clock is reset to a full hour.
+      try {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          console.warn('[StorageService] Session refresh failed before upload:', refreshError.message);
+        } else if (refreshData.session) {
+          console.log('[StorageService] Session refreshed successfully for upload');
+        }
+      } catch (err) {
+        console.warn('[StorageService] Session refresh exception:', err);
       }
 
-      return { storagePath: data.path };
+      // Get current session for token
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+
+      // Construction of Supabase Storage Upload URL
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const uploadUrl = `${supabaseUrl}/storage/v1/object/uploads/${storagePath}`;
+
+      console.log(`[StorageService] Starting background-safe upload to ${storagePath}`);
+
+      // Use expo-file-system for background-safe upload
+      // Note: We use BINARY_CONTENT for better performance and to avoid multipart overhead
+      // when the server supports it (Supabase Storage does).
+      const uploadTask = FileSystem.createUploadTask(
+        uploadUrl,
+        uploadUri,
+        {
+          httpMethod: 'POST',
+          uploadType: BINARY_CONTENT,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
+            'Content-Type': mimeType,
+            'x-upsert': 'false',
+          },
+          sessionType: BACKGROUND,
+        }
+      );
+
+      // 2. Upload Timeout Guard (Turbo-Plus)
+      // We set a 45-minute timeout. If an upload takes longer than 45 mins, 
+      // the storage token (valid for 60 mins) will likely be near expiration anyway.
+      const UPLOAD_TIMEOUT_MS = 45 * 60 * 1000; // 45 minutes
+
+      const uploadPromise = uploadTask.uploadAsync();
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Upload timed out after 45 minutes')), UPLOAD_TIMEOUT_MS);
+      });
+
+      const result = await Promise.race([uploadPromise, timeoutPromise]);
+
+      if (!result || result.status < 200 || result.status >= 300) {
+        const errorMsg = result?.body ? JSON.parse(result.body).message : `Upload failed with status ${result?.status}`;
+        throw new Error(errorMsg);
+      }
+
+      console.log(`[StorageService] Upload successful: ${storagePath}`);
+      return { storagePath };
     } catch (error: any) {
       await handleError(error, {
         operation: 'upload_material_file',
         component: 'storage-service',
         metadata: { userId, materialId, filename },
       });
-      // Dev mode: return local URI as fallback
-      if (__DEV__) {
-        console.warn('Upload failed, using local URI in dev mode');
-        return { storagePath: fileUri };
-      }
       return { storagePath: '', error: error.message || 'Upload failed' };
     }
   },

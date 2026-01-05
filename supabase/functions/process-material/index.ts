@@ -212,19 +212,9 @@ Deno.serve(async (req) => {
       console.log(`AI title and preview generated in ${previewLatency}ms`);
       console.log(`Content classified as: ${contentClassification.type} (${contentClassification.exam_relevance} exam relevance)`);
 
-      // STEP 5: Update material with preview_text AND content classification
-      await materialRepo.updateWithPreview(
-        material_id,
-        preview.overview,
-        contentClassification,
-        material.meta || {}
-      );
-
-      // STEP 5.5: Build content summary from ALL materials in this notebook
-      // Re-fetch all materials to get updated classifications
+      // STEP 4.5: Build content summary from ALL materials in this notebook for multi-material awareness
       const updatedMaterials = await materialRepo.findAllByNotebook(notebookId);
 
-      // Build content summary for multi-material awareness
       const materialClassifications = (updatedMaterials || [])
         .map((m: any) => m.meta?.content_classification)
         .filter(Boolean);
@@ -248,20 +238,31 @@ Deno.serve(async (req) => {
 
       console.log(`Content summary: ${contentSummary.material_count} materials, has_past_paper: ${contentSummary.has_past_paper}, has_notes: ${contentSummary.has_notes}`);
 
-      // STEP 6: Update notebook with AI-generated title, preview, classification, and summary
-      // PERSISTENCE FIRST: Only set emoji and color if they don't already exist.
-      // This prevents the "ruler changing to chart" issue when adding new sources.
-      await notebookRepo.updateWithPreview(notebookId, {
-        title: aiTitle,
-        emoji: !notebook.emoji ? llmResult.emoji : undefined,
-        color: !notebook.color ? llmResult.color : undefined,
-        preview,
-        contentClassification,
-        contentSummary,
-      });
+      // STEP 5, 6, 7: Update records and log usage in parallel (Turbo-Boost)
+      console.log('Finalizing database updates...');
+      await Promise.all([
+        // Update material with preview
+        materialRepo.updateWithPreview(
+          material_id,
+          preview.overview,
+          contentClassification,
+          material.meta || {}
+        ),
 
-      // STEP 7: Log usage with ACTUAL token counts from LLM API
-      await usageLogger.logSuccess(userId, notebookId, 'preview', llmResult);
+        // Update notebook with AI-generated title, preview, classification, and summary
+        notebookRepo.updateWithPreview(notebookId, {
+          title: aiTitle,
+          emoji: !notebook.emoji ? llmResult.emoji : undefined,
+          color: !notebook.color ? llmResult.color : undefined,
+          preview,
+          contentClassification,
+          contentSummary,
+        }),
+
+        // Log usage with ACTUAL token counts from LLM API (Non-critical fallback)
+        usageLogger.logSuccess(userId, notebookId, 'preview', llmResult)
+          .catch(err => console.error('[UsageLogger] Non-critical logging failure:', err))
+      ]);
 
       console.log('Material processed successfully');
 
@@ -277,11 +278,6 @@ Deno.serve(async (req) => {
       );
     } catch (processingError: any) {
       console.error('Processing error:', processingError);
-
-      // Clean up uploaded file from storage if it exists
-      if (material.storage_path) {
-        await storageCleanup.deleteFile(material.storage_path);
-      }
 
       // Update notebook with error (preserve original title and extracted content if it exists)
       await notebookRepo.updateWithError(notebookId, originalTitle, processingError.message);
