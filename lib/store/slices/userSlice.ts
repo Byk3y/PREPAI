@@ -101,6 +101,7 @@ export const createUserSlice: StateCreator<
     const timezone = typeof getUserTimezone === 'function' ? await getUserTimezone() : 'UTC';
     const result = await userService.restoreStreak(authUser.id, timezone);
     if (result.success) {
+      set({ showStreakRestoreModal: false });
       await loadUserProfile(); // Fully refresh profile to update streak and restores count
     }
     return result;
