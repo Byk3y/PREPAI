@@ -33,8 +33,8 @@ export const LARGE_PDF_CONFIG = {
   // Page count threshold - lowered from 50 to 20 for better UX
   THRESHOLD_PAGES: 20,
 
-  // File size threshold - lowered from 10MB to 5MB for better UX
-  THRESHOLD_BYTES: 5 * 1024 * 1024, // 5MB
+  // File size threshold - 10MB allows image-heavy PDFs to process synchronously
+  THRESHOLD_BYTES: 10 * 1024 * 1024, // 10MB
 
   // Size threshold for checking page count (2MB)
   // PDFs over this size get page count estimation via range request
