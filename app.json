@@ -5,19 +5,19 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#faf9f6"
+      "resizeMode": "cover",
+      "backgroundColor": "#FF9500"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.brigo.app",
-      "buildNumber": "1",
+      "bundleIdentifier": "com.brigo.ai",
+      "buildNumber": "8",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -35,7 +35,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FF9500"
       },
-      "package": "com.brigo.app",
+      "package": "com.brigo.ai",
       "versionCode": 1,
       "permissions": [
         "android.permission.CAMERA",

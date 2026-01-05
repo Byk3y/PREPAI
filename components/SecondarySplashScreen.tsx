@@ -1,31 +1,30 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Image, StyleSheet, Dimensions } from 'react-native';
 import { BrigoLogo } from './BrigoLogo';
-import { getThemeColors } from '@/lib/ThemeContext';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 /**
  * SecondarySplashScreen - A React Native component that mimics the splash screen
  * but allows for precise layout (like Logo at bottom) and smooth transitions.
  */
 export const SecondarySplashScreen: React.FC = () => {
-    const colors = getThemeColors(false); // Splash is usually light mode by default
-
     return (
-        <View style={[styles.container, { backgroundColor: '#faf9f6' }]}>
-            {/* Centered App Icon */}
+        <View style={[styles.container, { backgroundColor: '#FF9500' }]}>
+            {/* Centered App Icon with white circular background for contrast */}
             <View style={styles.iconContainer}>
-                <Image
-                    source={require('@/assets/icon.png')}
-                    style={[styles.icon, { borderRadius: 16 }]}
-                    resizeMode="contain"
-                />
+                <View style={styles.iconBackground}>
+                    <Image
+                        source={require('@/assets/icon.png')}
+                        style={styles.icon}
+                        resizeMode="contain"
+                    />
+                </View>
             </View>
 
-            {/* Bottom Logo */}
+            {/* Bottom Logo - white text on orange background */}
             <View style={styles.bottomContainer}>
-                <BrigoLogo size={32} textColor="#1a1a1a" />
+                <BrigoLogo size={36} textColor="#FFFFFF" />
             </View>
         </View>
     );
@@ -38,13 +37,28 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     iconContainer: {
-        width: width * 0.22, // 22% of screen width (slightly smaller as requested)
+        width: width * 0.18, // 18% of screen width - more reasonable size
         aspectRatio: 1,
-        overflow: 'hidden',
+    },
+    iconBackground: {
+        width: '100%',
+        height: '100%',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 999, // Fully circular
+        padding: 16, // Space between white circle and icon
+        justifyContent: 'center',
+        alignItems: 'center',
+        // Subtle shadow for depth (Duolingo-style)
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 16,
+        elevation: 8,
     },
     icon: {
         width: '100%',
         height: '100%',
+        borderRadius: 20, // Rounded corners for the icon
     },
     bottomContainer: {
         position: 'absolute',
