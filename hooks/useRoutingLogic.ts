@@ -50,7 +50,9 @@ export function useRoutingLogic(fontsLoaded: boolean) {
         if (!inOnboardingGroup) {
           redirectPath = '/onboarding';
         }
-      } else if (inAuthGroup || (inOnboardingGroup && !__DEV__)) {
+      } else if (inAuthGroup || (inOnboardingGroup && !segments.includes('debug'))) {
+        // In 2026, we allow the redirect home even in DEV if they are 100% finished,
+        // unless they explicitly added a 'debug' segment to stay there.
         redirectPath = '/';
       }
     }
@@ -63,9 +65,9 @@ export function useRoutingLogic(fontsLoaded: boolean) {
       (redirectPath === '/' && (!inOnboardingGroup && !inAuthGroup));
 
     if (redirectPath && !isOnTargetPath) {
-      if (__DEV__) console.log(`→ Routing: [${currentRoute || 'root'}] to ${redirectPath}`);
+      if (__DEV__) console.log(`→ Routing Sync: [${currentRoute || 'root'}] to ${redirectPath}`);
       router.replace(redirectPath as any);
-      return; // Wait for segments update
+      return;
     }
 
     // 3. Mark Routing Ready

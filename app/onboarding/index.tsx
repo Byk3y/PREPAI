@@ -72,6 +72,7 @@ export default function OnboardingScreen() {
     setCurrentOnboardingScreen,
     markOnboardingComplete,
     currentOnboardingScreen: savedScreen,
+    hasCompletedOnboarding,
     authUser,
     updatePetName,
     petState,
@@ -101,7 +102,14 @@ export default function OnboardingScreen() {
 
   // Load saved screen on mount if resuming after auth
   useEffect(() => {
-    if (authUser && savedScreen >= SCREEN_INDICES.SCREEN_5_PET_NAMING && savedScreen < TOTAL_SCREENS) {
+    // If onboarding is already marked complete in the store, just go to paywall/home
+    if (authUser && hasCompletedOnboarding) {
+      console.log('[Onboarding] Already complete, redirecting to paywall');
+      router.replace('/paywall?source=onboarding_resume');
+      return;
+    }
+
+    if (authUser && savedScreen > 0 && savedScreen < TOTAL_SCREENS) {
       console.log('Resuming onboarding at screen', savedScreen);
       track('onboarding_resumed', {
         resumed_at_screen: savedScreen + 1,
@@ -109,7 +117,7 @@ export default function OnboardingScreen() {
       });
       setCurrentScreen(savedScreen);
     }
-  }, [authUser, savedScreen]);
+  }, [authUser, savedScreen, hasCompletedOnboarding]);
 
   // Load existing pet name when reaching pet naming screen
   useEffect(() => {

@@ -57,11 +57,12 @@ export default function SettingsScreen() {
                     onPress: async () => {
                         try {
                             await supabase.auth.signOut();
-                            resetPetState(); // Clear local state
-                            router.replace('/auth');
+                            // Logic for clearing state and redirecting is handled 
+                            // centrally by useAuthSetup and useRoutingLogic
                         } catch (error) {
                             console.error('Error signing out:', error);
-                            router.replace('/auth'); // Navigate anyway
+                            // Fallback if sign out fails
+                            router.replace('/auth');
                         }
                     }
                 }

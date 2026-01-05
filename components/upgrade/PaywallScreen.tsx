@@ -76,7 +76,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
     const [isPurchasing, setIsPurchasing] = useState(false);
     const [isRestoring, setIsRestoring] = useState(false);
     const [packages, setPackages] = useState<PurchasesPackage[]>([]);
-    const [billingCycle, setBillingCycle] = useState<'annual' | 'monthly'>('annual');
+    const [billingCycle, setBillingCycle] = useState<'semester' | 'monthly'>('semester');
 
     useEffect(() => {
         const fetchOfferings = async () => {
@@ -99,18 +99,29 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
         });
     }, []);
 
+    // Debug: Log available packages
+    useEffect(() => {
+        if (packages.length > 0) {
+            console.log('[Paywall] Available packages:', packages.map(p => ({
+                type: p.packageType,
+                id: p.identifier,
+                price: p.product.priceString
+            })));
+        }
+    }, [packages]);
+
     const selectedPackage = packages.find(pkg =>
-        billingCycle === 'annual' ? pkg.packageType === 'ANNUAL' : pkg.packageType === 'MONTHLY'
+        billingCycle === 'semester' ? pkg.packageType === 'THREE_MONTH' : pkg.packageType === 'MONTHLY'
     ) || packages[0];
 
-    // Daily cost calculation (~$0.21/day for annual)
-    const dailyCost = selectedPackage ? (selectedPackage.product.price / 365).toFixed(2) : '0.22';
-
-    // Monthly equivalent for annual (~$6.67/mo)
-    const monthlyEquivalent = selectedPackage ? (selectedPackage.product.price / 12).toFixed(2) : '6.67';
+    // Monthly equivalent for semester (~$6.67/mo for $19.99/3mo)
+    const monthlyEquivalent = selectedPackage ? (selectedPackage.product.price / 3).toFixed(2) : '6.67';
 
     // Extract currency symbol from priceString (e.g., "$79.99" -> "$")
-    const currencySymbol = selectedPackage?.product.priceString.replace(/[0-9.,\s]/g, '') || '$';
+    const currencySymbol = selectedPackage?.product.priceString?.replace(/[0-9.,\s]/g, '') || '$';
+
+    // Monthly price with fallback
+    const monthlyPrice = selectedPackage?.product.priceString || `${currencySymbol}9.99`;
 
     const handlePurchase = async () => {
         if (!selectedPackage) return;
@@ -126,7 +137,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
                 // Track successful purchase
                 track('subscription_purchased', {
                     source: source,
-                    plan: billingCycle,
+                    plan: billingCycle === 'semester' ? 'semester' : 'monthly',
                     price: selectedPackage?.product.price,
                 });
 
@@ -213,15 +224,15 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
 
                     <View style={[styles.toggleContainer, { backgroundColor: isDarkMode ? '#1F2937' : '#F3F4F6' }]}>
                         <TouchableOpacity
-                            style={[styles.toggleHalf, billingCycle === 'annual' && styles.toggleActive]}
+                            style={[styles.toggleHalf, billingCycle === 'semester' && styles.toggleActive]}
                             onPress={() => {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                setBillingCycle('annual');
-                                track('paywall_plan_changed', { plan: 'annual' });
+                                setBillingCycle('semester');
+                                track('paywall_plan_changed', { plan: 'semester' });
                             }}
                         >
                             <View style={styles.toggleLabelRow}>
-                                <Text style={[styles.toggleText, billingCycle === 'annual' && styles.toggleTextActive]}>Annual</Text>
+                                <Text style={[styles.toggleText, billingCycle === 'semester' && styles.toggleTextActive]}>Semester</Text>
                                 <View style={styles.savingsBadge}>
                                     <Text style={styles.savingsBadgeText}>SAVE 33%</Text>
                                 </View>
@@ -239,7 +250,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
                         </TouchableOpacity>
                     </View>
 
-                    {billingCycle === 'annual' && (
+                    {billingCycle === 'semester' && (
                         <MotiView
                             from={{ opacity: 0, translateY: 10 }}
                             animate={{ opacity: 1, translateY: 0 }}
@@ -248,7 +259,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
                         >
                             <Ionicons name="sparkles" size={16} color="#10B981" />
                             <Text style={[styles.valueText, { color: isDarkMode ? '#10B981' : '#059669' }]}>
-                                {`Just ${currencySymbol}${monthlyEquivalent}/mo • Best for long-term mastery`}
+                                {`Just ${currencySymbol}${monthlyEquivalent}/mo • Perfect for exam prep`}
                             </Text>
                         </MotiView>
                     )}
@@ -289,9 +300,9 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
                                     {isOnboarding ? 'Start free trial' : 'Upgrade Now'}
                                 </Text>
                                 <Text style={[styles.buttonPriceInline, { color: '#F97316' }]}>
-                                    {billingCycle === 'annual'
+                                    {billingCycle === 'semester'
                                         ? `${currencySymbol}${monthlyEquivalent}/mo`
-                                        : `${selectedPackage?.product.priceString}/mo`
+                                        : `${monthlyPrice}/mo`
                                     }
                                 </Text>
                             </View>

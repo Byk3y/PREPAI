@@ -23,6 +23,7 @@ export interface SubscriptionSlice {
 
   loadSubscription: (userId: string) => Promise<void>;
   setSubscription: (data: Partial<SubscriptionSlice>) => void;
+  resetSubscriptionState: () => void;
 }
 
 export const createSubscriptionSlice: StateCreator<
@@ -239,4 +240,18 @@ export const createSubscriptionSlice: StateCreator<
       });
     }
   },
+
+  resetSubscriptionState: () =>
+    set({
+      tier: null,
+      status: null,
+      trialEndsAt: null,
+      trialStartedAt: null,
+      studioJobsUsed: 0,
+      audioJobsUsed: 0,
+      studioJobsLimit: 5,
+      audioJobsLimit: 3,
+      isExpired: false,
+      subscriptionSyncedAt: null,
+    }),
 });

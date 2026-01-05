@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
-import { Audio, type AVPlaybackStatusSuccess, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
+import { Audio, type AVPlaybackStatusSuccess } from 'expo-av';
 
 type SoundName =
   | 'tap'
@@ -36,113 +36,102 @@ const DEFAULT_VOLUME = 0.5;
 const MIN_GAP_MS = 120; // throttle rapid plays per sound
 const OUTCOME_SOUNDS = new Set<SoundName>(['correct', 'incorrect', 'complete']); // exempt from throttle
 
+// GLOBAL SINGLETON CACHE
+// This prevents overwhelming the audio system when multiple components use useFeedback
+const globalSounds: Partial<Record<SoundName, Audio.Sound>> = {};
+const globalLoading: Partial<Record<SoundName, Promise<Audio.Sound | undefined>>> = {};
+let globalVolume = DEFAULT_VOLUME;
+
+/**
+ * Preloads a specific sound into the global cache
+ */
+async function loadSoundGlobal(name: SoundName): Promise<Audio.Sound | undefined> {
+  if (globalSounds[name]) return globalSounds[name];
+  if (globalLoading[name]) return globalLoading[name];
+
+  const loadPromise = (async () => {
+    try {
+      const { waitForAudioInit } = await import('@/lib/audioConfig');
+      await waitForAudioInit();
+
+      const { sound } = await Audio.Sound.createAsync(SOUND_MAP[name], {
+        volume: globalVolume,
+        shouldPlay: false,
+      });
+      globalSounds[name] = sound;
+      return sound;
+    } catch (e) {
+      console.log('[feedback] failed to load sound', name, e);
+      return undefined;
+    } finally {
+      globalLoading[name] = undefined;
+    }
+  })();
+
+  globalLoading[name] = loadPromise;
+  return loadPromise;
+}
+
+/**
+ * Preloads all sounds into the global cache
+ */
+export async function preloadAllSounds() {
+  const names = Object.keys(SOUND_MAP) as SoundName[];
+  await Promise.all(names.map(name => loadSoundGlobal(name)));
+}
+
 export function useFeedback(options: FeedbackOptions = {}) {
   const {
     allowSound = true,
     allowHaptics = true,
-    playInSilentMode = true,
     volume = DEFAULT_VOLUME,
   } = options;
 
-  const soundsRef = useRef<Partial<Record<SoundName, Audio.Sound>>>({});
-  const lastPlayRef = useRef<Partial<Record<SoundName, number>>>({});
-  const loadingRef = useRef<Partial<Record<SoundName, Promise<Audio.Sound | undefined>>>>({});
-
+  // Update global volume if changed
   useEffect(() => {
-    let mounted = true;
-
-    (async () => {
-      try {
-        // Wait for global audio mode to be configured before loading sounds
-        // This ensures Audio.Sound.createAsync works correctly
-        const { waitForAudioInit } = await import('@/lib/audioConfig');
-        await waitForAudioInit();
-
-        if (!mounted) return;
-
-        // Preload all sounds after audio is configured
-        for (const name of Object.keys(SOUND_MAP) as SoundName[]) {
-          const { sound } = await Audio.Sound.createAsync(SOUND_MAP[name], {
-            volume,
-            shouldPlay: false,
-          });
-          if (!mounted) {
-            await sound.unloadAsync();
-            return;
-          }
-          soundsRef.current[name] = sound;
-        }
-      } catch (e) {
-        // Soft fail; we don't want to block UI if audio init fails
-        console.log('[feedback] init failed', e);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-      const sounds = soundsRef.current;
-      soundsRef.current = {};
-      Object.values(sounds).forEach((sound) => {
-        sound?.unloadAsync().catch(() => undefined);
-      });
-    };
-  }, [playInSilentMode, volume]);
-
-  const ensureLoaded = useCallback(async (name: SoundName): Promise<Audio.Sound | undefined> => {
-    if (soundsRef.current[name]) return soundsRef.current[name];
-    if (loadingRef.current[name]) return loadingRef.current[name];
-
-    const loadPromise = (async () => {
-      try {
-        // Ensure audio is configured before loading sounds on-demand
-        const { waitForAudioInit } = await import('@/lib/audioConfig');
-        await waitForAudioInit();
-
-        const { sound } = await Audio.Sound.createAsync(SOUND_MAP[name], {
-          volume,
-          shouldPlay: false,
-        });
-        soundsRef.current[name] = sound;
-        return sound;
-      } catch (e) {
-        console.log('[feedback] failed to load sound', name, e);
-        return undefined;
-      } finally {
-        loadingRef.current[name] = undefined;
-      }
-    })();
-
-    loadingRef.current[name] = loadPromise;
-    return loadPromise;
+    globalVolume = volume;
   }, [volume]);
+
+  // Initial preload trigger (one-time global)
+  useEffect(() => {
+    preloadAllSounds().catch(() => { });
+  }, []);
+
+  const lastPlayRef = useRef<Partial<Record<SoundName, number>>>({});
 
   const play = useCallback(
     async (name: SoundName, opts?: { volume?: number }) => {
       if (!allowSound) return;
 
-      // Throttle check - exempt outcome sounds (correct/incorrect/complete)
+      // Throttle check
       const now = Date.now();
       const last = lastPlayRef.current[name] ?? 0;
       if (!OUTCOME_SOUNDS.has(name) && now - last < MIN_GAP_MS) return;
       lastPlayRef.current[name] = now;
 
-      let sound = soundsRef.current[name];
+      let sound = globalSounds[name];
       if (!sound) {
-        sound = await ensureLoaded(name);
+        sound = await loadSoundGlobal(name);
       }
       if (!sound) return;
 
-      const status = (await sound.getStatusAsync()) as AVPlaybackStatusSuccess;
-      if (!status.isLoaded) return;
+      try {
+        const status = (await sound.getStatusAsync()) as AVPlaybackStatusSuccess;
+        if (!status.isLoaded) return;
 
-      if (typeof opts?.volume === 'number' && status.volume !== opts.volume) {
-        await sound.setVolumeAsync(opts.volume);
+        // Apply specific volume or default
+        const targetVolume = opts?.volume ?? volume;
+        if (status.volume !== targetVolume) {
+          await sound.setVolumeAsync(targetVolume);
+        }
+
+        await sound.setPositionAsync(0);
+        await sound.playAsync();
+      } catch (error) {
+        if (__DEV__) console.log(`[feedback] play failed for ${name}:`, error);
       }
-
-      await sound.setPositionAsync(0);
-      await sound.playAsync();
     },
-    [allowSound, ensureLoaded]
+    [allowSound, volume]
   );
 
   const haptic = useCallback(
@@ -175,27 +164,5 @@ export function useFeedback(options: FeedbackOptions = {}) {
     [allowHaptics]
   );
 
-  const preload = useCallback(
-    async (names?: SoundName[]) => {
-      const targets = names ?? (Object.keys(SOUND_MAP) as SoundName[]);
-      await Promise.all(targets.map((n) => ensureLoaded(n)));
-    },
-    [ensureLoaded]
-  );
-
-  return { play, haptic, preload };
+  return { play, haptic, preload: preloadAllSounds };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

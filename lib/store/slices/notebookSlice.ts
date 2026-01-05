@@ -33,6 +33,7 @@ export interface NotebookSlice {
   loadChatMessages: (notebookId: string) => Promise<void>;
   addChatMessage: (notebookId: string, message: ChatMessage) => void;
   updateLastChatMessage: (notebookId: string, content: string) => void;
+  resetNotebookState: () => void;
 }
 
 export const createNotebookSlice: StateCreator<
@@ -364,4 +365,11 @@ export const createNotebookSlice: StateCreator<
         return n;
       }),
     })),
+
+  resetNotebookState: () =>
+    set({
+      notebooks: [],
+      notebooksSyncedAt: null,
+      notebooksUserId: null,
+    }),
 });

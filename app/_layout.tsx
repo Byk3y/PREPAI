@@ -80,8 +80,11 @@ function RootLayoutInner() {
   // Load fonts
   const fontsLoaded = useAppFonts();
 
+  // Hydration state from store
+  const { _hasHydrated, isInitialized } = useStore();
+
   // Get theme from context
-  const { isDarkMode, effectiveColorScheme } = useTheme();
+  const { isDarkMode } = useTheme();
   const colors = getThemeColors(isDarkMode);
 
   // Initialize all app setup hooks
@@ -94,29 +97,37 @@ function RootLayoutInner() {
   useStreakCheck();
   usePushNotifications();
 
-  // Initialize RevenueCat
+  // Initialize RevenueCat and Audio Preloading
   useEffect(() => {
     initializePurchases();
+
+    // Preload audio feedback sounds once globally
+    const { preloadAllSounds } = require('@/lib/feedback');
+    preloadAllSounds().catch(() => { });
   }, []);
 
   // Handle routing logic (waits for fonts and hydration)
   const isRoutingReady = useRoutingLogic(fontsLoaded);
 
-  // Hide splash screen once app is ready
+  // High-precision ready check for 2026 UX
+  const isAppReady = fontsLoaded && _hasHydrated && isInitialized && isRoutingReady;
+
+  // Hide splash screen once app is completely ready
   useEffect(() => {
-    if (fontsLoaded && isRoutingReady) {
-      // Small delay to ensure the UI has actually painted
+    if (isAppReady) {
+      // Small delay to ensure the UI has actually painted the first frame of the target screen
       const timer = setTimeout(async () => {
         await SplashScreen.hideAsync().catch(() => { });
+        if (__DEV__) console.log('[UX] App ready, splash screen hidden');
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [fontsLoaded, isRoutingReady]);
+  }, [isAppReady]);
 
-  // Don't render Stack until fonts are loaded AND routing logic has run at least once
-  // This prevents the home screen from flashing before redirect
-  if (!fontsLoaded || !isRoutingReady) {
-    return <SecondarySplashScreen />;
+  // Don't render Stack until everything is ready.
+  // Returning null keeps the native splash screen visible.
+  if (!isAppReady) {
+    return null;
   }
 
   return (

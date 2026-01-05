@@ -106,7 +106,7 @@ Users are motivated through a **virtual pet system** that grows as they complete
 
 ## 💰 Monetization
 
-- **Subscription Model:** Monthly/Annual via App Store
+- **Subscription Model:** Monthly/Semester (3 months) via App Store
 - **Free Tier:** Limited notebooks, basic features
 - **Pro Tier:** Unlimited everything, priority AI access
 - **Payment Processing:** RevenueCat (handles receipts, entitlements)
