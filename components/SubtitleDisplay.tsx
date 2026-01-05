@@ -10,6 +10,7 @@ import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react'
 import { View, Text, Animated, TouchableOpacity, ScrollView, Image, StyleSheet, ImageSourcePropType } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MarkdownText } from '@/components/MarkdownText';
+import { CaptionIcon } from './AudioIcons';
 import {
     parseScript,
     getCurrentSegment,
@@ -266,8 +267,8 @@ export function SubtitleDisplay({
                             borderRadius: 20,
                         }}
                     >
-                        <Ionicons name="text" size={16} color={colors.textSecondary} />
-                        <Text style={{ marginLeft: 6, color: colors.textSecondary, fontSize: 14 }}>
+                        <CaptionIcon size={18} color={colors.textSecondary} filled={true} />
+                        <Text style={{ marginLeft: 6, color: colors.textSecondary, fontSize: 14, fontFamily: 'Nunito-Bold' }}>
                             Show Subtitles
                         </Text>
                     </TouchableOpacity>
@@ -291,7 +292,7 @@ export function SubtitleDisplay({
                     }}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                    <Ionicons name="eye-off-outline" size={18} color={colors.iconMuted} />
+                    <CaptionIcon size={20} color={colors.iconMuted} filled={false} />
                 </TouchableOpacity>
             )}
 

@@ -112,3 +112,27 @@ export const ThumbDownIcon = ({ size = 24, color = '#9ca3af', filled = false }) 
         />
     </Svg>
 );
+
+export const CaptionIcon = ({ size = 24, color = '#1a1a1a', filled = false }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Path
+            d="M21 5H3C1.89543 5 1 5.89543 1 7V17C1 18.1046 1.89543 19 3 19H21C22.1046 19 23 18.1046 23 17V7C23 5.89543 22.1046 5 21 5Z"
+            stroke={color}
+            strokeWidth={2}
+            strokeLinejoin="round"
+            fill={filled ? color : 'none'}
+        />
+        <Path
+            d="M7 15C8.65685 15 10 13.6569 10 12C10 10.3431 8.65685 9 7 9"
+            stroke={filled ? '#fff' : color}
+            strokeWidth={2}
+            strokeLinecap="round"
+        />
+        <Path
+            d="M14 15C15.6569 15 17 13.6569 17 12C17 10.3431 15.6569 9 14 9"
+            stroke={filled ? '#fff' : color}
+            strokeWidth={2}
+            strokeLinecap="round"
+        />
+    </Svg>
+);
