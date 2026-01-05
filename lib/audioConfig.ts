@@ -1,6 +1,7 @@
 import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 
 let isConfigured = false;
+let initPromise: Promise<void> | null = null;
 
 /**
  * Configures the global audio mode for the app.
@@ -31,8 +32,33 @@ export async function configureAudioMode(staysActiveInBackground: boolean = fals
 /**
  * Initial configuration for the app startup.
  * Sets the default "mixing" mode.
+ * Returns a promise that resolves when audio is configured.
+ * Multiple calls return the same promise (singleton pattern).
  */
-export async function initAudioConfig() {
+export function initAudioConfig(): Promise<void> {
+    if (isConfigured) return Promise.resolve();
+    if (initPromise) return initPromise;
+
+    initPromise = configureAudioMode(false);
+    return initPromise;
+}
+
+/**
+ * Wait for audio to be initialized.
+ * Use this in components that need to play sounds.
+ */
+export async function waitForAudioInit(): Promise<void> {
     if (isConfigured) return;
-    await configureAudioMode(false);
+    if (initPromise) {
+        await initPromise;
+    } else {
+        await initAudioConfig();
+    }
+}
+
+/**
+ * Check if audio has been configured.
+ */
+export function isAudioConfigured(): boolean {
+    return isConfigured;
 }

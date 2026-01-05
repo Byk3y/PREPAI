@@ -7,27 +7,27 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		09613E9176BF5B6140119F33 /* libPods-Brigo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C88805BE27B61EC0B5B6A29B /* libPods-Brigo.a */; };
+		02E2A65E948CFF37CB6200BD /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0C351D31B5632380D5DEAA1F /* PrivacyInfo.xcprivacy */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		240387ED6796D1E7A6AD47C8 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A9033C51714EC12D7446B8D7 /* PrivacyInfo.xcprivacy */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		B89C3A16D96E2D6BA176D12A /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5C049431F43D9B81AD73FC /* ExpoModulesProvider.swift */; };
+		8CE2648E183E0B0CE1442B90 /* libPods-Brigo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2A7370E922CD785AF2817C0F /* libPods-Brigo.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		C2E7BCA4F88984EAF80C722A /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67B6DB9EA4F224168399D721 /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0C351D31B5632380D5DEAA1F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Brigo/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* Brigo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Brigo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Brigo/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Brigo/Info.plist; sourceTree = "<group>"; };
-		8ACDE8EF000639832A2E2F2A /* Pods-Brigo.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Brigo.debug.xcconfig"; path = "Target Support Files/Pods-Brigo/Pods-Brigo.debug.xcconfig"; sourceTree = "<group>"; };
-		A9033C51714EC12D7446B8D7 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Brigo/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		2A7370E922CD785AF2817C0F /* libPods-Brigo.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Brigo.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		67B6DB9EA4F224168399D721 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Brigo/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		6B151F2CCFE32879E7FD2156 /* Pods-Brigo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Brigo.release.xcconfig"; path = "Target Support Files/Pods-Brigo/Pods-Brigo.release.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Brigo/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		C84346E7A1B10E40A4B26C68 /* Pods-Brigo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Brigo.release.xcconfig"; path = "Target Support Files/Pods-Brigo/Pods-Brigo.release.xcconfig"; sourceTree = "<group>"; };
-		C88805BE27B61EC0B5B6A29B /* libPods-Brigo.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Brigo.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DFDE6B3ED4326AF2B3FE4C19 /* Pods-Brigo.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Brigo.debug.xcconfig"; path = "Target Support Files/Pods-Brigo/Pods-Brigo.debug.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
-		EF5C049431F43D9B81AD73FC /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Brigo/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Brigo/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* Brigo-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "Brigo-Bridging-Header.h"; path = "Brigo/Brigo-Bridging-Header.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -37,13 +37,21 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				09613E9176BF5B6140119F33 /* libPods-Brigo.a in Frameworks */,
+				8CE2648E183E0B0CE1442B90 /* libPods-Brigo.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0C0E0DABAAB7D75828C067C5 /* Brigo */ = {
+			isa = PBXGroup;
+			children = (
+				67B6DB9EA4F224168399D721 /* ExpoModulesProvider.swift */,
+			);
+			name = Brigo;
+			sourceTree = "<group>";
+		};
 		13B07FAE1A68108700A75B9A /* Brigo */ = {
 			isa = PBXGroup;
 			children = (
@@ -53,7 +61,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				A9033C51714EC12D7446B8D7 /* PrivacyInfo.xcprivacy */,
+				0C351D31B5632380D5DEAA1F /* PrivacyInfo.xcprivacy */,
 			);
 			name = Brigo;
 			sourceTree = "<group>";
@@ -62,27 +70,27 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				C88805BE27B61EC0B5B6A29B /* libPods-Brigo.a */,
+				2A7370E922CD785AF2817C0F /* libPods-Brigo.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		6B8663606116A1E55E63F856 /* Brigo */ = {
+		4BA7300579B2C948F724960F /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				EF5C049431F43D9B81AD73FC /* ExpoModulesProvider.swift */,
-			);
-			name = Brigo;
-			sourceTree = "<group>";
-		};
-		7729848EC06BBB25569691DA /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				8ACDE8EF000639832A2E2F2A /* Pods-Brigo.debug.xcconfig */,
-				C84346E7A1B10E40A4B26C68 /* Pods-Brigo.release.xcconfig */,
+				DFDE6B3ED4326AF2B3FE4C19 /* Pods-Brigo.debug.xcconfig */,
+				6B151F2CCFE32879E7FD2156 /* Pods-Brigo.release.xcconfig */,
 			);
 			name = Pods;
 			path = Pods;
+			sourceTree = "<group>";
+		};
+		67D05DB3B0C42A3B411F60D2 /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				0C0E0DABAAB7D75828C067C5 /* Brigo */,
+			);
+			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -99,8 +107,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				7729848EC06BBB25569691DA /* Pods */,
-				F9109544E169310BBCDE09A4 /* ExpoModulesProviders */,
+				4BA7300579B2C948F724960F /* Pods */,
+				67D05DB3B0C42A3B411F60D2 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -124,14 +132,6 @@
 			path = Brigo/Supporting;
 			sourceTree = "<group>";
 		};
-		F9109544E169310BBCDE09A4 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				6B8663606116A1E55E63F856 /* Brigo */,
-			);
-			name = ExpoModulesProviders;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -140,14 +140,14 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Brigo" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				7AE57F35201FA0520E7D635C /* [Expo] Configure project */,
+				BDAF783D4A730E0DF242D683 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				45184CF38B784DA895A32B37 /* Upload Debug Symbols to Sentry */,
-				9CBC20F9E678A74820DF16FC /* [CP] Embed Pods Frameworks */,
+				D70D889B78BA4BF4901AF6EF /* Upload Debug Symbols to Sentry */,
+				1B35C6E931ED82E91BC3A4FC /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -167,9 +167,7 @@
 				LastUpgradeCheck = 1130;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
-						DevelopmentTeam = A5Q4QPSUT9;
 						LastSwiftMigration = 1250;
-						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -199,7 +197,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				240387ED6796D1E7A6AD47C8 /* PrivacyInfo.xcprivacy in Resources */,
+				02E2A65E948CFF37CB6200BD /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -245,43 +243,27 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		45184CF38B784DA895A32B37 /* Upload Debug Symbols to Sentry */ = {
+		1B35C6E931ED82E91BC3A4FC /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Brigo/Pods-Brigo-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
 			);
-			name = "Upload Debug Symbols to Sentry";
+			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/bin/sh `${NODE_BINARY:-node} --print \"require('path').dirname(require.resolve('@sentry/react-native/package.json')) + '/scripts/sentry-xcode-debug-files.sh'\"`";
-		};
-		7AE57F35201FA0520E7D635C /* [Expo] Configure project */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/.xcode.env",
-				"$(SRCROOT)/.xcode.env.local",
-				"$(SRCROOT)/Brigo/Brigo.entitlements",
-				"$(SRCROOT)/Pods/Target Support Files/Pods-Brigo/expo-configure-project.sh",
-			);
-			name = "[Expo] Configure project";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(SRCROOT)/Pods/Target Support Files/Pods-Brigo/ExpoModulesProvider.swift",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-Brigo/expo-configure-project.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Brigo/Pods-Brigo-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
 		};
 		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -353,27 +335,43 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Brigo/Pods-Brigo-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		9CBC20F9E678A74820DF16FC /* [CP] Embed Pods Frameworks */ = {
+		BDAF783D4A730E0DF242D683 /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.xcode.env",
+				"$(SRCROOT)/.xcode.env.local",
+				"$(SRCROOT)/Brigo/Brigo.entitlements",
+				"$(SRCROOT)/Pods/Target Support Files/Pods-Brigo/expo-configure-project.sh",
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Pods/Target Support Files/Pods-Brigo/ExpoModulesProvider.swift",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-Brigo/expo-configure-project.sh\"\n";
+		};
+		D70D889B78BA4BF4901AF6EF /* Upload Debug Symbols to Sentry */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Brigo/Pods-Brigo-frameworks.sh",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
 			);
-			name = "[CP] Embed Pods Frameworks";
+			name = "Upload Debug Symbols to Sentry";
 			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Brigo/Pods-Brigo-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
+			shellScript = "/bin/sh `${NODE_BINARY:-node} --print \"require('path').dirname(require.resolve('@sentry/react-native/package.json')) + '/scripts/sentry-xcode-debug-files.sh'\"`";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -383,7 +381,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				B89C3A16D96E2D6BA176D12A /* ExpoModulesProvider.swift in Sources */,
+				C2E7BCA4F88984EAF80C722A /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -392,15 +390,12 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 8ACDE8EF000639832A2E2F2A /* Pods-Brigo.debug.xcconfig */;
+			baseConfigurationReference = DFDE6B3ED4326AF2B3FE4C19 /* Pods-Brigo.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Brigo/Brigo.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = A5Q4QPSUT9;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -419,7 +414,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.brigo.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.brigo.ai;
 				PRODUCT_NAME = Brigo;
 				SWIFT_OBJC_BRIDGING_HEADER = "Brigo/Brigo-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -431,15 +426,12 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = C84346E7A1B10E40A4B26C68 /* Pods-Brigo.release.xcconfig */;
+			baseConfigurationReference = 6B151F2CCFE32879E7FD2156 /* Pods-Brigo.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Brigo/Brigo.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = A5Q4QPSUT9;
 				INFOPLIST_FILE = Brigo/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -453,7 +445,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.brigo.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.brigo.ai;
 				PRODUCT_NAME = Brigo;
 				SWIFT_OBJC_BRIDGING_HEADER = "Brigo/Brigo-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;

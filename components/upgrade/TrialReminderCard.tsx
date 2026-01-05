@@ -1,11 +1,13 @@
 /**
  * Trial Reminder Card
- * Banner shown on home screen when trial is ending soon (3 days or less remaining)
+ * Compact banner shown on home screen when trial is ending soon (3 days or less remaining)
+ * Matches the width and style of notebook cards
  */
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { getThemeColors } from '@/lib/ThemeContext';
 import { useTheme } from '@/lib/ThemeContext';
 import { useRouter } from 'expo-router';
@@ -22,8 +24,6 @@ interface TrialReminderCardProps {
 
 export function TrialReminderCard({
   daysRemaining,
-  notebooksCount = 0,
-  streakDays = 0,
   onDismiss,
 }: TrialReminderCardProps) {
   const { isDarkMode } = useTheme();
@@ -42,128 +42,126 @@ export function TrialReminderCard({
     router.push('/upgrade');
   };
 
+  // Get urgency color based on days remaining
+  const getUrgencyColors = (): [string, string] => {
+    if (daysRemaining <= 1) {
+      // Urgent - warm orange/red gradient
+      return isDarkMode
+        ? ['#7c2d12', '#4a1e0a']
+        : ['#fed7aa', '#fecaca'];
+    }
+    // Normal - subtle blue gradient
+    return isDarkMode
+      ? ['#1e3a5f', '#1e293b']
+      : ['#dbeafe', '#e0e7ff'];
+  };
+
+  const gradientColors = getUrgencyColors();
+
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: colors.surfaceElevated,
-          borderColor: colors.primary + '33', // 20% opacity
-        },
-      ]}
+    <LinearGradient
+      colors={gradientColors}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
     >
       <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.emoji}>🎉</Text>
-          <Text style={[styles.title, { color: colors.text }]}>Amazing progress!</Text>
+        {/* Left side - Emoji and trial info */}
+        <View style={styles.leftSection}>
+          <Text style={styles.emoji}>⏳</Text>
+          <View style={styles.textContent}>
+            <Text style={[styles.title, { color: colors.text }]}>
+              Trial ends in{' '}
+              <Text style={[styles.daysText, { color: daysRemaining <= 1 ? (isDarkMode ? '#f97316' : '#ea580c') : colors.primary }]}>
+                {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'}
+              </Text>
+            </Text>
+          </View>
         </View>
 
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Trial ends in{' '}
-          <Text style={[styles.daysText, { color: colors.primary }]}>
-            {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'}
-          </Text>
-        </Text>
+        {/* Right side - Actions */}
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={[
+              styles.upgradeButton,
+              {
+                backgroundColor: daysRemaining <= 1
+                  ? (isDarkMode ? '#f97316' : '#ea580c')
+                  : colors.primary
+              }
+            ]}
+            onPress={handleViewPlans}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-up-circle" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+            <Text style={styles.upgradeButtonText}>Upgrade</Text>
+          </TouchableOpacity>
 
-        {(notebooksCount > 0 || streakDays > 0) && (
-          <View style={styles.stats}>
-            {notebooksCount > 0 && (
-              <Text style={[styles.stat, { color: colors.textSecondary }]}>
-                📚 {notebooksCount} {notebooksCount === 1 ? 'notebook' : 'notebooks'}
-              </Text>
-            )}
-            {streakDays > 0 && (
-              <Text style={[styles.stat, { color: colors.textSecondary }]}>
-                🔥 {streakDays}-day streak
-              </Text>
-            )}
-          </View>
-        )}
+          <TouchableOpacity
+            style={styles.dismissButton}
+            onPress={handleDismiss}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="close" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
-
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={[styles.primaryButton, { backgroundColor: colors.primary }]}
-          onPress={handleViewPlans}
-        >
-          <Text style={styles.primaryButtonText}>View Plans</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.dismissButton} onPress={handleDismiss}>
-          <Ionicons name="close" size={20} color={colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
-    marginVertical: 12,
-    padding: 16,
     borderRadius: 16,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: 12,
+    overflow: 'hidden',
   },
   content: {
-    marginBottom: 16,
-  },
-  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  leftSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   emoji: {
-    fontSize: 24,
-    marginRight: 8,
+    fontSize: 22,
+    marginRight: 10,
+  },
+  textContent: {
+    flex: 1,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
-    fontFamily: 'Nunito-Bold',
-  },
-  subtitle: {
-    fontSize: 16,
-    marginBottom: 8,
-    fontFamily: 'Nunito-Regular',
-  },
-  daysText: {
-    fontWeight: '600',
+    fontSize: 14,
     fontFamily: 'Nunito-SemiBold',
   },
-  stats: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  stat: {
-    fontSize: 14,
-    fontFamily: 'Nunito-Regular',
+  daysText: {
+    fontWeight: '700',
+    fontFamily: 'Nunito-Bold',
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
   },
-  primaryButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+  upgradeButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
   },
-  primaryButtonText: {
-    fontSize: 16,
+  upgradeButtonText: {
+    fontSize: 13,
     fontWeight: '600',
     fontFamily: 'Nunito-SemiBold',
     color: '#FFFFFF',
   },
   dismissButton: {
-    padding: 8,
+    padding: 4,
   },
 });

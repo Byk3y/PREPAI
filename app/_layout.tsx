@@ -120,10 +120,7 @@ function RootLayoutInner() {
   }
 
   return (
-    <View
-      key={`theme-${effectiveColorScheme}`}
-      style={{ flex: 1, backgroundColor: colors.background }}
-    >
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
       <Stack
         screenOptions={{

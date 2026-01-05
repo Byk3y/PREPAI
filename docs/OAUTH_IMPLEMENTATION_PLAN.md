@@ -40,8 +40,8 @@ This plan outlines the secure implementation of Google and Apple OAuth authentic
 
 #### Step 3: Get Client IDs
 - **Web Client ID**: Used in Supabase dashboard
-- **iOS Client ID**: Bundle ID: `com.brigo.app`
-- **Android Client ID**: Package: `com.brigo.app` + SHA-1 fingerprint
+- **iOS Client ID**: Bundle ID: `com.brigo.ai`
+- **Android Client ID**: Package: `com.brigo.ai` + SHA-1 fingerprint
 
 **To get Android SHA-1:**
 ```bash
@@ -97,12 +97,12 @@ keytool -list -v -keystore your-release-key.keystore -alias your-key-alias
 #### Step 1: Register App ID
 1. Go to [Apple Developer Console](https://developer.apple.com/account/)
 2. Navigate to **Certificates, Identifiers & Profiles > Identifiers**
-3. Create/select App ID: `com.brigo.app`
+3. Create/select App ID: `com.brigo.ai`
 4. Enable **Sign in with Apple** capability
 
 #### Step 2: Create Services ID (for Web/Android)
 1. Go to **Identifiers > Services IDs**
-2. Create new Services ID (e.g., `com.brigo.app.web`)
+2. Create new Services ID (e.g., `com.brigo.ai.web`)
 3. Enable **Sign in with Apple**
 4. Configure **Website URLs**:
    - **Domains**: `<project-id>.supabase.co`
@@ -131,7 +131,7 @@ Use Supabase's [Apple Secret Generator](https://supabase.com/docs/guides/auth/so
 2. Enable Apple provider
 3. Add **Services ID** as Client ID
 4. Add generated **Client Secret**
-5. Add **App ID** (`com.brigo.app`) to "Client IDs" field
+5. Add **App ID** (`com.brigo.ai`) to "Client IDs" field
 
 ### 2.3 Implementation Options
 
@@ -192,10 +192,10 @@ npx expo install expo-auth-session
   "expo": {
     "ios": {
       "usesAppleSignIn": true,
-      "bundleIdentifier": "com.brigo.app"
+      "bundleIdentifier": "com.brigo.ai"
     },
     "android": {
-      "package": "com.brigo.app"
+      "package": "com.brigo.ai"
     },
     "scheme": "brigo"
   }
@@ -415,7 +415,7 @@ EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=your-ios-client-id.apps.googleusercontent.com
 
 # Apple OAuth (if using OAuth flow)
-EXPO_PUBLIC_APPLE_SERVICE_ID=com.brigo.app.web
+EXPO_PUBLIC_APPLE_SERVICE_ID=com.brigo.ai.web
 EXPO_PUBLIC_APPLE_REDIRECT_URI=https://your-project.supabase.co/auth/v1/callback
 ```
 

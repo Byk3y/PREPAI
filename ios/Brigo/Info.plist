@@ -30,7 +30,7 @@
         <key>CFBundleURLSchemes</key>
         <array>
           <string>brigo</string>
-          <string>com.brigo.app</string>
+          <string>com.brigo.ai</string>
         </array>
       </dict>
       <dict>
@@ -41,7 +41,7 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>4</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>LSMinimumSystemVersion</key>
@@ -98,7 +98,7 @@
       <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
     <key>UIUserInterfaceStyle</key>
-    <string>Light</string>
+    <string>Automatic</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
   </dict>

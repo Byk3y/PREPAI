@@ -51,7 +51,7 @@ When you're ready to test on Android:
    ```
 
 2. Create Android OAuth Client ID in Google Cloud Console:
-   - Package name: `com.brigo.app`
+   - Package name: `com.brigo.ai`
    - SHA-1: (from step 1)
 
 3. Add Android Client ID to Supabase dashboard (comma-separated with iOS Client ID)
@@ -82,7 +82,7 @@ When you're ready to test on Android:
 
 **"DEVELOPER_ERROR" on Android:**
 - Make sure SHA-1 fingerprint matches in Google Cloud Console
-- Verify package name is `com.brigo.app`
+- Verify package name is `com.brigo.ai`
 
 **"10" error:**
 - Check that Client IDs are correctly added in Supabase dashboard

@@ -53,12 +53,14 @@ export function useFeedback(options: FeedbackOptions = {}) {
 
     (async () => {
       try {
-        // Audio mode is now initialized globally in _layout.tsx
-        // but we ensure it's set correctly here just in case, 
-        // using the same parameters to avoid session interruptions.
-        // We only preload sounds here.
+        // Wait for global audio mode to be configured before loading sounds
+        // This ensures Audio.Sound.createAsync works correctly
+        const { waitForAudioInit } = await import('@/lib/audioConfig');
+        await waitForAudioInit();
 
-        // Preload optimistically
+        if (!mounted) return;
+
+        // Preload all sounds after audio is configured
         for (const name of Object.keys(SOUND_MAP) as SoundName[]) {
           const { sound } = await Audio.Sound.createAsync(SOUND_MAP[name], {
             volume,
@@ -92,6 +94,10 @@ export function useFeedback(options: FeedbackOptions = {}) {
 
     const loadPromise = (async () => {
       try {
+        // Ensure audio is configured before loading sounds on-demand
+        const { waitForAudioInit } = await import('@/lib/audioConfig');
+        await waitForAudioInit();
+
         const { sound } = await Audio.Sound.createAsync(SOUND_MAP[name], {
           volume,
           shouldPlay: false,

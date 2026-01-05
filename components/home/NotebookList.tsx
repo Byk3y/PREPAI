@@ -99,8 +99,6 @@ export function NotebookList({
       {showTrialReminder && (
         <TrialReminderCard
           daysRemaining={daysRemaining}
-          notebooksCount={notebooksCount}
-          streakDays={streakDays}
           onDismiss={onDismissTrialReminder}
         />
       )}

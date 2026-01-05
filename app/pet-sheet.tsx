@@ -62,15 +62,6 @@ export default function PetSheetScreen() {
     }
   }, [foundationalTasks, dailyTasks.length, loadDailyTasks]);
 
-  // Track pet sheet opened
-  React.useEffect(() => {
-    track('pet_sheet_opened', {
-      streak: user.streak,
-      pet_stage: currentStage,
-      is_at_risk: isAtRiskChecked || isStreakLost,
-    });
-  }, []);
-
   // Derive stage from petState (automatically calculated from points)
   // Clamp to valid stage range for UI (1-3)
   const currentStage = Math.min(Math.max(petState.stage, 1), 3) as 1 | 2 | 3;
@@ -91,15 +82,22 @@ export default function PetSheetScreen() {
   const recoverableStreak = user.meta?.last_recoverable_streak ?? 0;
   const isStreakLost = user.streak === 0 && recoverableStreak > 0;
 
-  // Onboarding awareness: If user is still in foundational phase, they can't see/secure daily tasks.
-  // We shouldn't show them as "dying" just because they haven't finished onboarding.
-  const isOnboardingComplete = foundationalTasks.length > 0 && foundationalTasks.every(t => t.completed);
-
-  // Pet is only "at risk" if they've finished onboarding and haven't secured today
-  const isAtRiskChecked = isAtRisk && isOnboardingComplete;
-
-  const isDying = isAtRiskChecked || isStreakLost;
+  // Pet is dying if streak is at risk (not secured today) or streak was lost
+  // Note: Previously had an onboarding exemption here, but removed because:
+  // - Users with an active streak should see dying state regardless of foundational task completion
+  // - New users (streak=0) won't trigger isAtRisk anyway
+  // - This matches PetBubble.tsx behavior for consistency
+  const isDying = isAtRisk || isStreakLost;
   const canRestore = isStreakLost && user.streak_restores > 0;
+
+  // Track pet sheet opened (after all state variables are defined)
+  React.useEffect(() => {
+    track('pet_sheet_opened', {
+      streak: user.streak,
+      pet_stage: currentStage,
+      is_at_risk: isDying,
+    });
+  }, []);
 
   const handleRestore = async () => {
     if (!canRestore) return;
