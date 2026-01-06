@@ -14,13 +14,13 @@ export const OPTION_COLORS = {
   correctIcon: '#10b981',
   
   // Incorrect answer colors
-  incorrectBgDark: '#7f1d1d',
+  incorrectBgDark: '#3d2626',
   incorrectBgLight: '#fee2e2',
-  incorrectBorder: '#ef4444',
-  incorrectBadge: '#ef4444',
-  incorrectTextDark: '#fca5a5',
+  incorrectBorder: '#fb923c',
+  incorrectBadge: '#fb923c',
+  incorrectTextDark: '#fecaca',
   incorrectTextLight: '#7f1d1d',
-  incorrectIcon: '#ef4444',
+  incorrectIcon: '#fb923c',
   
   // Selected answer colors
   selectedBgDark: '#1e3a5f',
