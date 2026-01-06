@@ -28,8 +28,14 @@ export const PetBubble: React.FC = () => {
     !secureTask.completed_at || secureTask.completed_at.startsWith(today)
   );
 
+  // Check if we have fresh user data loaded (not just defaults)
+  // If user data isn't loaded yet (streak=0 and no last_streak_date), assume at-risk to prevent flash
+  const hasUserDataLoaded = user.id !== '' && (user.streak > 0 || user.last_streak_date !== undefined);
+
   // A streak is "at risk" if it hasn't been secured today and the user has an active streak
-  const isAtRisk = user.streak > 0 && user.last_streak_date !== today && !isSecureTaskCompletedToday;
+  const isAtRisk = hasUserDataLoaded
+    ? (user.streak > 0 && user.last_streak_date !== today && !isSecureTaskCompletedToday)
+    : true; // Assume at-risk until we have data (prevents "live then dying" flash)
 
   // A streak is "lost" if it's 0 but there's a recoverable streak in meta
   const recoverableStreak = user.meta?.last_recoverable_streak ?? 0;
@@ -46,6 +52,11 @@ export const PetBubble: React.FC = () => {
   // Reduce scale for Stage 2 if dying as per user request
   if (isDying && petState.stage === 2) {
     stageScale = 0.85; // Reduced - water bubble image is large
+  }
+
+  // Increase scale for Stage 1 if dying to make it more visible
+  if (isDying && petState.stage === 1) {
+    stageScale = 1.15; // Slightly larger than normal stage 1
   }
 
   const bubbleSize = PET_SIZE * stageScale;

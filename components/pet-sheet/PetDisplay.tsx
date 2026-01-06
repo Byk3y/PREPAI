@@ -216,8 +216,8 @@ export const PetDisplay = memo(({
                         <Image
                             source={(isDying && currentStage === 1) ? STAGE_1_DYING : STAGE_1_FULL}
                             style={{
-                                width: (isDying && currentStage === 1) ? 240 : 250,
-                                height: (isDying && currentStage === 1) ? 240 : 250
+                                width: (isDying && currentStage === 1) ? 280 : 250,
+                                height: (isDying && currentStage === 1) ? 280 : 250
                             }}
                             resizeMode="contain"
                             fadeDuration={0}
