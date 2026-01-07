@@ -1,8 +1,3 @@
-/**
- * AudioPlayer - A full-screen audio player UI component
- * Matches the reference design with header, progress bar, and playback controls
- */
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
     View,
@@ -15,8 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Audio } from 'expo-av';
-import type { AVPlaybackStatus } from 'expo-av';
+import { Audio, type AVPlaybackStatus } from 'expo-av';
 import { useAudioPlaybackPosition } from '@/lib/hooks/useAudioPlaybackPosition';
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler';
 import { AudioVisualizer } from './AudioVisualizer';
@@ -37,16 +31,16 @@ import { SubtitleDisplay } from './SubtitleDisplay';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 
 interface AudioPlayerProps {
-    audioUrl: string; // Required: URL to audio file
-    audioOverviewId: string; // Required: Unique ID for position tracking
-    notebookId: string; // Required: Parent notebook ID
+    audioUrl: string;
+    audioOverviewId: string;
+    notebookId: string;
     title?: string;
-    duration?: number; // in seconds
-    script?: string; // Optional: Podcast script for subtitles
+    duration?: number;
+    script?: string;
     onClose?: () => void;
     onDownload?: () => void;
-    isDownloading?: boolean; // Optional: Show loading state on download button
-    downloadProgress?: number; // Optional: Download progress percentage (0-100)
+    isDownloading?: boolean;
+    downloadProgress?: number;
 }
 
 export function AudioPlayer({
@@ -71,105 +65,78 @@ export function AudioPlayer({
     const [playbackSpeed, setPlaybackSpeed] = useState(1);
     const [liked, setLiked] = useState<boolean | null>(null);
     const [loading, setLoading] = useState(true);
-    const [showSubtitles, setShowSubtitles] = useState(true); // Subtitles on by default
+    const [showSubtitles, setShowSubtitles] = useState(true);
 
     const sound = useRef<Audio.Sound | null>(null);
     const isDraggingSlider = useRef(false);
     const isSeeking = useRef(false);
     const hasAwardedTaskRef = useRef(false);
     const feedbackLoadingRef = useRef(false);
-    const feedbackOperationRef = useRef(false); // Track if feedback operation is in progress
+    const feedbackOperationRef = useRef(false);
 
-    const checkAndAwardTask = useStore((state) => state.checkAndAwardTask);
-    const authUser = useStore((state) => state.authUser);
+    const { checkAndAwardTask, authUser, audioSettings } = useStore();
 
-    // Position persistence hook
     const {
         savedPosition,
         saveCurrentPosition,
         clearSavedPosition,
     } = useAudioPlaybackPosition(audioOverviewId, notebookId, audioUrl, audioDuration);
 
-    // Initialize audio on mount
     useEffect(() => {
         loadAudio();
-
         return () => {
-            // Save position before unmount (when navigating away)
             if (sound.current) {
                 sound.current.getStatusAsync().then((status) => {
                     if (status.isLoaded && status.positionMillis) {
-                        const positionInSeconds = status.positionMillis / 1000;
-                        saveCurrentPosition(positionInSeconds);
+                        saveCurrentPosition(status.positionMillis / 1000);
                     }
                 });
-
                 sound.current.unloadAsync();
             }
         };
-    }, [audioUrl, saveCurrentPosition]);
+    }, [audioUrl]);
 
-    // Load existing feedback on mount
     useEffect(() => {
         if (!authUser?.id || feedbackLoadingRef.current) return;
-
         let isMounted = true;
-
         const loadFeedback = async () => {
             try {
                 feedbackLoadingRef.current = true;
-                const feedback = await audioFeedbackService.getFeedback(
-                    authUser.id,
-                    audioOverviewId
-                );
-                // Only update state if component is still mounted
-                if (isMounted && feedback) {
-                    setLiked(feedback.is_liked);
-                }
+                const feedback = await audioFeedbackService.getFeedback(authUser.id, audioOverviewId);
+                if (isMounted && feedback) setLiked(feedback.is_liked);
             } catch (error) {
-                // Non-critical error - log but don't block UI
                 console.error('Failed to load audio feedback:', error);
             } finally {
-                if (isMounted) {
-                    feedbackLoadingRef.current = false;
-                }
+                if (isMounted) feedbackLoadingRef.current = false;
             }
         };
-
         loadFeedback();
-
-        // Cleanup: prevent state updates if component unmounts
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, [authUser?.id, audioOverviewId]);
 
     const loadAudio = async () => {
         try {
             setLoading(true);
+            await configureAudioMode();
 
-            // Configure audio mode to allow background playback
-            // and ensure it still mixes with other audio as per user requirements
-            await configureAudioMode(true);
-
-            // Load audio
             const { sound: audioSound } = await Audio.Sound.createAsync(
                 { uri: audioUrl },
-                { shouldPlay: false, rate: playbackSpeed },
+                {
+                    shouldPlay: false,
+                    rate: playbackSpeed,
+                    volume: audioSettings.voiceVolume // Apply saved volume
+                },
                 onPlaybackStatusUpdate
             );
 
             sound.current = audioSound;
-
-            // Get initial duration
             const status = await audioSound.getStatusAsync();
             if (status.isLoaded && status.durationMillis) {
                 setAudioDuration(status.durationMillis / 1000);
             }
 
-            // Restore saved position if exists and is significant (>5 seconds)
             if (savedPosition && savedPosition > 5) {
-                await audioSound.setPositionAsync(savedPosition * 1000); // Convert to ms
+                await audioSound.setPositionAsync(savedPosition * 1000);
                 setCurrentTime(savedPosition);
             }
 
@@ -193,49 +160,24 @@ export function AudioPlayer({
                 setAudioDuration(status.durationMillis / 1000);
             }
 
-            // Save position periodically during playback
-            if (status.isPlaying) {
-                // Only update current time if not dragging slider to prevent jumping
-                if (!isDraggingSlider.current) {
-                    setCurrentTime(positionInSeconds);
-                    saveCurrentPosition(positionInSeconds);
-                }
+            if (status.isPlaying && !isDraggingSlider.current) {
+                setCurrentTime(positionInSeconds);
+                saveCurrentPosition(positionInSeconds);
 
-                // Award "podcast_3_min" task if they've listened for 60 seconds (1 minute)
                 if (positionInSeconds >= 60 && !hasAwardedTaskRef.current && checkAndAwardTask) {
                     hasAwardedTaskRef.current = true;
                     checkAndAwardTask('podcast_3_min');
                 }
             }
 
-            // Auto-stop at end and clear saved position
             if (status.didJustFinish) {
                 setIsPlaying(false);
                 setCurrentTime(0);
                 sound.current?.setPositionAsync(0);
-                clearSavedPosition(); // Clear saved position when audio finishes
+                clearSavedPosition();
             }
         }
     };
-
-    // Safe seek helper to prevent "Interrupted" errors
-    const safeSeek = useCallback(async (positionMillis: number) => {
-        if (!sound.current || isSeeking.current) return;
-
-        try {
-            isSeeking.current = true;
-            await sound.current.setPositionAsync(positionMillis);
-        } catch (error: any) {
-            // Ignore interruption errors which happen during rapid seeking
-            if (error.message && error.message.includes('Seeking interrupted')) {
-                console.log('Seeking interrupted (harmless)');
-            } else {
-                console.error('Seek error:', error);
-            }
-        } finally {
-            isSeeking.current = false;
-        }
-    }, []);
 
     const handleSlidingStart = useCallback(() => {
         isDraggingSlider.current = true;
@@ -243,26 +185,21 @@ export function AudioPlayer({
 
     const handleSlidingComplete = useCallback(async (value: number) => {
         if (!sound.current) return;
-        const newPositionMillis = value * 1000;
-
-        // Optimistic update
-        setCurrentTime(value);
-
-        await safeSeek(newPositionMillis);
+        try {
+            await sound.current.setPositionAsync(value * 1000);
+            setCurrentTime(value);
+        } catch (e) { }
         isDraggingSlider.current = false;
-    }, [safeSeek]);
+    }, []);
 
     const handlePlayPause = useCallback(async () => {
         if (!sound.current || loading) return;
-
         try {
             const status = await sound.current.getStatusAsync();
             if (status.isLoaded) {
                 if (status.isPlaying) {
                     await sound.current.pauseAsync();
-                    // Save position immediately on pause
-                    const positionInSeconds = (status.positionMillis || 0) / 1000;
-                    saveCurrentPosition(positionInSeconds);
+                    saveCurrentPosition((status.positionMillis || 0) / 1000);
                 } else {
                     await sound.current.playAsync();
                 }
@@ -270,210 +207,93 @@ export function AudioPlayer({
         } catch (error) {
             console.error('Play/Pause error:', error);
         }
-    }, [loading, saveCurrentPosition, checkAndAwardTask]);
+    }, [loading, saveCurrentPosition]);
 
     const handleSeekBack = useCallback(async () => {
         if (!sound.current || loading) return;
-        try {
-            const status = await sound.current.getStatusAsync();
-            if (status.isLoaded) {
-                const newPosition = Math.max(0, (status.positionMillis || 0) - 10000);
-                // Optimistic update
-                setCurrentTime(newPosition / 1000);
-                await safeSeek(newPosition);
-            }
-        } catch (error) {
-            console.error('Status check error:', error);
+        const status = await sound.current.getStatusAsync();
+        if (status.isLoaded) {
+            const newPos = Math.max(0, (status.positionMillis || 0) - 10000);
+            await sound.current.setPositionAsync(newPos);
+            setCurrentTime(newPos / 1000);
         }
-    }, [loading, safeSeek]);
+    }, [loading]);
 
     const handleSeekForward = useCallback(async () => {
         if (!sound.current || loading) return;
-        try {
-            const status = await sound.current.getStatusAsync();
-            if (status.isLoaded && status.durationMillis) {
-                const newPosition = Math.min(status.durationMillis, (status.positionMillis || 0) + 10000);
-                // Optimistic update
-                setCurrentTime(newPosition / 1000);
-                await safeSeek(newPosition);
-            }
-        } catch (error) {
-            console.error('Status check error:', error);
+        const status = await sound.current.getStatusAsync();
+        if (status.isLoaded && status.durationMillis) {
+            const newPos = Math.min(status.durationMillis, (status.positionMillis || 0) + 10000);
+            await sound.current.setPositionAsync(newPos);
+            setCurrentTime(newPos / 1000);
         }
-    }, [loading, safeSeek]);
+    }, [loading]);
 
     const handleSpeedChange = useCallback(async () => {
         if (!sound.current || loading) return;
-
-        try {
-            const newSpeed = playbackSpeed === 1 ? 1.5 : playbackSpeed === 1.5 ? 2 : 1;
-            await sound.current.setRateAsync(newSpeed, true);
-            setPlaybackSpeed(newSpeed);
-        } catch (error) {
-            console.error('Speed change error:', error);
-        }
+        const newSpeed = playbackSpeed === 1 ? 1.5 : playbackSpeed === 1.5 ? 2 : 1;
+        await sound.current.setRateAsync(newSpeed, true);
+        setPlaybackSpeed(newSpeed);
     }, [playbackSpeed, loading]);
 
     const handleLike = useCallback(async () => {
-        // Prevent concurrent operations
         if (feedbackOperationRef.current) return;
-
-        // Capture current value before state update
         const previousValue = liked;
         const newValue = liked === true ? null : true;
-
-        // Optimistic update
         setLiked(newValue);
         feedbackOperationRef.current = true;
-
-        // Persist to database (non-blocking)
         if (authUser?.id) {
             try {
-                if (newValue === null) {
-                    // Remove feedback
-                    await audioFeedbackService.removeFeedback(
-                        authUser.id,
-                        audioOverviewId
-                    );
-                } else {
-                    // Save like
-                    await audioFeedbackService.saveFeedback(
-                        authUser.id,
-                        audioOverviewId,
-                        true
-                    );
-                }
-
-                // Trigger "Reviewer" daily task
-                if (checkAndAwardTask) {
-                    checkAndAwardTask('audio_feedback_given');
-                }
+                if (newValue === null) await audioFeedbackService.removeFeedback(authUser.id, audioOverviewId);
+                else await audioFeedbackService.saveFeedback(authUser.id, audioOverviewId, true);
+                if (checkAndAwardTask) checkAndAwardTask('audio_feedback_given');
             } catch (error) {
-                // Revert on error using functional update to get latest state
-                setLiked((current) => {
-                    // If state hasn't changed, revert to previous
-                    return current === newValue ? previousValue : current;
-                });
-                console.error('Failed to save like:', error);
-                // Non-critical - don't show error to user, just log
-            } finally {
-                feedbackOperationRef.current = false;
-            }
-        } else {
-            feedbackOperationRef.current = false;
-        }
+                setLiked(previousValue);
+            } finally { feedbackOperationRef.current = false; }
+        } else feedbackOperationRef.current = false;
     }, [liked, authUser?.id, audioOverviewId]);
 
     const handleDislike = useCallback(async () => {
-        // Prevent concurrent operations
         if (feedbackOperationRef.current) return;
-
-        // Capture current value before state update
         const previousValue = liked;
         const newValue = liked === false ? null : false;
-
-        // Optimistic update
         setLiked(newValue);
         feedbackOperationRef.current = true;
-
-        // Persist to database (non-blocking)
         if (authUser?.id) {
             try {
-                if (newValue === null) {
-                    // Remove feedback
-                    await audioFeedbackService.removeFeedback(
-                        authUser.id,
-                        audioOverviewId
-                    );
-                } else {
-                    // Save dislike
-                    await audioFeedbackService.saveFeedback(
-                        authUser.id,
-                        audioOverviewId,
-                        false
-                    );
-                }
-
-                // Trigger "Reviewer" daily task
-                if (checkAndAwardTask) {
-                    checkAndAwardTask('audio_feedback_given');
-                }
+                if (newValue === null) await audioFeedbackService.removeFeedback(authUser.id, audioOverviewId);
+                else await audioFeedbackService.saveFeedback(authUser.id, audioOverviewId, false);
+                if (checkAndAwardTask) checkAndAwardTask('audio_feedback_given');
             } catch (error) {
-                // Revert on error using functional update to get latest state
-                setLiked((current) => {
-                    // If state hasn't changed, revert to previous
-                    return current === newValue ? previousValue : current;
-                });
-                console.error('Failed to save dislike:', error);
-                // Non-critical - don't show error to user, just log
-            } finally {
-                feedbackOperationRef.current = false;
-            }
-        } else {
-            feedbackOperationRef.current = false;
-        }
+                setLiked(previousValue);
+            } finally { feedbackOperationRef.current = false; }
+        } else feedbackOperationRef.current = false;
     }, [liked, authUser?.id, audioOverviewId]);
 
     return (
         <View style={{ flex: 1, backgroundColor: colors.background }}>
             <SafeAreaView className="flex-1">
-                {/* Header */}
-                <View
-                    className="flex-row items-center justify-between px-4 py-3"
-                    style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
-                >
-                    <TouchableOpacity
-                        onPress={onClose}
-                        className="p-2"
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
+                <View className="flex-row items-center justify-between px-4 py-3" style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                    <TouchableOpacity onPress={onClose} className="p-2" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                         <CloseIcon size={22} color={colors.text} />
                     </TouchableOpacity>
-
                     <View className="flex-1 mx-4">
-                        <Text
-                            style={{ color: colors.text }}
-                            className="text-base font-medium text-center"
-                            numberOfLines={1}
-                            ellipsizeMode="tail"
-                        >
-                            {title}
-                        </Text>
+                        <Text style={{ color: colors.text }} className="text-base font-medium text-center" numberOfLines={1} ellipsizeMode="tail">{title}</Text>
                     </View>
-
-                    <TouchableOpacity
-                        onPress={onDownload}
-                        disabled={isDownloading}
-                        className="p-2"
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        style={{ opacity: isDownloading ? 0.5 : 1 }}
-                    >
-                        {isDownloading ? (
-                            <ActivityIndicator size="small" color={colors.text} />
-                        ) : (
-                            <DownloadIcon size={22} color={colors.text} />
-                        )}
+                    <TouchableOpacity onPress={onDownload} disabled={isDownloading} className="p-2" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ opacity: isDownloading ? 0.5 : 1 }}>
+                        {isDownloading ? <ActivityIndicator size="small" color={colors.text} /> : <DownloadIcon size={22} color={colors.text} />}
                     </TouchableOpacity>
                 </View>
 
-                {/* Download Progress Bar */}
                 {isDownloading && downloadProgress > 0 && (
                     <View style={{ height: 3, backgroundColor: colors.border }}>
-                        <View
-                            className="h-full bg-[#4F5BD5]"
-                            style={{ width: `${downloadProgress}%` }}
-                        />
+                        <View className="h-full bg-[#4F5BD5]" style={{ width: `${downloadProgress}%` }} />
                     </View>
                 )}
 
-                {/* Content Area with Blue Line */}
                 <View className="flex-1 justify-end">
-                    {/* Blue Accent Line */}
                     <View className="w-full h-0.5 bg-[#4F5BD5] mb-4" />
-
-                    {/* Main Content Area - Subtitles + Visualizer */}
                     <View className="flex-1 px-6">
-                        {/* Subtitle Display - takes available space */}
                         <View style={{ flex: 1, justifyContent: 'center', marginTop: -80 }}>
                             {script ? (
                                 <SubtitleDisplay
@@ -483,57 +303,28 @@ export function AudioPlayer({
                                     isVisible={showSubtitles}
                                     onToggleVisibility={() => setShowSubtitles(!showSubtitles)}
                                 />
-                            ) : (
-                                <View style={{ height: 140 }} />
-                            )}
+                            ) : <View style={{ height: 140 }} />}
                         </View>
-
-                        {/* Audio Visualizer */}
                         <View style={{ height: 44, marginTop: -110, marginBottom: 20, alignItems: 'center', justifyContent: 'center' }}>
                             <AudioVisualizer isPlaying={isPlaying} height={44} />
                         </View>
                     </View>
 
-                    {/* Secondary Controls */}
                     <View className="flex-row items-center justify-center gap-12 mb-8 px-6">
-                        <TouchableOpacity
-                            onPress={handleSpeedChange}
-                            className="items-center justify-center"
-                        >
-                            <Text style={{ color: colors.text }} className="text-base font-semibold">
-                                {playbackSpeed}X
-                            </Text>
+                        <TouchableOpacity onPress={handleSpeedChange} className="items-center justify-center">
+                            <Text style={{ color: colors.text }} className="text-base font-semibold">{playbackSpeed}X</Text>
                         </TouchableOpacity>
-
-                        <TouchableOpacity
-                            onPress={handleLike}
-                            className="items-center justify-center"
-                        >
-                            <ThumbUpIcon
-                                size={24}
-                                color={liked === true ? '#4F5BD5' : colors.iconMuted}
-                                filled={liked === true}
-                            />
+                        <TouchableOpacity onPress={handleLike} className="items-center justify-center">
+                            <ThumbUpIcon size={24} color={liked === true ? '#4F5BD5' : colors.iconMuted} filled={liked === true} />
                         </TouchableOpacity>
-
-                        <TouchableOpacity
-                            onPress={handleDislike}
-                            className="items-center justify-center"
-                        >
-                            <ThumbDownIcon
-                                size={24}
-                                color={liked === false ? '#ef4444' : colors.iconMuted}
-                                filled={liked === false}
-                            />
+                        <TouchableOpacity onPress={handleDislike} className="items-center justify-center">
+                            <ThumbDownIcon size={24} color={liked === false ? '#ef4444' : colors.iconMuted} filled={liked === false} />
                         </TouchableOpacity>
                     </View>
 
-                    {/* Progress Bar */}
                     <View className="px-6 mb-8">
                         <View className="flex-row items-center">
-                            <Text style={{ color: colors.textSecondary }} className="text-sm w-12 font-medium">
-                                {formatTime(currentTime)}
-                            </Text>
+                            <Text style={{ color: colors.textSecondary }} className="text-sm w-12 font-medium">{formatTime(currentTime)}</Text>
                             <View className="flex-1 mx-3">
                                 <Slider
                                     style={{ width: '100%', height: 40 }}
@@ -548,115 +339,52 @@ export function AudioPlayer({
                                     tapToSeek={true}
                                 />
                             </View>
-                            <Text style={{ color: colors.textSecondary }} className="text-sm w-12 text-right font-medium">
-                                {formatTime(audioDuration)}
-                            </Text>
+                            <Text style={{ color: colors.textSecondary }} className="text-sm w-12 text-right font-medium">{formatTime(audioDuration)}</Text>
                         </View>
                     </View>
 
-                    {/* Primary Controls */}
                     <View className="flex-row items-center justify-center gap-10 mb-20">
-                        <TouchableOpacity
-                            onPress={handleSeekBack}
-                            className="w-14 h-14 items-center justify-center"
-                        >
+                        <TouchableOpacity onPress={handleSeekBack} className="w-14 h-14 items-center justify-center">
                             <View className="items-center justify-center">
                                 <Svg width={32} height={32} viewBox="0 0 32 32" fill="none">
-                                    {/* Circular arrow */}
-                                    <Path
-                                        d="M16 6C10.477 6 6 10.477 6 16s4.477 10 10 10 10-4.477 10-10"
-                                        stroke={isDarkMode ? '#818CF8' : '#4F5BD5'}
-                                        strokeWidth={2}
-                                        strokeLinecap="round"
-                                    />
-                                    {/* Arrow head */}
-                                    <Path
-                                        d="M16 2v8l-4-4"
-                                        stroke={isDarkMode ? '#818CF8' : '#4F5BD5'}
-                                        strokeWidth={2}
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    />
+                                    <Path d="M16 6C10.477 6 6 10.477 6 16s4.477 10 10 10 10-4.477 10-10" stroke={isDarkMode ? '#818CF8' : '#4F5BD5'} strokeWidth={2} strokeLinecap="round" />
+                                    <Path d="M16 2v8l-4-4" stroke={isDarkMode ? '#818CF8' : '#4F5BD5'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
                                 </Svg>
-                                <Text
-                                    style={{ color: isDarkMode ? '#818CF8' : '#4F5BD5' }}
-                                    className="text-xs font-bold absolute"
-                                >
-                                    10
-                                </Text>
+                                <Text style={{ color: isDarkMode ? '#818CF8' : '#4F5BD5' }} className="text-xs font-bold absolute">10</Text>
                             </View>
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                            onPress={handlePlayPause}
-                            disabled={loading}
-                            className="w-20 h-20 rounded-full items-center justify-center shadow-lg"
-                            style={{
-                                backgroundColor: isDarkMode ? '#818CF8' : '#4F5BD5',
-                                shadowColor: isDarkMode ? '#000' : '#4F5BD5',
-                                shadowOffset: { width: 0, height: 8 },
-                                shadowOpacity: isDarkMode ? 0.5 : 0.4,
-                                shadowRadius: 12,
-                                elevation: 12,
-                                opacity: loading ? 0.7 : 1,
-                            }}
-                        >
-                            {loading ? (
-                                <ActivityIndicator size="small" color="#fff" />
-                            ) : isPlaying ? (
-                                <PauseIcon size={36} color="#fff" />
-                            ) : (
-                                <PlayIcon size={36} color="#fff" />
-                            )}
+                        <TouchableOpacity onPress={handlePlayPause} disabled={loading} className="w-20 h-20 rounded-full items-center justify-center shadow-lg" style={{
+                            backgroundColor: isDarkMode ? '#818CF8' : '#4F5BD5',
+                            shadowColor: isDarkMode ? '#000' : '#4F5BD5',
+                            shadowOffset: { width: 0, height: 8 },
+                            shadowOpacity: isDarkMode ? 0.5 : 0.4,
+                            shadowRadius: 12,
+                            elevation: 12,
+                            opacity: loading ? 0.7 : 1,
+                        }}>
+                            {loading ? <ActivityIndicator size="small" color="#fff" /> : isPlaying ? <PauseIcon size={36} color="#fff" /> : <PlayIcon size={36} color="#fff" />}
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                            onPress={handleSeekForward}
-                            className="w-14 h-14 items-center justify-center"
-                        >
+                        <TouchableOpacity onPress={handleSeekForward} className="w-14 h-14 items-center justify-center">
                             <View className="items-center justify-center">
                                 <Svg width={32} height={32} viewBox="0 0 32 32" fill="none">
-                                    {/* Circular arrow */}
-                                    <Path
-                                        d="M16 6c5.523 0 10 4.477 10 10s-4.477 10-10 10S6 21.523 6 16"
-                                        stroke={isDarkMode ? '#818CF8' : '#4F5BD5'}
-                                        strokeWidth={2}
-                                        strokeLinecap="round"
-                                    />
-                                    {/* Arrow head */}
-                                    <Path
-                                        d="M16 2v8l4-4"
-                                        stroke={isDarkMode ? '#818CF8' : '#4F5BD5'}
-                                        strokeWidth={2}
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    />
+                                    <Path d="M16 6c5.523 0 10 4.477 10 10s-4.477 10-10 10S6 21.523 6 16" stroke={isDarkMode ? '#818CF8' : '#4F5BD5'} strokeWidth={2} strokeLinecap="round" />
+                                    <Path d="M16 2v8l4-4" stroke={isDarkMode ? '#818CF8' : '#4F5BD5'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
                                 </Svg>
-                                <Text
-                                    style={{ color: isDarkMode ? '#818CF8' : '#4F5BD5' }}
-                                    className="text-xs font-bold absolute"
-                                >
-                                    10
-                                </Text>
+                                <Text style={{ color: isDarkMode ? '#818CF8' : '#4F5BD5' }} className="text-xs font-bold absolute">10</Text>
                             </View>
                         </TouchableOpacity>
                     </View>
 
-                    {/* Powered by Brigo footer */}
                     <View className="flex-row items-center justify-center mb-4" style={{ gap: 6, opacity: 0.4 }}>
-                        <Text style={{ fontSize: 11, fontFamily: 'Outfit-Light', color: colors.textMuted }}>
-                            Powered by
-                        </Text>
+                        <Text style={{ fontSize: 11, fontFamily: 'Outfit-Light', color: colors.textMuted }}>Powered by</Text>
                         <BrigoLogo size={12} textColor={colors.textMuted} />
                     </View>
                 </View>
 
-                {/* Gradient Background at Bottom */}
                 <LinearGradient
-                    colors={isDarkMode
-                        ? ['rgba(41,41,43,0)', 'rgba(64,82,77,0.4)', 'rgba(58,87,80,0.5)']
-                        : ['rgba(255,255,255,0)', 'rgba(167,243,208,0.4)', 'rgba(153,246,228,0.5)']
-                    }
+                    colors={isDarkMode ? ['rgba(41,41,43,0)', 'rgba(64,82,77,0.4)', 'rgba(58,87,80,0.5)'] : ['rgba(255,255,255,0)', 'rgba(167,243,208,0.4)', 'rgba(153,246,228,0.5)']}
                     locations={[0, 0.5, 1]}
                     className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
                 />

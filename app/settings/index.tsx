@@ -113,6 +113,12 @@ export default function SettingsScreen() {
                         subtext="Theme and appearance"
                     />
                     <NavItem
+                        label="Audio"
+                        icon="volume-high"
+                        route="/settings/audio"
+                        subtext="Sound and playback"
+                    />
+                    <NavItem
                         label="Profile"
                         icon="person"
                         route="/settings/profile"
@@ -151,6 +157,14 @@ export default function SettingsScreen() {
                 <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <NavItem label="Help Center" icon="help-circle" />
                     <NavItem label="Feedback" icon="chatbubble" />
+                    {Platform.OS === 'ios' && (
+                        <NavItem
+                            label="Widget Test"
+                            icon="apps"
+                            route="/widget-test"
+                            subtext="Test home screen widget"
+                        />
+                    )}
                     <TouchableOpacity style={styles.signOutRow} onPress={handleSignOut}>
                         <Text style={styles.signOutText}>SIGN OUT</Text>
                     </TouchableOpacity>

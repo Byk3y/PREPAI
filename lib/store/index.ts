@@ -18,6 +18,7 @@ import { createAssessmentSlice, type AssessmentSlice } from './slices/assessment
 import { createThemeSlice, type ThemeSlice } from './slices/themeSlice';
 import { createSubscriptionSlice, type SubscriptionSlice } from './slices/subscriptionSlice';
 import { createNotificationSlice, type NotificationSlice } from './slices/notificationSlice';
+import { createAudioSettingsSlice, type AudioSettingsSlice } from './slices/audioSettingsSlice';
 
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,7 +37,8 @@ type AppState = AuthSlice &
   AssessmentSlice &
   ThemeSlice &
   SubscriptionSlice &
-  NotificationSlice;
+  NotificationSlice &
+  AudioSettingsSlice;
 
 // Add hydration state (not persisted)
 type StoreWithHydration = AppState & {
@@ -62,6 +64,7 @@ export const useStore = create<StoreWithHydration>()(
       ...createThemeSlice(...a),
       ...createSubscriptionSlice(...a),
       ...createNotificationSlice(...a),
+      ...createAudioSettingsSlice(...a),
       _hasHydrated: false,
       _setHasHydrated: (hydrated: boolean) => {
         a[0]({ _hasHydrated: hydrated });
@@ -93,6 +96,7 @@ export const useStore = create<StoreWithHydration>()(
         userProfileUserId: state.userProfileUserId,
         userProfileSyncedAt: state.userProfileSyncedAt,
         flashcardsStudied: state.flashcardsStudied,
+        audioSettings: state.audioSettings,
         // Add other persistent state here as needed
       }),
       migrate: (persistedState: any, version: number) => {

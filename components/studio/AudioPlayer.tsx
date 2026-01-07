@@ -1,8 +1,3 @@
-/**
- * AudioPlayer - Inline audio playback component
- * Features: play/pause, progress slider, time display, playback speed
- */
-
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Slider from '@react-native-community/slider';
@@ -19,29 +14,25 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audio }) => {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
-  const [duration, setDuration] = useState(audio.duration * 1000); // Convert to ms
+  const [duration, setDuration] = useState(audio.duration * 1000);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
-  const { checkAndAwardTask } = useStore();
+  const { checkAndAwardTask, audioSettings } = useStore();
 
-  // Track if we've already triggered the task this session
   const hasTriggeredTaskRef = useRef(false);
 
-  // Load audio on mount
   useEffect(() => {
     loadAudio();
-    return () => {
-      // Cleanup
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
+    return () => { if (sound) sound.unloadAsync(); };
   }, [audio.audio_url]);
 
   const loadAudio = async () => {
     try {
       const { sound: audioSound } = await Audio.Sound.createAsync(
         { uri: audio.audio_url },
-        { shouldPlay: false },
+        {
+          shouldPlay: false,
+          volume: audioSettings.voiceVolume // Apply saved volume
+        },
         onPlaybackStatusUpdate
       );
       setSound(audioSound);
@@ -55,7 +46,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audio }) => {
       setPosition(status.positionMillis);
       setDuration(status.durationMillis || duration);
       setIsPlaying(status.isPlaying);
-
       if (status.didJustFinish) {
         setIsPlaying(false);
         setPosition(0);
@@ -65,13 +55,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audio }) => {
 
   const handlePlayPause = async () => {
     if (!sound) return;
-
-    if (isPlaying) {
-      await sound.pauseAsync();
-    } else {
+    if (isPlaying) await sound.pauseAsync();
+    else {
       await sound.playAsync();
-
-      // Trigger "Listen to a podcast" task (only once per session)
       if (checkAndAwardTask && !hasTriggeredTaskRef.current) {
         hasTriggeredTaskRef.current = true;
         checkAndAwardTask('listen_audio_overview');
@@ -86,11 +72,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audio }) => {
 
   const handleSpeedChange = async () => {
     if (!sound) return;
-
     const speeds = [1.0, 1.25, 1.5, 1.75, 2.0];
     const currentIndex = speeds.indexOf(playbackSpeed);
     const nextSpeed = speeds[(currentIndex + 1) % speeds.length];
-
     setPlaybackSpeed(nextSpeed);
     await sound.setRateAsync(nextSpeed, true);
   };
@@ -104,12 +88,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audio }) => {
 
   return (
     <View className="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
-      {/* Title */}
-      <Text className="text-base font-semibold text-neutral-900 mb-4">
-        {audio.title}
-      </Text>
-
-      {/* Progress Slider */}
+      <Text className="text-base font-semibold text-neutral-900 mb-4">{audio.title}</Text>
       <View className="mb-3">
         <Slider
           style={{ width: '100%', height: 40 }}
@@ -122,44 +101,19 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ audio }) => {
           thumbTintColor="#3b82f6"
         />
         <View className="flex-row justify-between">
-          <Text className="text-xs text-neutral-500">
-            {formatTime(position)}
-          </Text>
-          <Text className="text-xs text-neutral-500">
-            {formatTime(duration)}
-          </Text>
+          <Text className="text-xs text-neutral-500">{formatTime(position)}</Text>
+          <Text className="text-xs text-neutral-500">{formatTime(duration)}</Text>
         </View>
       </View>
-
-      {/* Controls */}
       <View className="flex-row items-center justify-between">
-        {/* Playback Speed */}
-        <TouchableOpacity
-          onPress={handleSpeedChange}
-          className="bg-white border border-neutral-200 rounded-full px-3 py-2"
-        >
-          <Text className="text-sm font-medium text-neutral-700">
-            {playbackSpeed}x
-          </Text>
+        <TouchableOpacity onPress={handleSpeedChange} className="bg-white border border-neutral-200 rounded-full px-3 py-2">
+          <Text className="text-sm font-medium text-neutral-700">{playbackSpeed}x</Text>
         </TouchableOpacity>
-
-        {/* Play/Pause Button */}
-        <TouchableOpacity
-          onPress={handlePlayPause}
-          className="w-16 h-16 bg-blue-500 rounded-full items-center justify-center"
-        >
-          <Ionicons
-            name={isPlaying ? 'pause' : 'play'}
-            size={28}
-            color="#ffffff"
-          />
+        <TouchableOpacity onPress={handlePlayPause} className="w-16 h-16 bg-blue-500 rounded-full items-center justify-center">
+          <Ionicons name={isPlaying ? 'pause' : 'play'} size={28} color="#ffffff" />
         </TouchableOpacity>
-
-        {/* Duration */}
         <View className="bg-white border border-neutral-200 rounded-full px-3 py-2">
-          <Text className="text-sm font-medium text-neutral-700">
-            {Math.round(audio.duration / 60)} min
-          </Text>
+          <Text className="text-sm font-medium text-neutral-700">{Math.round(audio.duration / 60)} min</Text>
         </View>
       </View>
     </View>

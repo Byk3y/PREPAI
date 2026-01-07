@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.brigo.ai",
-      "buildNumber": "9",
+      "buildNumber": "10",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -81,7 +81,8 @@
       "@react-native-google-signin/google-signin",
       "expo-web-browser",
       "expo-notifications",
-      "expo-localization"
+      "expo-localization",
+      "expo-audio"
     ],
     "scheme": "brigo",
     "owner": "francis.dev",

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
 import { Audio, type AVPlaybackStatusSuccess } from 'expo-av';
+import { useStore } from '@/lib/store';
 
 type SoundName =
   | 'tap'
@@ -101,7 +102,8 @@ export function useFeedback(options: FeedbackOptions = {}) {
 
   const play = useCallback(
     async (name: SoundName, opts?: { volume?: number }) => {
-      if (!allowSound) return;
+      const { audioSettings } = useStore.getState();
+      if (!audioSettings.soundEffectsEnabled || !allowSound) return;
 
       // Throttle check
       const now = Date.now();
@@ -136,7 +138,8 @@ export function useFeedback(options: FeedbackOptions = {}) {
 
   const haptic = useCallback(
     (kind: HapticKind) => {
-      if (!allowHaptics) return;
+      const { audioSettings } = useStore.getState();
+      if (!audioSettings.hapticsEnabled || !allowHaptics) return;
 
       switch (kind) {
         case 'selection':
