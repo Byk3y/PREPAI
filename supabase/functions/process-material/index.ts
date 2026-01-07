@@ -198,6 +198,9 @@ Deno.serve(async (req) => {
     await notebookRepo.updateStatus(notebookId, 'extracting');
 
     try {
+      // Mark as processing
+      await supabase.from('materials').update({ status: 'processing' }).eq('id', materialId);
+
       // STEP 1: Extract content
       console.log(`Extracting content from ${material.kind}: ${materialId}`);
       const contentExtractor = new ContentExtractor(supabase);
@@ -309,10 +312,13 @@ Deno.serve(async (req) => {
     } catch (processingError: any) {
       console.error('Processing error:', processingError);
 
-      // Update notebook with error (preserve original title and extracted content if it exists)
+      // Update material with specific error
+      await materialRepo.updateWithError(materialId, processingError.message);
+
+      // Update notebook metadata (prevent UI freezing but record failure)
       await notebookRepo.updateWithError(notebookId, originalTitle, processingError.message);
 
-      // Log failed usage (no token counts since it failed)
+      // Log failed usage
       await usageLogger.logError(userId, notebookId, 'preview', processingError.message);
 
       throw processingError;

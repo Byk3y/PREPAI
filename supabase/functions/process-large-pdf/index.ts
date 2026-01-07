@@ -140,6 +140,7 @@ async function processJob(
             .update({
                 content: extractedContent,
                 processed: true,
+                status: 'processed',
                 processed_at: new Date().toISOString(),
             })
             .eq('id', job.p_material_id);
@@ -226,14 +227,26 @@ async function processJob(
             p_should_retry: isRetryable,
         });
 
-        // Update notebook status to failed
+        // Update material status to failed
         await supabase
-            .from('notebooks')
+            .from('materials')
             .update({
                 status: 'failed',
                 meta: {
                     error: error.message,
                     failed_at: new Date().toISOString(),
+                },
+            })
+            .eq('id', job.p_material_id);
+
+        // Update notebook status (prevent global lockout, but mark that a job failed)
+        await supabase
+            .from('notebooks')
+            .update({
+                status: 'ready_for_studio',
+                meta: {
+                    last_failure: error.message,
+                    last_failure_at: new Date().toISOString(),
                 },
             })
             .eq('id', job.p_notebook_id);

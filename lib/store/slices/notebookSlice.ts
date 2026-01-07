@@ -160,6 +160,7 @@ export const createNotebookSlice: StateCreator<
           title: m.meta?.title || newNotebook.title,
           createdAt: m.created_at || new Date().toISOString(),
           processed: !!m.processed,
+          status: m.status || 'processing',
           thumbnail: m.thumbnail || undefined,
           meta: m.meta,
         })),
@@ -268,6 +269,7 @@ export const createNotebookSlice: StateCreator<
         createdAt: (newMaterial as any).created_at || new Date().toISOString(),
         thumbnail: (newMaterial as any).thumbnail || undefined,
         processed: (newMaterial as any).processed || false,
+        status: (newMaterial as any).status || 'processing',
         meta: (newMaterial as any).meta,
       };
 

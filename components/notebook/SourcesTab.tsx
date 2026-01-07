@@ -83,20 +83,8 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
       );
     }
 
-    if (notebook.status === 'failed') {
-      return (
-        <View style={styles.centerContainer}>
-          <Text style={{ fontSize: 40, marginBottom: 16 }}>⚠️</Text>
-          <Text style={[styles.errorTitle, { color: colors.text }]}>Processing Failed</Text>
-          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
-            Something went wrong while processing your materials. Please try again.
-          </Text>
-          <TouchableOpacity onPress={onAddPress} style={styles.retryButton}>
-            <Text style={styles.retryButtonText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
+    // If all materials failed and there's a notebook error, we might still show a message,
+    // but we generally want to avoid blocking the whole notebook view now.
 
     return (
       <ScrollView
@@ -132,39 +120,53 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
           {/* Phase B Loading: Backend Processing (DB State) */}
           {notebook.materials && notebook.materials.map((mat, index) => {
             const isImage = mat.type === 'image' || mat.type === 'photo';
-            const isProcessing = mat.processed === false;
+            const isProcessing = mat.processed === false || mat.status === 'processing';
+            const isFailed = mat.status === 'failed';
+            const errorMessage = mat.meta?.error;
 
             return (
               <TouchableOpacity
                 key={mat.id || index}
-                onPress={() => (isImage && !isProcessing) ? handleViewImage(mat) : undefined}
-                activeOpacity={(isImage && !isProcessing) ? 0.7 : 1}
+                onPress={() => (isImage && !isProcessing && !isFailed) ? handleViewImage(mat) : undefined}
+                activeOpacity={(isImage && !isProcessing && !isFailed) ? 0.7 : 1}
                 style={[
                   styles.materialItem,
                   {
                     backgroundColor: colors.surface,
-                    borderColor: isProcessing ? '#6366f1' : colors.border,
-                    borderWidth: isProcessing ? 1.5 : 1
+                    borderColor: isFailed ? colors.error : isProcessing ? '#6366f1' : colors.border,
+                    borderWidth: (isProcessing || isFailed) ? 1.5 : 1
                   },
                   shadows.small
                 ]}
               >
-                <View style={[styles.iconContainer, { backgroundColor: colors.surfaceAlt }]}>
+                <View style={[styles.iconContainer, { backgroundColor: isFailed ? colors.error + '15' : colors.surfaceAlt }]}>
                   {isProcessing ? (
                     <TikTokLoader size={10} color="#6366f1" containerWidth={40} />
+                  ) : isFailed ? (
+                    <Ionicons name="alert-circle" size={24} color={colors.error} />
                   ) : (
                     <Ionicons name={getMaterialIcon(mat.type)} size={22} color={colors.textSecondary} />
                   )}
                 </View>
                 <View style={{ flex: 1, marginLeft: 16 }}>
-                  <Text numberOfLines={1} style={[styles.materialTitle, { color: isProcessing ? '#6366f1' : colors.text }]}>
+                  <Text numberOfLines={1} style={[
+                    styles.materialTitle,
+                    { color: isFailed ? colors.error : (isProcessing ? '#6366f1' : colors.text) }
+                  ]}>
                     {mat.title || mat.filename || 'Untitled Source'}
                   </Text>
-                  <Text style={[styles.materialSubtitle, { color: colors.textSecondary }]}>
-                    {isProcessing ? 'Analyzing content...' : `${mat.type ? mat.type.charAt(0).toUpperCase() + mat.type.slice(1) : 'Source'} • ${new Date(mat.createdAt).toLocaleDateString()}`}
+                  <Text style={[styles.materialSubtitle, { color: isFailed ? colors.error : colors.textSecondary }]}>
+                    {isProcessing ? 'Analyzing content...' :
+                      isFailed ? (errorMessage || 'Processing failed') :
+                        `${mat.type ? mat.type.charAt(0).toUpperCase() + mat.type.slice(1) : 'Source'} • ${new Date(mat.createdAt).toLocaleDateString()}`}
                   </Text>
                 </View>
-                {!isProcessing && <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />}
+                {(!isProcessing && !isFailed) && <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />}
+                {isFailed && (
+                  <TouchableOpacity onPress={onAddPress} style={styles.miniRetryButton}>
+                    <Ionicons name="refresh" size={16} color="#FFF" />
+                  </TouchableOpacity>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -208,4 +210,5 @@ const styles = StyleSheet.create({
   errorText: { textAlign: 'center', marginTop: 8, fontFamily: 'Nunito-Regular' },
   retryButton: { marginTop: 24, backgroundColor: '#3B82F6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
   retryButtonText: { color: '#FFFFFF', fontFamily: 'Nunito-SemiBold' },
+  miniRetryButton: { backgroundColor: '#6366f1', width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
 });

@@ -26,6 +26,7 @@ export interface Material {
   external_url: string | null;
   content: string | null;
   processed: boolean;
+  status?: 'processing' | 'processed' | 'failed';
   meta?: Record<string, any>;
 }
 

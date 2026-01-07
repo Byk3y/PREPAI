@@ -58,6 +58,7 @@ export const notebookService = {
                 title: m.meta?.title || nb.title,
                 createdAt: m.created_at,
                 processed: !!m.processed,
+                status: m.status || 'processing',
                 thumbnail: m.thumbnail,
                 meta: m.meta,
             })),
@@ -98,8 +99,8 @@ export const notebookService = {
                     ? notebook.material.uri
                     : null,
                 content: isFileUpload ? null : notebook.material?.content,
-                preview_text: null,
                 processed: false,
+                status: 'processing',
                 processed_at: null,
             };
 
@@ -202,6 +203,7 @@ export const notebookService = {
                 content: isFileUpload ? null : material.content,
                 preview_text: null,
                 processed: false,
+                status: 'processing',
                 processed_at: null,
                 meta: {
                     title: material.title || material.filename || 'Source',

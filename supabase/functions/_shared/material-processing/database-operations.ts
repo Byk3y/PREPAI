@@ -43,7 +43,8 @@ export class MaterialRepository {
       .from('materials')
       .update({
         content,
-        processed: true,
+        processed: true, // Keep for compatibility
+        status: 'processed',
         processed_at: new Date().toISOString(),
         meta: {
           ...existingMeta,
@@ -88,12 +89,32 @@ export class MaterialRepository {
   }
 
   /**
+   * Update material status to failed with error message
+   */
+  async updateWithError(materialId: string, errorMessage: string): Promise<void> {
+    const { data: existing } = await this.findById(materialId);
+    const existingMeta = existing?.meta || {};
+
+    await this.supabase
+      .from('materials')
+      .update({
+        status: 'failed',
+        meta: {
+          ...existingMeta,
+          error: errorMessage,
+          failed_at: new Date().toISOString(),
+        },
+      })
+      .eq('id', materialId);
+  }
+
+  /**
    * Find all materials for a notebook (for building content summary)
    */
   async findAllByNotebook(notebookId: string): Promise<any[]> {
     const { data } = await this.supabase
       .from('materials')
-      .select('meta, kind')
+      .select('id, meta, kind, status, title, filename, created_at')
       .eq('notebook_id', notebookId);
 
     return data || [];
@@ -171,16 +192,19 @@ export class NotebookRepository {
 
   /**
    * Update notebook with error information
+   * Now less terminal - doesn't necessarily block the whole notebook
    */
   async updateWithError(notebookId: string, originalTitle: string, errorMessage: string): Promise<void> {
     await this.supabase
       .from('notebooks')
       .update({
-        title: originalTitle, // Preserve original title on error
-        status: 'failed', // Set to failed so UI stops loading and allows retry
+        title: originalTitle,
+        // We still set 'ready_for_studio' even on error if some materials exist,
+        // so the notebook isn't completely locked.
+        status: 'ready_for_studio',
         meta: {
           error: errorMessage,
-          failed_at: new Date().toISOString(),
+          last_failure_at: new Date().toISOString(),
         },
       })
       .eq('id', notebookId);

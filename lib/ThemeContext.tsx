@@ -87,6 +87,7 @@ export const getThemeColors = (isDark: boolean) => ({
   primaryDark: theme.colors.primary[600],
   accent: theme.colors.accent.DEFAULT,
   success: theme.colors.success,
+  error: theme.colors.error,
   neutral: {
     light: theme.colors.neutral[300],
     DEFAULT: theme.colors.neutral.DEFAULT,
