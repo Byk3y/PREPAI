@@ -45,30 +45,58 @@ Deno.serve(async (req) => {
     const usageLogger = new UsageLogger(supabase);
     const storageCleanup = new StorageCleanup(supabase);
 
-    // AUTHENTICATION: Verify user from JWT token
+    // AUTHENTICATION: Verify user from JWT token or Internal Secret
     const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const isInternalWebhook = req.headers.get('x-internal-webhook') === 'true';
+
+    let user = null;
+    let isServiceBackdoor = false;
+
+    if (isInternalWebhook) {
+      // Internal system-to-system call (Bulletproof Architecture)
+      isServiceBackdoor = true;
+      console.log('[Auth] Bypassing user JWT for internal webhook call');
+    } else {
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
+
+      if (authError || !authUser) {
+        return new Response(JSON.stringify({ error: 'Unauthorized', details: authError }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      user = authUser;
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    // Parse request body
+    const body = await req.json();
+    let materialId = body.material_id;
 
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized', details: authError }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Handle Database Webhook payload if applicable
+    // Webhooks send a payload like { record: { ... }, type: 'INSERT', ... }
+    if (body.record && body.table === 'objects' && body.schema === 'storage') {
+      const storagePath = body.record.name; // user_id/material_id/filename
+      materialId = storagePath.split('/')[1];
+      console.log(`[Webhook] Detected storage upload for material: ${materialId}`);
     }
-
-    // Parse and validate request body
-    const { material_id } = await req.json();
 
     // Validate material_id
-    const materialIdValidation = validateUUID(material_id, 'material_id');
+    if (!materialId) {
+      return new Response(JSON.stringify({ error: 'Missing material_id' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const materialIdValidation = validateUUID(materialId, 'material_id');
     if (!materialIdValidation.isValid) {
       return new Response(JSON.stringify({ error: materialIdValidation.error }), {
         status: 400,
@@ -76,8 +104,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch material and verify ownership
-    const { data: material, error: materialError } = await materialRepo.findById(material_id);
+    // Fetch material and verify ownership (if not service backdoor)
+    const { data: material, error: materialError } = await materialRepo.findById(materialId);
 
     if (materialError || !material) {
       return new Response(JSON.stringify({ error: 'Material not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -96,14 +124,16 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Notebook not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // AUTHORIZATION: Verify user owns this notebook/material
-    if (notebook.user_id !== user.id) {
-      return new Response(
-        JSON.stringify({
-          error: 'Forbidden: You do not have permission to access this material',
-        }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // AUTHORIZATION: Verify user owns this notebook/material (unless it's an internal webhook)
+    if (!isServiceBackdoor) {
+      if (!user || notebook.user_id !== user.id) {
+        return new Response(
+          JSON.stringify({
+            error: 'Forbidden: You do not have permission to access this material',
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     const userId = notebook.user_id;
@@ -153,7 +183,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          material_id,
+          materialId,
           notebook_id: notebookId,
           background_processing: true,
           job_id: largePDFCheck.jobId,
@@ -169,7 +199,7 @@ Deno.serve(async (req) => {
 
     try {
       // STEP 1: Extract content
-      console.log(`Extracting content from ${material.kind}: ${material_id}`);
+      console.log(`Extracting content from ${material.kind}: ${materialId}`);
       const contentExtractor = new ContentExtractor(supabase);
       const { text: extractedContent, metadata: extractMetadata } = await contentExtractor.extract(material);
 
@@ -177,7 +207,7 @@ Deno.serve(async (req) => {
 
       // STEP 2: Save extracted content
       await materialRepo.updateWithExtractedContent(
-        material_id,
+        materialId,
         extractedContent,
         material.meta || {},
         extractMetadata || {}
@@ -243,7 +273,7 @@ Deno.serve(async (req) => {
       await Promise.all([
         // Update material with preview
         materialRepo.updateWithPreview(
-          material_id,
+          materialId,
           preview.overview,
           contentClassification,
           material.meta || {}
@@ -269,7 +299,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          material_id,
+          materialId,
           notebook_id: notebookId,
           preview,
           message: 'Material processed and preview generated',
