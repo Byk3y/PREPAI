@@ -261,7 +261,7 @@ export const notebookService = {
             );
             await supabase
                 .from('notebooks')
-                .update({ status: 'failed' })
+                .update({ status: 'ready_for_studio' })
                 .eq('id', notebookId);
             return { status: 'failed' };
         }
@@ -270,7 +270,7 @@ export const notebookService = {
             // Trigger Edge Function asynchronously
             // Create timeout promise (60 seconds)
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Edge Function request timed out after 120s')), 120000)
+                setTimeout(() => reject(new Error('Edge Function request timed out after 180s')), 180000)
             );
 
             // Race between Edge Function invocation and timeout
@@ -292,7 +292,7 @@ export const notebookService = {
                     });
                     await supabase
                         .from('notebooks')
-                        .update({ status: 'failed' })
+                        .update({ status: 'ready_for_studio' })
                         .eq('id', notebookId);
                     return { status: 'failed', error };
                 } else {
@@ -324,10 +324,18 @@ export const notebookService = {
                         userId,
                         metadata: { notebookId, materialId, errorType: 'timeout', timeout: '120s' }
                     });
-                    // After 120s of no response, something is wrong. Mark as failed so user can retry.
+                    // After 180s of no response, something is wrong. Mark material as failed so user can retry.
+                    await supabase
+                        .from('materials')
+                        .update({
+                            status: 'failed',
+                            meta: { error: 'Request timed out after 180s. Please retry.' }
+                        })
+                        .eq('id', materialId);
+
                     await supabase
                         .from('notebooks')
-                        .update({ status: 'failed' })
+                        .update({ status: 'ready_for_studio' })
                         .eq('id', notebookId);
                     return { status: 'failed', error: err };
                 } else if (isNetworkError) {
@@ -348,16 +356,57 @@ export const notebookService = {
                         userId,
                         metadata: { notebookId, materialId, errorType: 'permanent' }
                     });
-                    // Permanent error, mark as failed
+                    // Permanent error, mark as ready_for_studio so user can retry
                     await supabase
                         .from('notebooks')
-                        .update({ status: 'failed' })
+                        .update({ status: 'ready_for_studio' })
                         .eq('id', notebookId);
                     return { status: 'failed', error: err };
                 }
             }
         }
         return { status: 'pending' };
+    },
+
+    retryProcessing: async (notebookId: string, materialId: string) => {
+        try {
+            // Re-mark material as processing
+            await supabase
+                .from('materials')
+                .update({ status: 'processing', processed: false })
+                .eq('id', materialId);
+
+            // Re-mark notebook as extracting
+            await supabase
+                .from('notebooks')
+                .update({ status: 'extracting' })
+                .eq('id', notebookId);
+
+            // Trigger processing again
+            const result = await supabase.functions.invoke('process-material', {
+                body: { material_id: materialId },
+            });
+
+            if (result.error) throw result.error;
+            return { success: true };
+        } catch (error: any) {
+            console.error('Retry failed:', error.message);
+            // On immediate trigger failure, reset status so UI isn't stuck
+            await supabase
+                .from('materials')
+                .update({
+                    status: 'failed',
+                    meta: { error: `Retry failed: ${error.message}` }
+                })
+                .eq('id', materialId);
+
+            await supabase
+                .from('notebooks')
+                .update({ status: 'ready_for_studio' })
+                .eq('id', notebookId);
+
+            return { success: false, error: error.message };
+        }
     },
 
     deleteNotebook: async (userId: string, notebookId: string) => {
@@ -628,7 +677,15 @@ export const notebookService = {
 
                 if (uploadResult.error) {
                     console.error('[NotebookService] Background upload failed:', uploadResult.error);
-                    await supabase.from('notebooks').update({ status: 'failed' }).eq('id', notebookId);
+                    await supabase
+                        .from('materials')
+                        .update({
+                            status: 'failed',
+                            meta: { error: `Upload failed: ${uploadResult.error}` }
+                        })
+                        .eq('id', materialId);
+
+                    await supabase.from('notebooks').update({ status: 'ready_for_studio' }).eq('id', notebookId);
                     return { status: 'failed', error: uploadResult.error };
                 }
 
@@ -653,7 +710,15 @@ export const notebookService = {
             return triggerResult;
         } catch (error) {
             console.error('[NotebookService] Background processing fatal error:', error);
-            await supabase.from('notebooks').update({ status: 'failed' }).eq('id', notebookId);
+            await supabase
+                .from('materials')
+                .update({
+                    status: 'failed',
+                    meta: { error: `Internal error: ${error.message || 'Unknown'}` }
+                })
+                .eq('id', materialId);
+
+            await supabase.from('notebooks').update({ status: 'ready_for_studio' }).eq('id', notebookId);
             return { status: 'failed', error };
         }
     },

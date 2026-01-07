@@ -56,7 +56,6 @@ async function processJob(
             p_message: 'Downloading PDF from storage...',
         });
 
-        // Get material details
         const { data: material, error: materialError } = await supabase
             .from('materials')
             .select('*')
@@ -66,6 +65,9 @@ async function processJob(
         if (materialError || !material) {
             throw new Error(`Material not found: ${materialError?.message || 'Unknown'}`);
         }
+
+        // Set status to processing immediately
+        await supabase.from('materials').update({ status: 'processing' }).eq('id', job.p_material_id);
 
         // Get notebook details
         const { data: notebook, error: notebookError } = await supabase

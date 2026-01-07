@@ -55,6 +55,7 @@ export default function NotebookDetailScreen() {
     handleTextSave,
     handleYouTubeImport,
     handleWebsiteImport,
+    handleRetryMaterial,
     showUpgradeModal: showAddUpgradeModal,
     setShowUpgradeModal: setShowAddUpgradeModal,
     limitReason,
@@ -175,6 +176,7 @@ export default function NotebookDetailScreen() {
             notebook={notebook}
             onAddPress={() => setShowMaterialSelector(true)}
             onCameraPress={handleCameraUpload}
+            onRetryMaterial={handleRetryMaterial}
             isAddingMaterial={isAddingMaterial}
           />
         )}

@@ -254,6 +254,22 @@ export const useMaterialAddition = (notebookId: string) => {
         return await wrapped();
     }, [checkCanAdd, addMaterial, notebookId, withErrorHandling]);
 
+    const handleRetryMaterial = useCallback(async (materialId: string) => {
+        const { notebookService } = await import('@/lib/services/notebookService');
+        const wrapped = withErrorHandling(async () => {
+            setIsAddingMaterial(true);
+            try {
+                await notebookService.retryProcessing(notebookId, materialId);
+                // Refresh notebooks to get the new status
+                await loadNotebooks();
+                return true;
+            } finally {
+                setIsAddingMaterial(false);
+            }
+        }, { operation: 'retry_material' });
+        return await wrapped();
+    }, [notebookId, loadNotebooks, withErrorHandling]);
+
     return {
         isAddingMaterial,
         handleAudioUpload,
@@ -263,6 +279,7 @@ export const useMaterialAddition = (notebookId: string) => {
         handleTextSave,
         handleYouTubeImport,
         handleWebsiteImport,
+        handleRetryMaterial,
         showUpgradeModal,
         setShowUpgradeModal,
         limitReason,

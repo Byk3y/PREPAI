@@ -19,6 +19,7 @@ interface SourcesTabProps {
   notebook: Notebook;
   onAddPress: () => void;
   onCameraPress: () => void;
+  onRetryMaterial?: (materialId: string) => void;
   isAddingMaterial?: boolean; // Phase A: Uploading/Saving
 }
 
@@ -26,6 +27,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
   notebook,
   onAddPress,
   onCameraPress,
+  onRetryMaterial,
   isAddingMaterial
 }) => {
   const router = useRouter();
@@ -163,7 +165,10 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                 </View>
                 {(!isProcessing && !isFailed) && <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />}
                 {isFailed && (
-                  <TouchableOpacity onPress={onAddPress} style={styles.miniRetryButton}>
+                  <TouchableOpacity
+                    onPress={() => onRetryMaterial?.(mat.id)}
+                    style={styles.miniRetryButton}
+                  >
                     <Ionicons name="refresh" size={16} color="#FFF" />
                   </TouchableOpacity>
                 )}
