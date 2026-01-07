@@ -54,10 +54,10 @@ const MODELS: Record<string, ModelConfig> = {
 
 // Fallback models if primary fails
 const FALLBACK_MODELS: Record<string, string[]> = {
-  preview: ['deepseek/deepseek-chat', 'mistralai/mistral-small'],
+  preview: ['deepseek/deepseek-chat', 'meta-llama/llama-3.3-70b-instruct:free', 'mistralai/mistral-small'],
   studio: ['x-ai/grok-4.1-fast', 'openai/gpt-4o'],
   audio_script: ['openai/gpt-4o-mini'],
-  notebook_chat: ['x-ai/grok-4.1-fast', 'openai/gpt-4o'],
+  notebook_chat: ['x-ai/grok-4.1-fast', 'meta-llama/llama-3.3-70b-instruct:free', 'openai/gpt-4o'],
 };
 
 /**
