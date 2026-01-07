@@ -145,6 +145,12 @@ export const InAppNotification: React.FC = () => {
                 return { icon: 'help-circle', color: '#0891b2', label: 'Quiz Ready' };
             case 'success':
                 return { icon: 'checkmark-circle', color: '#22c55e', label: 'Success' };
+            case 'warning':
+                return { icon: 'alert-circle', color: '#F59E0B', label: 'Warning' };
+            case 'offline':
+                return { icon: 'cloud-offline', color: '#EF4444', label: 'Offline' };
+            case 'info':
+                return { icon: 'information-circle', color: '#6366f1', label: 'Info' };
             default:
                 return { icon: 'notifications', color: '#94a3b8', label: 'Notification' };
         }

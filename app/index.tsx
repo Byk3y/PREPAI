@@ -25,6 +25,7 @@ import { useHomeNavigation } from '@/hooks/useHomeNavigation';
 import { useTrialSubscriptionUI } from '@/hooks/useTrialSubscriptionUI';
 import { useNotebookList } from '@/hooks/useNotebookList';
 import { useHomeAnalytics } from '@/hooks/useHomeAnalytics';
+import { PendingSyncIndicator } from '@/components/PendingSyncIndicator';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -303,6 +304,9 @@ export default function HomeScreen() {
         onAddPress={handleCreateNotebook}
         bottom={50}
       />
+
+      {/* Pending Sync Indicator */}
+      <PendingSyncIndicator />
 
 
       {/* Modals */}

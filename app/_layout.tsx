@@ -53,6 +53,8 @@ import { ErrorNotificationContainer } from '@/components/ErrorNotificationContai
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { InAppNotification } from '@/components/InAppNotification';
 import { SecondarySplashScreen } from '@/components/SecondarySplashScreen';
+import { NetworkProvider } from '@/lib/contexts/NetworkContext';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import '../global.css';
 
 // Custom hooks for modular functionality
@@ -200,6 +202,7 @@ function RootLayoutInner() {
       />
 
       <InAppNotification />
+      <OfflineBanner />
     </View>
   );
 }
@@ -208,12 +211,14 @@ function RootLayoutInner() {
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <ErrorBoundary component="RootLayout">
-        <ErrorNotificationProvider>
-          <ErrorNotificationContainer />
-          <RootLayoutInner />
-        </ErrorNotificationProvider>
-      </ErrorBoundary>
+      <NetworkProvider>
+        <ErrorBoundary component="RootLayout">
+          <ErrorNotificationProvider>
+            <ErrorNotificationContainer />
+            <RootLayoutInner />
+          </ErrorNotificationProvider>
+        </ErrorBoundary>
+      </NetworkProvider>
     </ThemeProvider>
   );
 }
