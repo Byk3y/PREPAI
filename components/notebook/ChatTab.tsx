@@ -90,8 +90,18 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
   const selectedCount = selectedMaterialIds.length;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef<ScrollView>(null);
-  const [isReadyToShow, setIsReadyToShow] = useState(false);
-  const contentOpacity = useRef(new Animated.Value(0)).current;
+
+  // Check for cached data at initialization time to prevent flicker
+  // This runs once when component mounts
+  const hasCachedDataOnMount = useRef(() => {
+    const cachedNotebook = useStore.getState().notebooks.find(n => n.id === notebook.id);
+    return Array.isArray(cachedNotebook?.chat_messages);
+  }).current();
+
+  // Initialize opacity and ready state based on whether we have cached data
+  // If cached, start visible (opacity 1). If not, start hidden (opacity 0) for fade-in.
+  const [isReadyToShow, setIsReadyToShow] = useState(hasCachedDataOnMount);
+  const contentOpacity = useRef(new Animated.Value(hasCachedDataOnMount ? 1 : 0)).current;
 
   const { sendMessage, isStreaming } = useNotebookChat(notebook.id);
 
@@ -149,15 +159,21 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
   const userEducationLevel = useStore(state => state.educationLevel);
 
   // Track if we've done the initial scroll to avoid annoying "quick scroll" animation on entry
-  const hasInitiallyScrolled = useRef(false);
+  // Initialize based on cached data - if cached, we're already "scrolled"
+  const hasInitiallyScrolled = useRef(hasCachedDataOnMount);
   // Track if initial messages have been loaded from the server
-  const isInitialLoadComplete = useRef(false);
+  const isInitialLoadComplete = useRef(hasCachedDataOnMount);
   // Track the message count at the time of initial load to distinguish from new messages
-  const initialMessageCount = useRef<number | null>(null);
+  // If we have cached data, initialize with the cached message count
+  const initialMessageCount = useRef<number | null>(
+    hasCachedDataOnMount
+      ? (useStore.getState().notebooks.find(n => n.id === notebook.id)?.chat_messages?.length ?? 0)
+      : null
+  );
   // Track if content has had at least one layout pass
-  const hasContentLayouted = useRef(false);
+  const hasContentLayouted = useRef(hasCachedDataOnMount);
   // Track ready state in a ref to avoid stale closure in async callbacks
-  const isReadyToShowRef = useRef(false);
+  const isReadyToShowRef = useRef(hasCachedDataOnMount);
 
   // Helper function to perform the reveal sequence
   const performReveal = () => {
@@ -187,16 +203,26 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
     }, 60);
   };
 
-  // Load chat messages on mount
+  // Load chat messages on mount - with smart cache check
   useEffect(() => {
-    // Reset all tracking refs for fresh load
-    hasInitiallyScrolled.current = false;
-    isInitialLoadComplete.current = false;
-    initialMessageCount.current = null;
-    hasContentLayouted.current = false;
-    isReadyToShowRef.current = false;
-    setIsReadyToShow(false);
-    contentOpacity.setValue(0);
+    // hasCachedDataOnMount was already computed at initialization
+    // State and refs are already correctly initialized based on it
+
+    if (hasCachedDataOnMount) {
+      // FAST PATH: Cache exists - everything is already set up for immediate display
+      // Just need to scroll to end after layout settles
+      console.log(`[ChatTab] Using cached messages for notebook ${notebook.id}`);
+
+      setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: false });
+      }, 50);
+
+      return; // Skip network fetch
+    }
+
+    // NORMAL PATH: No cache - do fresh load with fade animation
+    // This handles: first visit to notebook in this session
+    console.log(`[ChatTab] No cached messages for notebook ${notebook.id}, fetching from server`);
 
     // Load messages and track completion
     const loadMessages = async () => {
@@ -441,21 +467,28 @@ export const ChatTab: React.FC<ChatTabProps> = ({ notebook, onTakeQuiz }) => {
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={handleContentSizeChange}
       >
-        <Animated.View style={{ flex: 1, opacity: contentOpacity }}>
-          {/* Material Icon & Title */}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 }}>
-            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-              <Text style={{ fontSize: 48, marginRight: 12 }}>{notebook.emoji || getTopicEmoji(notebook.title)}</Text>
-            </Animated.View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 24, color: colors.text, marginBottom: 4, fontFamily: 'Nunito-Bold' }}>
-                {notebook.title}
-              </Text>
-              <Text style={{ fontSize: 14, color: colors.textSecondary, fontFamily: 'Nunito-Regular' }}>
-                {materialCount} source{materialCount !== 1 ? 's' : ''}
-              </Text>
-            </View>
+        {/* Material Icon & Title - Always visible for better perceived performance */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 }}>
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <Text style={{ fontSize: 48, marginRight: 12 }}>{notebook.emoji || getTopicEmoji(notebook.title)}</Text>
+          </Animated.View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 24, color: colors.text, marginBottom: 4, fontFamily: 'Nunito-Bold' }}>
+              {notebook.title}
+            </Text>
+            <Text style={{ fontSize: 14, color: colors.textSecondary, fontFamily: 'Nunito-Regular' }}>
+              {materialCount} source{materialCount !== 1 ? 's' : ''}
+            </Text>
           </View>
+        </View>
+
+        {!isReadyToShow && (
+          <View style={{ marginTop: 8 }}>
+            <PreviewSkeleton lines={14} />
+          </View>
+        )}
+
+        <Animated.View style={{ flex: 1, opacity: contentOpacity }}>
 
           {/* Mastery Calibration Badge */}
           {userEducationLevel && (
