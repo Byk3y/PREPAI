@@ -114,9 +114,11 @@ export const audioService = {
         .single();
 
       if (error || !data) {
-        if (__DEV__) {
-          console.error('[Audio Service] Podcast not found:', error);
-        }
+        handleError(error || new Error('Podcast not found'), {
+          operation: 'get_audio_overview_by_id',
+          component: 'audio-service',
+          metadata: { overviewId }
+        });
         return null;
       }
 

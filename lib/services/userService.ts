@@ -248,6 +248,11 @@ export const userService = {
 
       return data as any;
     } catch (error: any) {
+      await handleError(error, {
+        operation: 'check_streak_status',
+        component: 'user-service',
+        metadata: { userId }
+      });
       console.error('Error in checkStreakStatus:', error);
       return { success: false, error: error.message };
     }
