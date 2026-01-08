@@ -68,6 +68,7 @@ import { useAppStateMonitoring } from '@/hooks/useAppStateMonitoring';
 import { useRoutingLogic } from '@/hooks/useRoutingLogic';
 import { useStreakCheck } from '@/hooks/useStreakCheck';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useWidgetSync } from '@/hooks/useWidgetSync';
 import { useStore } from '@/lib/store';
 
 // Initialize audio configuration
@@ -98,6 +99,7 @@ function RootLayoutInner() {
   useAppStateMonitoring();
   useStreakCheck();
   usePushNotifications();
+  useWidgetSync();
 
   // Initialize RevenueCat and Audio Preloading
   useEffect(() => {
