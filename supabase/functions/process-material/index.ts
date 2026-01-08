@@ -24,6 +24,10 @@ import { PreviewGenerator } from '../_shared/material-processing/preview-generat
 import { ContentExtractor } from '../_shared/material-processing/content-extractor.ts';
 import { LargePDFHandler } from '../_shared/material-processing/large-pdf-handler.ts';
 import { MaterialRepository, NotebookRepository, UsageLogger, StorageCleanup } from '../_shared/material-processing/database-operations.ts';
+import { initSentry, captureException, setUser } from '../_shared/sentry.ts';
+
+// Initialize Sentry once when the isolate starts
+initSentry();
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -32,6 +36,7 @@ Deno.serve(async (req) => {
   }
 
   const corsHeaders = getCorsHeaders(req);
+  let notebookId: string | undefined;
 
   try {
     // Initialize Supabase client (service role)
@@ -74,6 +79,8 @@ Deno.serve(async (req) => {
         });
       }
       user = authUser;
+      // Set user context in Sentry for better debugging
+      setUser(user.id);
     }
 
     // Parse request body
@@ -112,7 +119,7 @@ Deno.serve(async (req) => {
     }
 
     // Get notebook from the new notebook_id column
-    const notebookId = material.notebook_id;
+    notebookId = material.notebook_id;
 
     if (!notebookId) {
       return new Response(JSON.stringify({ error: 'Material is not associated with a notebook' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -312,6 +319,14 @@ Deno.serve(async (req) => {
     } catch (processingError: any) {
       console.error('Processing error:', processingError);
 
+      // Capture error in Sentry with context
+      await captureException(processingError, {
+        material_id: materialId,
+        notebook_id: notebookId,
+        user_id: user?.id,
+        operation: 'process-material-main'
+      });
+
       // Update material with specific error
       await materialRepo.updateWithError(materialId, processingError.message);
 
@@ -325,6 +340,13 @@ Deno.serve(async (req) => {
     }
   } catch (error: any) {
     console.error('Fatal error:', error);
+
+    // Capture fatal error in Sentry
+    await captureException(error, {
+      operation: 'process-material-fatal',
+      notebook_id: notebookId,
+      user_id: user?.id,
+    });
 
     return new Response(
       JSON.stringify({

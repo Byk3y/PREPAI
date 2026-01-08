@@ -106,7 +106,12 @@ export const completionService = {
         if (error.code === '23505') return;
         throw error;
       }
-    } catch (error) {
+    } catch (error: any) {
+      await handleError(error, {
+        operation: 'record_quiz_question_answer',
+        component: 'completion-service',
+        metadata: { userId, questionId }
+      });
       console.error('Failed to record quiz question answer:', error);
     }
   },
@@ -127,7 +132,12 @@ export const completionService = {
       if (progress.current >= threshold && onThresholdMet) {
         await onThresholdMet();
       }
-    } catch (error) {
+    } catch (error: any) {
+      await handleError(error, {
+        operation: 'check_award_task_threshold',
+        component: 'completion-service',
+        metadata: { userId, taskKey, timezone, threshold }
+      });
       console.error('Check task threshold failed:', error);
     }
   },

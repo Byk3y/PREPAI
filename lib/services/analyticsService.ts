@@ -11,6 +11,7 @@
  */
 
 import Constants from 'expo-constants';
+import { handleError } from '@/lib/errors';
 
 // Safely import Mixpanel - it may not be available if native module isn't linked
 let MixpanelClass: any = null;
@@ -94,6 +95,10 @@ export async function initMixpanel() {
       console.log('[Mixpanel] Test event sent: app_launched');
     }
   } catch (error) {
+    await handleError(error, {
+      operation: 'mixpanel_init',
+      component: 'analytics-service',
+    });
     console.error('[Mixpanel] Initialization error:', error);
     mixpanelInstance = null;
     isInitialized = false;
@@ -122,6 +127,11 @@ export function track(event: string, properties?: Record<string, any>): void {
       }
     }
   } catch (error) {
+    handleError(error, {
+      operation: 'mixpanel_track',
+      component: 'analytics-service',
+      metadata: { event, properties }
+    }).catch(() => { }); // Fire-and-forget, error already logged
     console.error('[Mixpanel] Track error:', error);
   }
 }
@@ -151,6 +161,11 @@ export function identify(userId: string): void {
       }
     }
   } catch (error) {
+    handleError(error, {
+      operation: 'mixpanel_identify',
+      component: 'analytics-service',
+      metadata: { userId }
+    }).catch(() => { }); // Fire-and-forget, error already logged
     console.error('[Mixpanel] Identify error:', error);
   }
 }
@@ -178,6 +193,11 @@ export function setUserProperties(properties: Record<string, any>): void {
       }
     }
   } catch (error) {
+    handleError(error, {
+      operation: 'mixpanel_set_user_properties',
+      component: 'analytics-service',
+      metadata: { properties }
+    }).catch(() => { }); // Fire-and-forget, error already logged
     console.error('[Mixpanel] Set user properties error:', error);
   }
 }

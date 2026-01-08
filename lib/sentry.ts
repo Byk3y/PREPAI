@@ -37,6 +37,19 @@ export function initSentry() {
     enableNativeNagger: false,
     // Automatically attach breadcrumbs
     attachStacktrace: true,
+    // Session Replay Configuration
+    // Record 10% of all sessions in production (0.1)
+    replaysSessionSampleRate: __DEV__ ? 0.0 : 0.1,
+    // Always record if an error happens (1.0)
+    replaysOnErrorSampleRate: 1.0,
+    integrations: [
+      Sentry.mobileReplayIntegration({
+        // Privacy: Mask all text and images by default
+        maskAllText: true,
+        maskAllImages: true,
+        maskAllVectors: true,
+      }),
+    ],
     // Filter out non-critical errors if needed
     beforeSend(event, hint) {
       // In development, don't send any events

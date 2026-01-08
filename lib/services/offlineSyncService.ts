@@ -4,6 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { handleError } from '@/lib/errors';
 
 const SYNC_QUEUE_KEY = 'brigo_sync_queue';
 const MAX_QUEUE_SIZE = 50;
@@ -40,7 +41,10 @@ export async function loadSyncQueue(): Promise<SyncQueue> {
             return JSON.parse(stored);
         }
     } catch (error) {
-        console.error('[OfflineSync] Error loading queue:', error);
+        await handleError(error, {
+            operation: 'load_sync_queue',
+            component: 'offline-sync-service',
+        });
     }
     return { items: [], lastSyncAt: null };
 }
@@ -52,7 +56,10 @@ async function saveSyncQueue(queue: SyncQueue): Promise<void> {
     try {
         await AsyncStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
     } catch (error) {
-        console.error('[OfflineSync] Error saving queue:', error);
+        await handleError(error, {
+            operation: 'save_sync_queue',
+            component: 'offline-sync-service',
+        });
     }
 }
 
@@ -194,13 +201,11 @@ export async function processSyncQueue(
                 console.error(`[OfflineSync] ❌ Failed ${item.type} after ${retryCount} attempts:`, error);
 
                 // Report permanent failure to Sentry for production visibility
-                const { captureException } = require('@sentry/react-native');
-                captureException(error, {
-                    tags: {
-                        operation: 'offline_sync_permanent_failure',
+                await handleError(error, {
+                    operation: 'offline_sync_permanent_failure',
+                    component: 'offline-sync-service',
+                    metadata: {
                         sync_type: item.type,
-                    },
-                    extra: {
                         itemId: item.id,
                         retryCount,
                         createdAt: new Date(item.createdAt).toISOString(),

@@ -390,6 +390,11 @@ export const notebookService = {
             if (result.error) throw result.error;
             return { success: true };
         } catch (error: any) {
+            await handleError(error, {
+                operation: 'retry_processing',
+                component: 'notebook-service',
+                metadata: { notebookId, materialId }
+            });
             console.error('Retry failed:', error.message);
             // On immediate trigger failure, reset status so UI isn't stuck
             await supabase
@@ -708,7 +713,12 @@ export const notebookService = {
             );
             console.log(`[NotebookService] Edge Function trigger result for ${materialId}:`, triggerResult?.status);
             return triggerResult;
-        } catch (error) {
+        } catch (error: any) {
+            await handleError(error, {
+                operation: 'background_processing_fatal',
+                component: 'notebook-service',
+                metadata: { userId, notebookId, materialId, isFileUpload }
+            });
             console.error('[NotebookService] Background processing fatal error:', error);
             await supabase
                 .from('materials')

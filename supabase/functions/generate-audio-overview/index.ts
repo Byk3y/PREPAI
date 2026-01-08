@@ -12,6 +12,10 @@ import { generatePodcastAudioWithRetry, getAudioDuration } from '../_shared/gemi
 import { getRequiredEnv, getOptionalEnv } from '../_shared/env.ts';
 import { getCorsHeaders, getCorsPreflightHeaders } from '../_shared/cors.ts';
 import { checkRateLimit, RATE_LIMITS } from '../_shared/ratelimit.ts';
+import { initSentry, captureException, setUser } from '../_shared/sentry.ts';
+
+// Initialize Sentry
+initSentry();
 
 interface GenerateAudioRequest {
   notebook_id: string;
@@ -32,6 +36,9 @@ Deno.serve(async (req) => {
   }
 
   const corsHeaders = getCorsHeaders(req);
+  let user: any = null;
+  let notebook_id: string | undefined;
+  let content_type: string | undefined;
 
   try {
     // 1. Initialize Supabase client (service role for database operations)
@@ -49,9 +56,9 @@ Deno.serve(async (req) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
 
-    if (authError || !user) {
+    if (authError || !authUser) {
       console.error('Auth error:', authError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
@@ -59,10 +66,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    user = authUser;
+    // Set Sentry user context
+    setUser(user.id);
+
     console.log(`User authenticated: ${user.id}`);
 
     // 3. Parse request
-    const { notebook_id }: GenerateAudioRequest = await req.json();
+    const body: GenerateAudioRequest = await req.json();
+    notebook_id = body.notebook_id;
 
     if (!notebook_id) {
       return new Response(
@@ -293,6 +305,15 @@ Deno.serve(async (req) => {
 
         } catch (error: any) {
           console.error('[Background] Script generation failed:', error);
+
+          // Report to Sentry before marking as failed
+          await captureException(error, {
+            user_id: user?.id,
+            notebook_id,
+            overview_id: overview.id,
+            operation: 'generate-audio-script'
+          });
+
           await supabase
             .from('audio_overviews')
             .update({
@@ -315,6 +336,15 @@ Deno.serve(async (req) => {
 
         } catch (error: any) {
           console.error('[Background] Audio generation failed:', error);
+
+          // Report to Sentry before marking as failed
+          await captureException(error, {
+            user_id: user?.id,
+            notebook_id,
+            overview_id: overview.id,
+            operation: 'generate-audio-tts'
+          });
+
           await supabase
             .from('audio_overviews')
             .update({
@@ -350,6 +380,15 @@ Deno.serve(async (req) => {
           console.log(`[Background] Uploaded to storage: ${storagePath}`);
         } catch (error: any) {
           console.error('[Background] Storage upload failed:', error);
+
+          // Report to Sentry before marking as failed
+          await captureException(error, {
+            user_id: user?.id,
+            notebook_id,
+            overview_id: overview.id,
+            operation: 'generate-audio-storage-upload'
+          });
+
           await supabase
             .from('audio_overviews')
             .update({
@@ -410,6 +449,14 @@ Deno.serve(async (req) => {
 
       } catch (globalError: any) {
         console.error('[Background] Critical failure:', globalError);
+
+        // Capture background error in Sentry
+        await captureException(globalError, {
+          user_id: user?.id,
+          notebook_id,
+          operation: 'generate-audio-overview-background'
+        });
+
         try {
           await supabase.from('usage_logs').insert({
             user_id: user.id,
@@ -446,11 +493,16 @@ Deno.serve(async (req) => {
   } catch (error: any) {
     console.error('Initial error starting podcast:', error);
 
-    return new Response(
-      JSON.stringify({
-        error: error.message || 'Internal server error',
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    // Capture error in Sentry
+    await captureException(error, {
+      user_id: user?.id,
+      notebook_id,
+      operation: 'generate-audio-overview-initial'
+    });
+
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
