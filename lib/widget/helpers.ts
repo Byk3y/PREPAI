@@ -40,6 +40,14 @@ export function buildWidgetData(params: {
     type: 'level_up' | 'streak_milestone' | 'stage_up';
     value: number;
   };
+
+  // Optional: Smart Deep-Linking (New)
+  suggestedActivity?: {
+    type: 'podcast' | 'quiz' | 'notebook';
+    id: string;
+    notebookId: string;
+    title: string;
+  };
 }): Omit<WidgetData, 'lastUpdate'> {
   const today = getLocalDateString();
 
@@ -70,20 +78,23 @@ export function buildWidgetData(params: {
     // Optional: Exam tracking
     nearestExam: params.nearestExam
       ? {
-          title: params.nearestExam.title,
-          date: params.nearestExam.date,
-          daysRemaining: calculateDaysRemaining(params.nearestExam.date),
-        }
+        title: params.nearestExam.title,
+        date: params.nearestExam.date,
+        daysRemaining: calculateDaysRemaining(params.nearestExam.date),
+      }
       : undefined,
 
     // Optional: Recent milestone
     recentMilestone: params.recentMilestone
       ? {
-          type: params.recentMilestone.type,
-          value: params.recentMilestone.value,
-          achievedAt: new Date().toISOString(),
-        }
+        type: params.recentMilestone.type,
+        value: params.recentMilestone.value,
+        achievedAt: new Date().toISOString(),
+      }
       : undefined,
+
+    // Optional: Smart Deep-Linking (New)
+    suggestedActivity: params.suggestedActivity,
   };
 
   return widgetData;

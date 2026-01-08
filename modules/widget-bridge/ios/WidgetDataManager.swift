@@ -44,7 +44,14 @@ import WidgetKit
     /// - Returns: Success status
     @objc func saveWidgetData(_ data: [String: Any]) -> Bool {
         guard let sharedDefaults = sharedDefaults else {
-            print("❌ [WidgetDataManager] Failed to access App Group UserDefaults")
+            print("❌ [WidgetDataManager] CRITICAL: Failed to access App Group UserDefaults (\(appGroupIdentifier))")
+            
+            // Debug check for App Group container
+            if let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) {
+                print("📂 [WidgetDataManager] Container URL found at: \(url.path)")
+            } else {
+                print("📂 [WidgetDataManager] Container URL NOT FOUND! Check entitlements.")
+            }
             return false
         }
 

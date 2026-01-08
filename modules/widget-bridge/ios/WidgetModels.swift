@@ -27,9 +27,6 @@ public struct WidgetData: Codable {
     // Recent achievements (optional)
     public let recentMilestone: MilestoneData?
 
-    // Smart Deep-Linking (New)
-    public let suggestedActivity: SuggestedActivity?
-
     // Metadata
     public let lastUpdate: String // ISO 8601 timestamp
 
@@ -42,13 +39,12 @@ public struct WidgetData: Codable {
 
     public static var placeholder: WidgetData {
         WidgetData(
-            streak: 5,
-            lastStreakDate: "2024-01-08",
-            studyStatus: StudyStatus(securedToday: true, lastSecureDate: "2024-01-08", sessionsToday: 3),
-            pet: PetData(name: "Nova", stage: 1, isDying: false),
+            streak: 0,
+            lastStreakDate: "",
+            studyStatus: StudyStatus(securedToday: false, lastSecureDate: "", sessionsToday: 0),
+            pet: PetData(name: "Buddy", stage: 1, isDying: false),
             nearestExam: nil,
             recentMilestone: nil,
-            suggestedActivity: nil,
             lastUpdate: ISO8601DateFormatter().string(from: Date())
         )
     }
@@ -78,11 +74,4 @@ public struct MilestoneData: Codable {
     public let type: String            // "level_up" | "streak_milestone" | "stage_up"
     public let value: Int              // Stage number or streak count
     public let achievedAt: String      // ISO 8601 timestamp
-}
-
-public struct SuggestedActivity: Codable {
-    public let type: String            // "podcast" | "quiz" | "notebook"
-    public let id: String              // Activity or Notebook ID
-    public let notebookId: String
-    public let title: String           // e.g., "Physics Intro"
 }

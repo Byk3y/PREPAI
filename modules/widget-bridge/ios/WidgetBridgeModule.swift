@@ -7,10 +7,8 @@ public class WidgetBridgeModule: Module {
     Name("WidgetBridge")
 
     // Export constants
-    Constants([
-      "appGroupIdentifier": "group.com.brigo.shared",
-      "isWidgetAvailable": true
-    ])
+    Property("appGroupIdentifier") { "group.com.brigo.shared" }
+    Property("isWidgetAvailable") { true }
 
     // Async function to update widget data
     AsyncFunction("updateWidgetData") { (data: [String: Any], promise: Promise) in

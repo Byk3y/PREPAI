@@ -29,6 +29,13 @@ export interface MilestoneData {
   achievedAt: string;         // ISO 8601 timestamp
 }
 
+export interface SuggestedActivity {
+  type: 'podcast' | 'quiz' | 'notebook';
+  id: string;                 // Activity or Notebook ID
+  notebookId: string;
+  title: string;              // Display title
+}
+
 export interface WidgetData {
   // Streak tracking
   streak: number;
@@ -45,6 +52,9 @@ export interface WidgetData {
 
   // Recent achievements (optional)
   recentMilestone?: MilestoneData;
+
+  // Smart Deep-Linking (New)
+  suggestedActivity?: SuggestedActivity;
 
   // Metadata
   lastUpdate: string;         // ISO 8601 timestamp
