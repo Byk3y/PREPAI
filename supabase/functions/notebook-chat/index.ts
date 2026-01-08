@@ -5,6 +5,10 @@ import { callLLMWithRetry } from '../_shared/openrouter.ts';
 import { validateString, validateUUID, validateUUIDArray } from '../_shared/validation.ts';
 import { sanitizeForLLM, createSafeContext } from '../_shared/sanitization.ts';
 import { checkRateLimit, RATE_LIMITS } from '../_shared/ratelimit.ts';
+import { initSentry, captureException, setUser } from '../_shared/sentry.ts';
+
+// Initialize Sentry
+initSentry();
 
 interface ChatRequest {
     notebook_id: string;
@@ -19,6 +23,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const corsHeaders = getCorsHeaders(req);
+    let user: any = null;
+    let notebook_id: string | undefined;
 
     try {
         const supabaseUrl = getRequiredEnv('SUPABASE_URL');
@@ -39,8 +45,14 @@ Deno.serve(async (req: Request) => {
             });
         }
 
+        // Set Sentry user context
+        setUser(user.id);
+
         // 2. PARSE REQUEST & VALIDATE INPUT
-        const { notebook_id, message, selected_material_ids } = await req.json() as ChatRequest;
+        const body = await req.json() as ChatRequest;
+        notebook_id = body.notebook_id;
+        const message = body.message;
+        const selected_material_ids = body.selected_material_ids;
 
         // Validate notebook_id
         const notebookIdValidation = validateUUID(notebook_id, 'notebook_id');
@@ -296,6 +308,14 @@ ${context || createSafeContext("No source materials currently active. Providing 
 
     } catch (error: any) {
         console.error('Chat error:', error);
+
+        // Capture error in Sentry
+        await captureException(error, {
+            user_id: user?.id,
+            notebook_id,
+            operation: 'notebook-chat'
+        });
+
         return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

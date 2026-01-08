@@ -12,6 +12,10 @@ import { checkRateLimit, RATE_LIMITS } from '../_shared/ratelimit.ts';
 import { validateUUID, validateContentType } from '../_shared/validation.ts';
 import { sanitizeForLLM, sanitizeTitle } from '../_shared/sanitization.ts';
 import { validateFlashcardsResponse, validateQuizResponse } from '../_shared/llm-validation.ts';
+import { initSentry, captureException, setUser } from '../_shared/sentry.ts';
+
+// Initialize Sentry
+initSentry();
 
 interface GenerateStudioRequest {
   notebook_id: string;
@@ -34,6 +38,9 @@ Deno.serve(async (req) => {
   }
 
   const corsHeaders = getCorsHeaders(req);
+  let user: any = null;
+  let notebook_id: string | undefined;
+  let content_type: string | undefined;
 
   try {
     // 1. Initialize Supabase client (service role for database operations)
@@ -51,9 +58,9 @@ Deno.serve(async (req) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
 
-    if (authError || !user) {
+    if (authError || !authUser) {
       console.error('Auth error:', authError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
@@ -61,10 +68,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    user = authUser;
+    // Set Sentry user context
+    setUser(user.id);
     console.log(`User authenticated: ${user.id}`);
 
     // 3. Parse and validate request
-    const { notebook_id, content_type }: GenerateStudioRequest = await req.json();
+    const body: GenerateStudioRequest = await req.json();
+    notebook_id = body.notebook_id;
+    content_type = body.content_type;
 
     // Validate notebook_id
     const notebookIdValidation = validateUUID(notebook_id, 'notebook_id');
@@ -434,6 +446,14 @@ Deno.serve(async (req) => {
     );
   } catch (error: any) {
     console.error('Error generating studio content:', error);
+
+    // Capture error in Sentry
+    await captureException(error, {
+      user_id: user?.id,
+      notebook_id,
+      content_type,
+      operation: 'generate-studio-content'
+    });
 
     // Log failed attempt
     try {

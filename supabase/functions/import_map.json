@@ -1,6 +1,7 @@
 {
   "imports": {
     "supabase": "https://esm.sh/@supabase/supabase-js@2.39.0",
-    "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.0.379"
+    "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.0.379",
+    "@sentry/deno": "https://esm.sh/@sentry/deno@8.51.0"
   }
 }
