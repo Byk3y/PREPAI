@@ -1,6 +1,6 @@
 # Terms of Service
 
-**Last Updated: December 21, 2025**
+**Last Updated: January 9, 2026**
 
 Welcome to **Brigo**! These Terms of Service ("Terms") govern your use of the Brigo mobile application and related services (the "Service"). By using Brigo, you agree to these Terms. If you do not agree, please do not use the Service.
 

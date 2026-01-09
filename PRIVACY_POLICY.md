@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated: December 21, 2025**
+**Last Updated: January 9, 2026**
 
 Welcome to **Brigo** (referred to as "the App", "we", "us", or "our"). We are committed to protecting your privacy and providing a secure environment for your study and exam preparation. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and services.
 
@@ -79,7 +79,7 @@ We use local storage (AsyncStorage and SecureStore) on your device to:
 ## 6. Data Retention and Deletion
 
 *   **Retention:** We retain your data as long as your account is active.
-*   **Deletion:** You have the right to delete your account at any time. When you delete your account, all your personal data, study materials, and records are permanently removed from our databases (via cascading deletion).
+*   **Deletion:** You have the right to delete your account at any time. You can perform this action directly within the Brigo app by navigating to **Settings > Account Management > Delete My Account**. When you confirm deletion, all your personal data, study materials, and records are permanently and immediately removed from our databases.
 *   **Soft Deletion:** Some items, like notebooks, may be "soft-deleted" (hidden from your view) initially but can be permanently removed upon request or account deletion.
 
 ---
