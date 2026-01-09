@@ -1,9 +1,8 @@
 # EAS Build Ignore File
 # Exclude large files and build artifacts to speed up uploads
+# NOTE: Do NOT exclude ios/ or android/ folders for bare workflow projects!
 
-# iOS
-/ios
-ios/
+# iOS - only exclude build artifacts, NOT the source files
 ios/Pods/
 ios/build/
 ios/*.xcworkspace/xcuserdata/
@@ -11,13 +10,10 @@ ios/*.xcodeproj/xcuserdata/
 ios/*.xcodeproj/project.xcworkspace/xcuserdata/
 ios/DerivedData/
 
-# Android
-/android
-android/
+# Android - only exclude build artifacts, NOT the source files
 android/build/
 android/app/build/
 android/.gradle/
-android/gradle/
 
 # Node modules (already excluded by default, but be explicit)
 node_modules/
