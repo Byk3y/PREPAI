@@ -65,14 +65,7 @@ export interface Flashcard {
   explanation?: string;
 }
 
-export interface Exam {
-  id: string;
-  title: string;
-  subject: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  totalQuestions: number;
-  completedQuestions: number;
-}
+
 
 export interface Lesson {
   id: string;
@@ -83,14 +76,7 @@ export interface Lesson {
   completed: boolean;
 }
 
-export interface ExamPlan {
-  id: string;
-  examId: string;
-  startDate: string;
-  endDate: string;
-  dailyGoal: number; // flashcards per day
-  progress: number; // percentage
-}
+
 
 export interface Material {
   id: string;
