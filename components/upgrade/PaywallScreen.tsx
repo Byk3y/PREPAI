@@ -15,6 +15,7 @@ import {
     Image,
     ScrollView,
     StatusBar,
+    Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +39,12 @@ interface PaywallScreenProps {
 
 const FEATURES = [
     {
+        title: 'Exam Question Predictor',
+        description: 'AI-driven insights to predict likely exam questions from your materials.',
+        icon: 'analytics',
+        color: '#10B981'
+    },
+    {
         title: 'Unlimited AI Tutor Access',
         description: '24/7 personalized coaching tailored to your learning style.',
         icon: 'sparkles',
@@ -50,16 +57,10 @@ const FEATURES = [
         color: '#F97316'
     },
     {
-        title: 'Unlimited Audio Overviews',
-        description: 'Convert any length of material into studio-quality audio summaries.',
+        title: 'Personalized Study Podcasts',
+        description: 'Convert any length of material into immersive, studio-quality audio summaries.',
         icon: 'headset',
         color: '#3B82F6'
-    },
-    {
-        title: 'Pro Sync & Cloud Storage',
-        description: 'Unlimited notebooks synced instantly across all your devices.',
-        icon: 'cloud-done',
-        color: '#10B981'
     }
 ];
 
@@ -82,8 +83,16 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
         const fetchOfferings = async () => {
             try {
                 const offering = await getOfferings();
-                if (offering && offering.availablePackages.length > 0) {
-                    setPackages(offering.availablePackages);
+                if (offering) {
+                    console.log('[Paywall] Offering fetched successfully:', offering.identifier);
+                    console.log('[Paywall] Available Packages:', offering.availablePackages.length);
+                    if (offering.availablePackages.length > 0) {
+                        setPackages(offering.availablePackages);
+                    } else {
+                        console.warn('[Paywall] Offering has NO packages. Check RevenueCat dashboard!');
+                    }
+                } else {
+                    console.error('[Paywall] No current offering found. Ensure you have a "Current" offering set in RevenueCat.');
                 }
             } catch (error) {
                 console.error('Error fetching offerings:', error);
@@ -117,11 +126,12 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
     // Monthly equivalent for semester (~$6.67/mo for $19.99/3mo)
     const monthlyEquivalent = selectedPackage ? (selectedPackage.product.price / 3).toFixed(2) : '6.67';
 
-    // Extract currency symbol from priceString (e.g., "$79.99" -> "$")
+    // Extract currency symbol from priceString (e.g., "$19.99" -> "$")
     const currencySymbol = selectedPackage?.product.priceString?.replace(/[0-9.,\s]/g, '') || '$';
 
-    // Monthly price with fallback
-    const monthlyPrice = selectedPackage?.product.priceString || `${currencySymbol}9.99`;
+    // Total price strings for clarity
+    const totalPriceString = selectedPackage?.product.priceString || (billingCycle === 'semester' ? `${currencySymbol}19.99` : `${currencySymbol}9.99`);
+    const durationText = billingCycle === 'semester' ? 'every 3 months' : 'per month';
 
     const handlePurchase = async () => {
         if (!selectedPackage) return;
@@ -232,7 +242,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
                             }}
                         >
                             <View style={styles.toggleLabelRow}>
-                                <Text style={[styles.toggleText, billingCycle === 'semester' && styles.toggleTextActive]}>Semester</Text>
+                                <Text style={[styles.toggleText, billingCycle === 'semester' && styles.toggleTextActive]}>Semester (3mo)</Text>
                                 <View style={styles.savingsBadge}>
                                     <Text style={styles.savingsBadgeText}>SAVE 33%</Text>
                                 </View>
@@ -259,7 +269,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
                         >
                             <Ionicons name="sparkles" size={16} color="#10B981" />
                             <Text style={[styles.valueText, { color: isDarkMode ? '#10B981' : '#059669' }]}>
-                                {`Just ${currencySymbol}${monthlyEquivalent}/mo • Perfect for exam prep`}
+                                {`Just ${currencySymbol}${monthlyEquivalent}/mo • Billed as ${totalPriceString}/3mo`}
                             </Text>
                         </MotiView>
                     )}
@@ -297,20 +307,27 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
                         ) : (
                             <View style={styles.buttonInnerCentric}>
                                 <Text style={[styles.buttonLabel, { color: isDarkMode ? '#000' : '#FFF' }]}>
-                                    {isOnboarding ? 'Start free trial' : 'Upgrade Now'}
+                                    {isOnboarding ? 'Start free trial' : 'Subscribe Now'}
                                 </Text>
                                 <Text style={[styles.buttonPriceInline, { color: '#F97316' }]}>
-                                    {billingCycle === 'semester'
-                                        ? `${currencySymbol}${monthlyEquivalent}/mo`
-                                        : `${monthlyPrice}/mo`
-                                    }
+                                    {totalPriceString}
                                 </Text>
                             </View>
                         )}
                     </TouchableOpacity>
                     <Text style={[styles.legalNote, { color: isDarkMode ? '#71717A' : '#9CA3AF' }]}>
-                        Cancel anytime. No commitment.
+                        {`Billed ${durationText}. Cancel anytime in App Store.`}
                     </Text>
+
+                    <View style={styles.legalLinks}>
+                        <TouchableOpacity onPress={() => Linking.openURL('https://brigo.app/terms')}>
+                            <Text style={[styles.legalLinkText, { color: isDarkMode ? '#A1A1AA' : '#64748B' }]}>Terms of Use</Text>
+                        </TouchableOpacity>
+                        <View style={[styles.legalSeparator, { backgroundColor: isDarkMode ? '#3F3F46' : '#E5E7EB' }]} />
+                        <TouchableOpacity onPress={() => Linking.openURL('https://brigo.app/privacy')}>
+                            <Text style={[styles.legalLinkText, { color: isDarkMode ? '#A1A1AA' : '#64748B' }]}>Privacy Policy</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </SafeAreaView>
         </View>
@@ -499,6 +516,22 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         opacity: 0.5,
     },
+    legalLinks: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 12,
+        gap: 12,
+    },
+    legalLinkText: {
+        fontSize: 11,
+        fontFamily: 'Outfit-Medium',
+        textDecorationLine: 'underline',
+    },
+    legalSeparator: {
+        width: 1,
+        height: 12,
+    }
 });
 
 export default PaywallScreen;

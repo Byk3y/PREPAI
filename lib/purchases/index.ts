@@ -143,6 +143,7 @@ export const restorePurchases = async () => {
  */
 export const getOfferings = async () => {
     try {
+        await initializePurchases();
         const offerings = await Purchases.getOfferings();
         if (offerings.current !== null) {
             return offerings.current;
