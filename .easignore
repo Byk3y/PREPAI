@@ -9,6 +9,7 @@ ios/*.xcworkspace/xcuserdata/
 ios/*.xcodeproj/xcuserdata/
 ios/*.xcodeproj/project.xcworkspace/xcuserdata/
 ios/DerivedData/
+ios/.xcode.env.local
 
 # Android - only exclude build artifacts, NOT the source files
 android/build/
