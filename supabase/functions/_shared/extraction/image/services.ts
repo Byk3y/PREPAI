@@ -182,37 +182,3 @@ export class GoogleVisionOCRService implements OCRService {
     }
   }
 }
-
-/**
- * Tesseract OCR Service (placeholder - not compatible with Deno)
- * NOTE: Tesseract.js is NOT compatible with Deno Edge Functions (Worker.prototype.constructor not implemented)
- * TODO: Implement cloud OCR (Google Vision, AWS Textract, etc.) for production use
- */
-export class TesseractOCRService implements OCRService {
-  name: 'tesseract' = 'tesseract';
-
-  isAvailable(): boolean {
-    return false; // Not compatible with Edge Functions
-  }
-
-  async ocr(fileBuffer: Uint8Array, confidenceThreshold: number): Promise<OCRResult> {
-    const startTime = Date.now();
-
-    // Tesseract.js requires Web Workers which are not fully supported in Deno Edge Functions
-    // Return a placeholder response until cloud OCR is implemented
-    console.warn('Tesseract OCR is disabled in Edge Functions. Cloud OCR integration needed.');
-
-    return {
-      text: '[Image OCR temporarily disabled - Cloud OCR integration coming soon]',
-      confidence: 0,
-      metadata: {
-        engine: 'tesseract',
-        lowQuality: true,
-        language: 'eng',
-        processingTime: Date.now() - startTime,
-        warning:
-          'Image OCR is temporarily disabled. Tesseract.js is not compatible with Deno Edge Functions. Cloud OCR (Google Vision, AWS Textract) integration coming soon.',
-      },
-    };
-  }
-}

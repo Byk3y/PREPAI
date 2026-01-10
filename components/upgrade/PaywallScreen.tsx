@@ -85,18 +85,12 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
             try {
                 const offering = await getOfferings();
                 if (offering) {
-                    console.log('[Paywall] Offering fetched successfully:', offering.identifier);
-                    console.log('[Paywall] Available Packages:', offering.availablePackages.length);
                     if (offering.availablePackages.length > 0) {
                         setPackages(offering.availablePackages);
-                    } else {
-                        console.warn('[Paywall] Offering has NO packages. Check RevenueCat dashboard!');
                     }
-                } else {
-                    console.error('[Paywall] No current offering found. Ensure you have a "Current" offering set in RevenueCat.');
                 }
             } catch (error) {
-                console.error('Error fetching offerings:', error);
+                // Silent fail - fallback pricing will be shown
             } finally {
                 setIsLoading(false);
             }
@@ -109,16 +103,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
         });
     }, []);
 
-    // Debug: Log available packages
-    useEffect(() => {
-        if (packages.length > 0) {
-            console.log('[Paywall] Available packages:', packages.map(p => ({
-                type: p.packageType,
-                id: p.identifier,
-                price: p.product.priceString
-            })));
-        }
-    }, [packages]);
+
 
     const selectedPackage = packages.find(pkg =>
         billingCycle === 'semester' ? pkg.packageType === 'THREE_MONTH' : pkg.packageType === 'MONTHLY'

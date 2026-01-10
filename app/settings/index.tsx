@@ -7,12 +7,28 @@ import { useStore } from '@/lib/store';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { APP_URLS, APP_CONFIG } from '@/lib/constants';
+import { restorePurchases } from '@/lib/purchases';
 
 export default function SettingsScreen() {
     const { isDarkMode } = useTheme();
     const colors = getThemeColors(isDarkMode);
     const router = useRouter();
-    const { authUser, resetPetState, tier, trialEndsAt, isExpired } = useStore();
+    const { authUser, resetPetState, tier, trialEndsAt, isExpired, loadSubscription } = useStore();
+
+    // Handle restore purchases
+    const handleRestore = async () => {
+        try {
+            const { isPro } = await restorePurchases();
+            if (isPro) {
+                if (authUser) await loadSubscription(authUser.id);
+                Alert.alert("Success", "Your purchases have been restored.");
+            } else {
+                Alert.alert("Notice", "No active subscriptions found to restore.");
+            }
+        } catch (error) {
+            Alert.alert("Error", "Failed to restore purchases. Please try again later.");
+        }
+    };
 
     // Calculate subscription status
     const getDaysLeft = () => {
@@ -153,7 +169,7 @@ export default function SettingsScreen() {
                         route="/settings/subscription"
                         subtext={subscriptionSubtext}
                     />
-                    <TouchableOpacity style={styles.restoreRow}>
+                    <TouchableOpacity style={styles.restoreRow} onPress={handleRestore}>
                         <Text style={[styles.restoreText, { color: colors.primary }]}>RESTORE PURCHASES</Text>
                     </TouchableOpacity>
                 </View>
