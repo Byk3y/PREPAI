@@ -28,6 +28,7 @@ import { getOfferings, purchasePackage, restorePurchases } from '@/lib/purchases
 import { useUpgrade } from '@/lib/hooks/useUpgrade';
 import { PurchasesPackage } from 'react-native-purchases';
 import { track } from '@/lib/services/analyticsService';
+import { APP_URLS } from '@/lib/constants';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -320,11 +321,11 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({
                     </Text>
 
                     <View style={styles.legalLinks}>
-                        <TouchableOpacity onPress={() => Linking.openURL('https://brigo.app/terms')}>
+                        <TouchableOpacity onPress={() => Linking.openURL(APP_URLS.TERMS)}>
                             <Text style={[styles.legalLinkText, { color: isDarkMode ? '#A1A1AA' : '#64748B' }]}>Terms of Use</Text>
                         </TouchableOpacity>
                         <View style={[styles.legalSeparator, { backgroundColor: isDarkMode ? '#3F3F46' : '#E5E7EB' }]} />
-                        <TouchableOpacity onPress={() => Linking.openURL('https://brigo.app/privacy')}>
+                        <TouchableOpacity onPress={() => Linking.openURL(APP_URLS.PRIVACY)}>
                             <Text style={[styles.legalLinkText, { color: isDarkMode ? '#A1A1AA' : '#64748B' }]}>Privacy Policy</Text>
                         </TouchableOpacity>
                     </View>

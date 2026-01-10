@@ -6,7 +6,7 @@ import { useTheme, getThemeColors } from '@/lib/ThemeContext';
 import { useStore } from '@/lib/store';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
-import { APP_URLS } from '@/lib/constants';
+import { APP_URLS, APP_CONFIG } from '@/lib/constants';
 
 export default function SettingsScreen() {
     const { isDarkMode } = useTheme();
@@ -70,10 +70,16 @@ export default function SettingsScreen() {
         );
     };
 
-    const NavItem = ({ label, icon, route, subtext, color }: { label: string, icon: string, route?: string, subtext?: string, color?: string }) => (
+    const NavItem = ({ label, icon, route, action, subtext, color }: { label: string, icon: string, route?: string, action?: () => void, subtext?: string, color?: string }) => (
         <TouchableOpacity
             style={[styles.navItem, { borderBottomColor: colors.borderLight }]}
-            onPress={() => route && router.push(route as any)}
+            onPress={() => {
+                if (action) {
+                    action();
+                } else if (route) {
+                    router.push(route as any);
+                }
+            }}
             activeOpacity={0.7}
         >
             <View style={styles.navItemLeft}>
@@ -155,8 +161,18 @@ export default function SettingsScreen() {
                 {/* SUPPORT SECTION */}
                 <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>SUPPORT</Text>
                 <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <NavItem label="Help Center" icon="help-circle" />
-                    <NavItem label="Feedback" icon="chatbubble" />
+                    <NavItem
+                        label="Help Center"
+                        icon="help-circle"
+                        action={() => handleOpenURL(`mailto:${APP_CONFIG.SUPPORT_EMAIL}?subject=Help Center Request`)}
+                        subtext="Get help with Brigo"
+                    />
+                    <NavItem
+                        label="Feedback"
+                        icon="chatbubble"
+                        action={() => handleOpenURL(`mailto:${APP_CONFIG.SUPPORT_EMAIL}?subject=App Feedback`)}
+                        subtext="Tell us what you think"
+                    />
                     <TouchableOpacity style={styles.signOutRow} onPress={handleSignOut}>
                         <Text style={styles.signOutText}>SIGN OUT</Text>
                     </TouchableOpacity>
