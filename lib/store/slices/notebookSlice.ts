@@ -97,12 +97,23 @@ export const createNotebookSlice: StateCreator<
         console.error(`Error loading notebooks (attempt ${attempt}/${maxRetries}):`, lastError);
 
         if (attempt === maxRetries) {
-          set({
-            notebooks: [],
-            notebooksSyncedAt: Date.now(),
-            notebooksUserId: effectiveUserId,
-          });
-          throw lastError;
+          // CRITICAL FIX: Don't overwrite cached notebooks on network failure
+          // Only update sync metadata if this is the same user (to mark stale data)
+          // Keep existing cached notebooks to enable offline viewing
+          const currentState = get();
+          if (currentState.notebooksUserId === effectiveUserId && currentState.notebooks.length > 0) {
+            // Keep cached notebooks, just log the failure
+            console.warn('[Store] Network failed, preserving cached notebooks for offline viewing');
+          } else {
+            // Only clear if no cached data for this user exists
+            set({
+              notebooks: [],
+              notebooksSyncedAt: Date.now(),
+              notebooksUserId: effectiveUserId,
+            });
+          }
+          // Don't throw - allow app to continue with cached/empty data
+          return;
         }
 
         await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
