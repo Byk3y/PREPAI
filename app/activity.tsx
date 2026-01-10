@@ -41,8 +41,6 @@ export default function ActivityRedirect() {
             targetPath = `/quiz/${id}`;
         } else if (type === 'flashcards' && id) {
             targetPath = `/flashcards/${id}`;
-        } else if (type === 'lesson' && id) {
-            targetPath = `/lesson/${id}`;
         }
 
         // Small delay to ensure the router is ready

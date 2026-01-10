@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     Dimensions,
     Platform,
+    Alert,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -46,7 +47,7 @@ export function StreakSaviorModal({
                 // Success! Close modal.
                 onClose();
             } else {
-                alert(result.error || 'Failed to restore streak');
+                Alert.alert('Error', result.error || 'Failed to restore streak');
             }
         } catch (error) {
             console.error('Restore error:', error);

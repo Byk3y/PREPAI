@@ -9,7 +9,7 @@
 ✅ **Asset optimization complete** - Reduced total bundle size from **1.4MB → 1.3MB**
 ✅ **All @1x assets under 40KB** - Excellent memory footprint
 ⚠️ **5 @2x assets exceed 100KB** - Within acceptable range (117-134KB)
-✅ **Missing asset created** - stage-3/dying.png added as placeholder
+✅ **Stage-3 dying asset added** - Purple frozen pet now available
 
 ---
 
@@ -50,9 +50,9 @@
 | Asset | Original | @1x (150x150) | @2x (300x300) | Status |
 |-------|----------|---------------|---------------|--------|
 | bubble.png | 132KB | 21KB | 70KB | ✅ Optimized |
-| dying.png | N/A | 27KB | 91KB | ✅ Created (copy of stage-2) |
+| dying.png | 294KB | Optimized | Optimized | ✅ Created |
 
-**Created:** `stage-3/dying.png` using stage-2/dying as template (placeholder)
+**Note:** Stage-3 dying asset shows the purple flame pet frozen in ice.
 
 ---
 
@@ -132,10 +132,9 @@ Estimated peak memory: 5-8MB (40% of budget) ✅ SAFE
        └── ... (repeat for all pet states)
    ```
 
-2. **Replace stage-3/dying.png Placeholder**
-   - Current: Using stage-2/dying as temporary asset
-   - **Action:** Design proper stage-3 dying asset when design resources available
-   - Priority: Low (can ship with placeholder)
+2. **~~Replace stage-3/dying.png Placeholder~~** ✅ DONE
+   - Stage-3 dying asset has been created (purple pet frozen in ice)
+   - Asset integrated into React Native app and iOS Widget
 
 3. **Optional: Further Compression**
    If memory profiling shows issues, compress @2x assets using:
@@ -215,7 +214,7 @@ assets/
     └── pets/
         ├── stage-1/            # 150×150 (@1x) + 300×300 (@2x)
         ├── stage-2/
-        └── stage-3/            # ⚠️ dying.png is placeholder
+        └── stage-3/            # ✅ All assets complete
 
 Total: 24 optimized files, 1.3MB bundle size
 ```
@@ -235,8 +234,8 @@ Assets are optimized and meet memory budget requirements. Proceed with:
 - Create @3x versions if supporting iPhone Pro Max widgets
 - Consider vector PDFs for simple shapes (pet bubbles)
 
-### ⚠️ Design Task
-- Create proper `stage-3/dying.png` asset (currently using stage-2 copy)
+### ~~⚠️ Design Task~~ ✅ COMPLETE
+- ~~Create proper `stage-3/dying.png` asset~~ ✅ Done - Purple frozen pet added
 - Consider A/B testing different Brigo expressions for engagement
 
 ---

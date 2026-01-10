@@ -10,7 +10,7 @@ import { createPetSlice, type PetSlice } from './slices/petSlice';
 import { createNotebookSlice, type NotebookSlice } from './slices/notebookSlice';
 import { createFlashcardSlice, type FlashcardSlice } from './slices/flashcardSlice';
 
-import { createLessonSlice, type LessonSlice } from './slices/lessonSlice';
+
 import { createAudioPlaybackSlice, type AudioPlaybackSlice } from './slices/audioPlaybackSlice';
 import { createTaskSlice, type TaskSlice } from './slices/taskSlice';
 import { createOnboardingSlice, type OnboardingSlice } from './slices/onboardingSlice';
@@ -30,7 +30,7 @@ type AppState = AuthSlice &
   NotebookSlice &
   FlashcardSlice &
 
-  LessonSlice &
+
   AudioPlaybackSlice &
   TaskSlice &
   OnboardingSlice &
@@ -56,7 +56,7 @@ export const useStore = create<StoreWithHydration>()(
       ...createNotebookSlice(...a),
       ...createFlashcardSlice(...a),
 
-      ...createLessonSlice(...a),
+
       ...createAudioPlaybackSlice(...a),
       ...createTaskSlice(...a),
       ...createOnboardingSlice(...a),

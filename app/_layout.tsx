@@ -148,8 +148,8 @@ function RootLayoutInner() {
         <Stack.Screen name="auth/index" />
         <Stack.Screen name="auth/magic-link" />
         <Stack.Screen name="auth/callback" />
-        <Stack.Screen name="exam/index" />
-        <Stack.Screen name="lesson/[id]" />
+
+
         <Stack.Screen name="quiz/[id]" />
         <Stack.Screen
           name="pet-sheet"

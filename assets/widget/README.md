@@ -24,7 +24,7 @@ widget/
     │   └── dying.png
     └── stage-3/
         ├── bubble.png
-        └── dying.png     # TODO: Create this asset
+        └── dying.png
 ```
 
 ## Asset Requirements

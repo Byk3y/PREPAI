@@ -67,14 +67,7 @@ export interface Flashcard {
 
 
 
-export interface Lesson {
-  id: string;
-  title: string;
-  content: string;
-  subject: string;
-  duration: number; // minutes
-  completed: boolean;
-}
+
 
 
 

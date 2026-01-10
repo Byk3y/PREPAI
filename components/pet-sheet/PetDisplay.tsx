@@ -20,6 +20,7 @@ const STAGE_2_SILHOUETTE = require('@/assets/pets/stage-2/silhouette.png');
 // Stage 3 Assets
 const STAGE_3_FULL = require('@/assets/pets/stage-3/full-view.png');
 const STAGE_3_SILHOUETTE = require('@/assets/pets/stage-3/silhouette.png');
+const STAGE_3_DYING = require('@/assets/pets/stage-3/dying.png');
 
 interface PetDisplayProps {
     streak: number;
@@ -143,10 +144,10 @@ export const PetDisplay = memo(({
         const stage3Unlocked = currentStage >= 3;
         if (!stage3Unlocked) return STAGE_3_SILHOUETTE;
 
-        // Only show historical/full view if the user is looking at stage 3
-        // (Stage 3 doesn't have a dying image yet, but we apply the same logic structure)
-        return STAGE_3_FULL;
-    }, [currentStage]);
+        // Show dying state if this IS the current active stage and pet is dying
+        const activeStageDying = isDying && currentStage === 3;
+        return activeStageDying ? STAGE_3_DYING : STAGE_3_FULL;
+    }, [currentStage, isDying]);
 
     return (
         <View style={styles.container}>

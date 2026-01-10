@@ -41,8 +41,8 @@ widget-optimized/
     └── stage-3/            # Adult pet
         ├── bubble.png      # 21KB @ 150×150
         ├── bubble@2x.png   # 70KB @ 300×300
-        ├── dying.png       # 27KB @ 150×150 ⚠️ Placeholder
-        └── dying@2x.png    # 91KB @ 300×300 ⚠️ Placeholder
+        ├── dying.png       # Optimized @ 150×150
+        └── dying@2x.png    # Optimized @ 300×300
 ```
 
 ## Asset Naming for Xcode
@@ -83,7 +83,7 @@ Image("pet-stage\(petStage)-\(isDying ? "dying" : "bubble")")
 ## Notes
 
 - **@3x variants not created** - Saves bundle size, iOS will scale @2x if needed
-- **stage-3/dying.png is placeholder** - Currently using stage-2 asset, replace when design is ready
+- **All pet dying states available** - Stage 1, 2, and 3 dying assets included
 - **All @1x assets <40KB** - Excellent for memory constrained environments
 - **5 @2x assets exceed 100KB** - Acceptable (117-134KB range, down from 200KB+)
 

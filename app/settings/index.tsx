@@ -189,7 +189,7 @@ export default function SettingsScreen() {
                     </TouchableOpacity>
                 </View>
 
-                <Text style={[styles.versionText, { color: colors.textMuted }]}>Version 1.0.0 (2025)</Text>
+                <Text style={[styles.versionText, { color: colors.textMuted }]}>Version 1.0.0 (2026)</Text>
                 <View style={{ height: 40 }} />
             </ScrollView>
         </SafeAreaView>

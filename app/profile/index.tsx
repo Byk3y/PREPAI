@@ -171,23 +171,7 @@ export default function ProfileScreen() {
                     </View>
                 </View>
 
-                {/* Coming Soon Section */}
-                <View style={[
-                    styles.card,
-                    {
-                        backgroundColor: colors.surface,
-                        borderColor: isDarkMode ? '#505052' : colors.border,
-                        borderStyle: 'dashed'
-                    }
-                ]}>
-                    <View style={styles.cardHeader}>
-                        <Text style={[styles.cardTitle, { color: isDarkMode ? colors.textSecondary : colors.textMuted }]}>🎉 COMING SOON</Text>
-                    </View>
-                    <View style={styles.soonContent}>
-                        <Text style={[styles.soonText, { color: colors.textSecondary }]}>Connect with friends</Text>
-                        <Text style={[styles.soonText, { color: colors.textSecondary }]}>Compete on leaderboards</Text>
-                    </View>
-                </View>
+
 
                 <View style={{ height: 40 }} />
             </ScrollView>

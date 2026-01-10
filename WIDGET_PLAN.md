@@ -515,13 +515,13 @@ Create a highly engaging, emotionally intelligent home screen widget inspired by
 - `assets/widget/pets/`:
   - Stage 1: bubble (11KB), dying (113KB)
   - Stage 2: bubble (112KB), dying (168KB)
-  - Stage 3: bubble (132KB), dying (missing - needs creation)
+  - Stage 3: bubble (132KB), dying (294KB) ✅
 - **Total**: ~1.4MB
 
 ### Required Optimized Assets (Phase 0)
 - `assets/widget-optimized/` (all files <100KB target)
 - Asset Catalog in Xcode: `WidgetExtension/Assets.xcassets`
-- **Missing Asset**: Create `stage-3/dying.png` before starting Phase 2
+- ~~**Missing Asset**: Create `stage-3/dying.png` before starting Phase 2~~ ✅ DONE
 
 ---
 
@@ -566,7 +566,7 @@ ios/
 - [ ] Audit current asset sizes and memory footprint
 - [ ] Create `assets/widget-optimized/` with @2x/@3x versions
 - [ ] Compress all PNGs to <100KB each
-- [ ] Create missing `stage-3/dying.png` asset
+- [x] Create ~~missing~~ `stage-3/dying.png` asset ✅
 - [ ] Set up Xcode Asset Catalog
 
 ### ✅ Phase 1: Infrastructure (2-3 days)

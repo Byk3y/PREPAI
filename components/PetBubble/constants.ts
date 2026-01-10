@@ -12,7 +12,7 @@ export const PET_BUBBLE_IMAGES: Record<number, ImageSourcePropType> = {
 export const PET_DYING_IMAGES: Record<number, ImageSourcePropType> = {
   1: require('@/assets/pets/stage-1/dying.png'),
   2: require('@/assets/pets/stage-2/dying.png'),
-  3: require('@/assets/pets/stage-2/dying.png'), // Fallback until stage-3 dying is added
+  3: require('@/assets/pets/stage-3/dying.png'),
 };
 
 /**

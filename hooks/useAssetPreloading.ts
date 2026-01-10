@@ -17,6 +17,7 @@ export function useAssetPreloading() {
         const stage3Full = require('@/assets/pets/stage-3/full-view.png');
         const stage3Silhouette = require('@/assets/pets/stage-3/silhouette.png');
         const stage3Bubble = require('@/assets/pets/stage-3/bubble.png');
+        const stage3Dying = require('@/assets/pets/stage-3/dying.png');
 
         const uri1 = Image.resolveAssetSource(stage1).uri;
         const uri1Dying = Image.resolveAssetSource(stage1Dying).uri;
@@ -25,6 +26,7 @@ export function useAssetPreloading() {
         const uri3Full = Image.resolveAssetSource(stage3Full).uri;
         const uri3Silhouette = Image.resolveAssetSource(stage3Silhouette).uri;
         const uri3Bubble = Image.resolveAssetSource(stage3Bubble).uri;
+        const uri3Dying = Image.resolveAssetSource(stage3Dying).uri;
 
         await Promise.all([
           Image.prefetch(uri1),
@@ -33,7 +35,8 @@ export function useAssetPreloading() {
           Image.prefetch(uri2Dying),
           Image.prefetch(uri3Full),
           Image.prefetch(uri3Silhouette),
-          Image.prefetch(uri3Bubble)
+          Image.prefetch(uri3Bubble),
+          Image.prefetch(uri3Dying)
         ]);
       } catch (error) {
         // Error already handled by centralized system
