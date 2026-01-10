@@ -26,7 +26,7 @@ export const GenerateOption: React.FC<GenerateOptionProps> = ({
 }) => {
     const { isDarkMode } = useTheme();
     const colors = getThemeColors(isDarkMode);
-    
+
     // Get the appropriate background color based on type
     const getBackgroundColor = () => {
         switch (type) {
@@ -48,10 +48,11 @@ export const GenerateOption: React.FC<GenerateOptionProps> = ({
             style={{
                 backgroundColor: getBackgroundColor(),
                 borderRadius: 999,
-                padding: 16,
+                paddingVertical: 13,
+                paddingHorizontal: 16,
                 flexDirection: 'row',
                 alignItems: 'center',
-                marginBottom: 12,
+                marginBottom: 10,
                 opacity: disabled && !isGenerating ? 0.6 : 1,
             }}
             activeOpacity={0.7}
@@ -65,15 +66,15 @@ export const GenerateOption: React.FC<GenerateOptionProps> = ({
             {isGenerating ? (
                 <ActivityIndicator size="small" color={color} />
             ) : (
-                <View style={{ 
-                    width: 40, 
-                    height: 40, 
-                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', 
-                    borderRadius: 20, 
-                    alignItems: 'center', 
-                    justifyContent: 'center' 
+                <View style={{
+                    width: 36,
+                    height: 36,
+                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                    borderRadius: 18,
+                    alignItems: 'center',
+                    justifyContent: 'center'
                 }}>
-                    <Ionicons name="pencil" size={18} color={colors.iconMuted} />
+                    <Ionicons name="pencil" size={16} color={colors.iconMuted} />
                 </View>
             )}
         </TouchableOpacity>
