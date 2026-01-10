@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Switch, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Switch, Platform, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { useTheme, getThemeColors } from '@/lib/ThemeContext';
@@ -88,6 +88,26 @@ export default function NotificationsSettingsScreen() {
         }
 
         try {
+            // Check current permission status first
+            const currentStatus = await notificationService.checkRegistrationStatus();
+
+            // If previously denied, prompt user to open Settings
+            if (currentStatus === 'denied') {
+                Alert.alert(
+                    'Notifications Blocked',
+                    'You previously denied notification permissions. To enable notifications, please go to your device Settings.',
+                    [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                            text: 'Open Settings',
+                            onPress: () => Linking.openSettings()
+                        }
+                    ]
+                );
+                setIsUpdating(false);
+                return;
+            }
+
             const token = await notificationService.registerForPushNotificationsAsync(true);
             if (token && user?.id) {
                 // Optimistic update
@@ -95,6 +115,13 @@ export default function NotificationsSettingsScreen() {
 
                 await notificationService.saveTokenToProfile(user.id, token);
                 setIsMasterEnabled(true);
+            } else {
+                // User declined the permission prompt
+                Alert.alert(
+                    'Notifications Not Enabled',
+                    'You can enable notifications anytime from Settings.',
+                    [{ text: 'OK' }]
+                );
             }
         } catch (error) {
             console.error('Failed to enable notifications:', error);
